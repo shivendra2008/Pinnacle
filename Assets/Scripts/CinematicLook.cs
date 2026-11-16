@@ -66,8 +66,8 @@ public static class CinematicLook
         var dof = prof.Add<DepthOfField>(true);
         dof.mode.Override(DepthOfFieldMode.Bokeh);
         dof.focusDistance.Override(4f);
-        dof.focalLength.Override(50f);
-        dof.aperture.Override(apt ? 3.4f : 3.0f);
+        dof.focalLength.Override(38f);
+        dof.aperture.Override(apt ? 7f : 9f);                // gentle: strong background blur gives the "toy model" look
         dof.bladeCount.Override(7);
 
         var mb = prof.Add<MotionBlur>(true);
@@ -77,10 +77,10 @@ public static class CinematicLook
         mb.clamp.Override(0.06f);
 
         var chroma = prof.Add<ChromaticAberration>(true);
-        chroma.intensity.Override(0.1f);
+        chroma.intensity.Override(0.05f);
 
         var lens = prof.Add<LensDistortion>(true);          // a touch of anamorphic barrel, like a real lens
-        lens.intensity.Override(-0.07f);
+        lens.intensity.Override(-0.025f);
         lens.scale.Override(1.02f);
 
         var grain = prof.Add<FilmGrain>(true);

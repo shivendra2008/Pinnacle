@@ -683,8 +683,11 @@ public class MarketStory : MonoBehaviour
         reddy = CharacterNPC.Create(transform, world.ReddyPos, NpcStyle.Reddy(), "Inspector_Reddy");
         reddy.transform.rotation = Quaternion.Euler(0, -90f, 0);
         reddy.lookTarget = cam;
+        if (reddyBike == null) reddyBike = world.SpawnBike(new Vector3(5.3f, 0f, 46.4f), -105f, new Color(0.08f, 0.08f, 0.1f));   // her way out
         Toast("A woman across the street is watching you...", 5f);
     }
+
+    Transform reddyBike;
 
     IEnumerator ReddyFlees(bool dropCard)
     {
@@ -697,10 +700,69 @@ public class MarketStory : MonoBehaviour
             GameKit.PointLight(idCard.transform, Vector3.up * 0.3f, new Color(0.6f, 0.8f, 1f), 0.8f, 2f);
         }
         reddy.freezeFacing = true;
-        Vector3[] path = { new Vector3(3.7f, 0, 40.6f), new Vector3(5f, 0, 44f), new Vector3(8.5f, 0, 45f), new Vector3(12.2f, 0, 45f) };
-        foreach (var p in path)
-            yield return reddy.WalkTo(p, dropCard ? 3.2f : 1.4f);
-        Destroy(reddy.gameObject); reddy = null;
+        if (reddyBike == null) reddyBike = world.SpawnBike(new Vector3(5.3f, 0f, 46.4f), -105f, new Color(0.08f, 0.08f, 0.1f));
+        var bike = reddyBike; reddyBike = null;
+
+        // she breaks for the motorbike parked at the mouth of the side alley (running if she has been made)
+        float pace = dropCard ? 3.7f : 1.5f;
+        yield return reddy.WalkTo(new Vector3(3.7f, 0, 41.2f), pace);
+        StartCoroutine(reddy.WalkTo(new Vector3(4.55f, 0, 45.6f), pace));
+        yield return null;
+        while (reddy != null && reddy.IsWalking)          // steps down off the shop plinth into the alley
+        {
+            var lp = reddy.transform.localPosition;
+            if (lp.x > 3.95f) { lp.y = Mathf.MoveTowards(lp.y, 0f, Time.deltaTime * 1.2f); reddy.transform.localPosition = lp; }
+            yield return null;
+        }
+
+        // swings a leg over, kicks it off the stand, lights on
+        reddy.Ride(bike, new Vector3(0, 0.84f, -0.32f), new Vector3(0.22f, 0.34f, -0.02f), new Vector3(0.3f, 1.06f, 0.34f));
+        var eng = bike.gameObject.AddComponent<AudioSource>();
+        eng.clip = engineClip; eng.loop = true; eng.spatialBlend = 1f; eng.minDistance = 4f; eng.maxDistance = 45f; eng.rolloffMode = AudioRolloffMode.Linear;
+        eng.volume = 0f; eng.pitch = 0.7f; eng.Play();
+        float yaw = bike.eulerAngles.y, roll = 9f;
+        for (float t = 0; t < 0.9f; t += Time.deltaTime)
+        {
+            roll = Mathf.Lerp(9f, 0f, Mathf.SmoothStep(0, 1, t / 0.7f));
+            bike.rotation = Quaternion.Euler(0, yaw, roll);
+            eng.volume = Mathf.Lerp(0f, 0.55f, t / 0.9f);
+            yield return null;
+        }
+        world.BikeLights(bike);
+        yield return new WaitForSeconds(0.25f);
+
+        // out of the alley, a hard left into the lane, and away through the far gate
+        vehicles.Add(bike);
+        var wheels = new List<Transform>();
+        foreach (Transform ch in bike) if (ch.name == "Wheel") wheels.Add(ch);
+        Vector3[] wp = { new Vector3(1.6f, 0, 47.0f), new Vector3(0.4f, 0, 51f), new Vector3(0.2f, 0, 63f), new Vector3(0f, 0, 82f), new Vector3(0f, 0, 106f) };
+        float speed = 0f, top = dropCard ? 12.5f : 7.5f, lean = 0f; int wi = 0;
+        while (bike != null && wi < wp.Length)
+        {
+            float dt = Time.deltaTime;
+            Vector3 to = wp[wi] - bike.position; to.y = 0;
+            if (to.magnitude < Mathf.Max(1.2f, speed * 0.25f)) { wi++; continue; }
+            float want = Mathf.Atan2(to.x, to.z) * Mathf.Rad2Deg;
+            float turn = Mathf.DeltaAngle(yaw, want);
+            float maxTurn = Mathf.Lerp(150f, 55f, speed / top) * dt;
+            float step = Mathf.Clamp(turn, -maxTurn, maxTurn);
+            yaw += step;
+            // ease off in the corner and for anyone in the way, then wind it open on the straight
+            float target = Mathf.Abs(turn) > 25f ? Mathf.Min(top, 4.5f) : top;
+            speed = Mathf.MoveTowards(speed, target, (speed < target ? 5.5f : 9f) * dt);
+            lean = Mathf.Lerp(lean, Mathf.Clamp(-step / Mathf.Max(dt, 0.0001f) * speed * 0.028f, -30f, 30f), dt * 6f);
+            bike.rotation = Quaternion.Euler(0, yaw, lean);
+            Vector3 np = bike.position + Quaternion.Euler(0, yaw, 0) * Vector3.forward * speed * dt;
+            np.y = Mathf.MoveTowards(np.y, np.x > 3.3f && np.x < 4.05f ? 0.18f : 0f, dt * 2.5f);      // bumps over the plinth at the alley mouth
+            bike.position = np;
+            foreach (var w in wheels) if (w != null) w.Rotate(Vector3.right, speed * dt / 0.3f * Mathf.Rad2Deg, Space.Self);
+            eng.pitch = 0.7f + speed / top * 1.1f;
+            eng.volume = 0.55f;
+            yield return null;
+        }
+        vehicles.Remove(bike);
+        if (bike != null) Destroy(bike.gameObject);       // she is on it
+        reddy = null;
         reddyResolved = true;
         SaveSystem.Data.reddyResolved = true; SaveSystem.Save();
         if (dropCard) Toast("She dropped something. Look near the newspaper stand.", 6f);

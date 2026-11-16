@@ -180,6 +180,41 @@ public static class VehicleKit
         return root;
     }
 
+    /// <summary>A sagging sheet (stall tarpaulin): w across, d deep, hanging lowest in the middle of the front edge. Two-sided.</summary>
+    public static Mesh Tarp(float w, float d, float sag, int nx = 12, int nz = 7)
+    {
+        string key = "tarp_" + Mathf.RoundToInt(w * 100) + "_" + Mathf.RoundToInt(d * 100) + "_" + Mathf.RoundToInt(sag * 100);
+        Mesh m;
+        if (cache.TryGetValue(key, out m) && m != null) return m;
+        var v = new List<Vector3>(); var uv = new List<Vector2>(); var t = new List<int>();
+        for (int side = 0; side < 2; side++)
+        {
+            int o = v.Count;
+            for (int z = 0; z <= nz; z++)
+                for (int x = 0; x <= nx; x++)
+                {
+                    float u = x / (float)nx, vv = z / (float)nz;
+                    float y = -sag * (1f - (2f * u - 1f) * (2f * u - 1f)) * (0.45f + 0.55f * vv)
+                              - sag * 0.35f * (1f - (2f * vv - 1f) * (2f * vv - 1f))
+                              + Mathf.Sin(u * 17f + vv * 5f) * 0.012f + Mathf.Sin(vv * 23f) * 0.006f;
+                    v.Add(new Vector3((u - 0.5f) * w, y - side * 0.002f, (vv - 0.5f) * d));
+                    uv.Add(new Vector2(u * w, vv * d));
+                }
+            for (int z = 0; z < nz; z++)
+                for (int x = 0; x < nx; x++)
+                {
+                    int a = o + z * (nx + 1) + x, b = a + 1, c = a + nx + 1, e = c + 1;
+                    if (side == 0) { t.Add(a); t.Add(c); t.Add(b); t.Add(b); t.Add(c); t.Add(e); }
+                    else { t.Add(a); t.Add(b); t.Add(c); t.Add(b); t.Add(e); t.Add(c); }
+                }
+        }
+        m = new Mesh { name = "Tarp" };
+        m.SetVertices(v); m.SetUVs(0, uv); m.SetTriangles(t, 0);
+        m.RecalculateNormals(); m.RecalculateBounds(); m.RecalculateTangents();
+        cache[key] = m;
+        return m;
+    }
+
     /// <summary>A stretched sphere (mudguards, fairings, lamp housings).</summary>
     public static GameObject Blob(Transform parent, string name, Vector3 pos, Vector3 size, Material mat)
     {

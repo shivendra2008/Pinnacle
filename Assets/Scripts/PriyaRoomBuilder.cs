@@ -1073,7 +1073,7 @@ public class PriyaRoomBuilder : MonoBehaviour
         camGo.transform.SetParent(player.transform, false);
         camGo.transform.localPosition = new Vector3(0, 1.62f, 0);
         var cam = camGo.AddComponent<Camera>();
-        cam.nearClipPlane = 0.05f; cam.fieldOfView = 68f;
+        cam.nearClipPlane = 0.05f; cam.fieldOfView = 56f;      // a natural lens: wide angles shrink the world and make it read as a miniature
         cam.clearFlags = CameraClearFlags.SolidColor;
         cam.backgroundColor = new Color(0.1f, 0.05f, 0.05f);
         camGo.AddComponent<AudioListener>();
@@ -1115,7 +1115,7 @@ public class PriyaRoomBuilder : MonoBehaviour
 public class PriyaRoomPlayer : MonoBehaviour
 {
     public Transform cam;
-    public float speed = 2.2f, sprintMul = 1.6f, lookSens = 0.12f;
+    public float speed = 1.75f, sprintMul = 1.9f, lookSens = 0.12f;     // human walking pace; covering ground too fast makes places feel small
     CharacterController cc;
     float pitch;
     float vy;

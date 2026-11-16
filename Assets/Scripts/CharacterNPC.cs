@@ -523,6 +523,11 @@ public class CharacterNPC : MonoBehaviour
 
     void LateUpdate()
     {
+        if (rideVehicle != null && !rbClips)      // no skeleton to pose: at least sit at the right height, facing forward
+        {
+            transform.rotation = rideVehicle.rotation;
+            transform.position = rideVehicle.TransformPoint(rideSeat) - rideVehicle.up * (style != null ? style.height : 1.65f) * 0.5f;
+        }
         if (rbMode) { RbAnimate(); return; }
         ProceduralWalk();
         // small nod in time with the speech
@@ -754,7 +759,65 @@ public class CharacterNPC : MonoBehaviour
 
     // ------------------------------------------------ motion-capture clips (the normal path)
     bool rbClips, fitted;
-    float measSpeed, bornAt;
+    AnimationClip cRun; AnimationClipPlayable pRun;
+
+    // ---- riding a two-wheeler: seated on the saddle, hands on the grips, feet on the pegs (two-bone IK over the idle clip)
+    Transform rideVehicle; Vector3 rideSeat, ridePeg, rideGrip; float rideBlend;
+    public bool IsRiding => rideVehicle != null;
+
+    /// <summary>Sit this character on a vehicle. Points are in the vehicle's local space; peg and grip are for the right side (x > 0).</summary>
+    public void Ride(Transform vehicle, Vector3 seat, Vector3 peg, Vector3 grip)
+    {
+        rideVehicle = vehicle; rideSeat = seat; ridePeg = peg; rideGrip = grip; rideBlend = 0f;
+        walking = false; moving = false; freezeFacing = true; lookTarget = null;
+        if (cc != null) cc.enabled = false;
+        transform.SetParent(vehicle, true);
+    }
+
+    static void AimWorld(Transform bone, Transform child, Vector3 worldDir)
+    {
+        if (bone == null || child == null) return;
+        Vector3 cur = child.position - bone.position;
+        if (cur.sqrMagnitude < 1e-8f || worldDir.sqrMagnitude < 1e-8f) return;
+        bone.rotation = Quaternion.FromToRotation(cur, worldDir) * bone.rotation;
+    }
+
+    /// <summary>Two-bone IK: puts the end of a limb on target, bending the middle joint towards hint.</summary>
+    static void Reach(Transform upper, Transform mid, Transform end, Vector3 target, Vector3 hint)
+    {
+        if (upper == null || mid == null || end == null) return;
+        float a = Vector3.Distance(upper.position, mid.position), b = Vector3.Distance(mid.position, end.position);
+        Vector3 to = target - upper.position;
+        float d = Mathf.Clamp(to.magnitude, Mathf.Abs(a - b) + 0.01f, a + b - 0.005f);
+        Vector3 dir = to.normalized;
+        Vector3 perp = hint - Vector3.Dot(hint, dir) * dir;
+        perp = perp.sqrMagnitude > 1e-6f ? perp.normalized : Vector3.Cross(dir, Vector3.right).normalized;
+        float cosA = Mathf.Clamp((a * a + d * d - b * b) / (2f * a * d), -1f, 1f);
+        float sinA = Mathf.Sqrt(Mathf.Max(0f, 1f - cosA * cosA));
+        AimWorld(upper, mid, dir * cosA + perp * sinA);
+        AimWorld(mid, end, target - mid.position);
+    }
+
+    void RidePose(float dt)
+    {
+        var v = rideVehicle;
+        rideBlend = Mathf.MoveTowards(rideBlend, 1f, dt * 2.6f);
+        float k = Mathf.SmoothStep(0f, 1f, rideBlend);
+        transform.rotation = Quaternion.Slerp(transform.rotation, v.rotation, k);
+        if (rPelvis != null) transform.position += (v.TransformPoint(rideSeat) + v.up * 0.07f - rPelvis.position) * k;
+        if (k < 0.5f) return;                               // still swinging a leg over
+        if (rSpine != null) rSpine.rotation = Quaternion.AngleAxis(16f, v.right) * rSpine.rotation;
+        for (int i = 0; i < 2; i++)
+        {
+            float s = i == 0 ? sideL : -sideL;
+            Reach(rThigh[i], rCalf[i], rFoot[i], v.TransformPoint(new Vector3(s * ridePeg.x, ridePeg.y + 0.09f, ridePeg.z)), v.forward + v.up * 0.5f + v.right * s * 0.35f);
+            Reach(rArm[i], rFore[i], rHand[i], v.TransformPoint(new Vector3(s * rideGrip.x, rideGrip.y + 0.03f, rideGrip.z - 0.05f)), -v.up + v.right * s * 0.7f - v.forward * 0.25f);
+        }
+        if (rHead != null) rHead.rotation = Quaternion.AngleAxis(-12f, v.right) * rHead.rotation;      // eyes on the road
+        if (rJaw != null) rJaw.localRotation = jawRest;
+    }
+
+    float measSpeed, bornAt, runBlend;
     Vector3 lastPos;
     Quaternion jawRest;
     readonly Transform[] rToe = new Transform[2];
@@ -783,13 +846,16 @@ public class CharacterNPC : MonoBehaviour
         graph = PlayableGraph.Create("Npc_" + name);
         graph.SetTimeUpdateMode(DirectorUpdateMode.GameTime);
         var output = AnimationPlayableOutput.Create(graph, "Anim", an);
-        mixer = AnimationMixerPlayable.Create(graph, 2);
+        cRun = Clip(fem ? "f_RunForwards" : "m_RunForwards");
+        mixer = AnimationMixerPlayable.Create(graph, 3);
         pIdle = AnimationClipPlayable.Create(graph, cIdle);
         pWalk = AnimationClipPlayable.Create(graph, cWalk);
-        pIdle.SetApplyFootIK(false); pWalk.SetApplyFootIK(false);
+        pRun = AnimationClipPlayable.Create(graph, cRun != null ? cRun : cWalk);
+        pIdle.SetApplyFootIK(false); pWalk.SetApplyFootIK(false); pRun.SetApplyFootIK(false);
         graph.Connect(pIdle, 0, mixer, 0);
         graph.Connect(pWalk, 0, mixer, 1);
-        mixer.SetInputWeight(0, 1f); mixer.SetInputWeight(1, 0f);
+        graph.Connect(pRun, 0, mixer, 2);
+        mixer.SetInputWeight(0, 1f); mixer.SetInputWeight(1, 0f); mixer.SetInputWeight(2, 0f);
         output.SetSourcePlayable(mixer);
         graph.Play();
         pIdle.SetTime(Random.value * cIdle.length);          // so a crowd does not breathe in unison
@@ -814,11 +880,21 @@ public class CharacterNPC : MonoBehaviour
 
         // walk blend from the real movement, whoever is moving this NPC (WalkTo, a cutscene, a shove)
         Vector3 p = transform.position, d = p - lastPos; d.y = 0; lastPos = p;
+        if (rideVehicle != null)
+        {
+            walkBlend = Mathf.MoveTowards(walkBlend, 0f, dt * 5f);
+            mixer.SetInputWeight(0, 1f - walkBlend); mixer.SetInputWeight(1, walkBlend); mixer.SetInputWeight(2, 0f);
+            RidePose(dt);
+            return;
+        }
         measSpeed = Mathf.Lerp(measSpeed, d.magnitude / dt, Mathf.Clamp01(dt * 10f));
         walkBlend = Mathf.MoveTowards(walkBlend, Mathf.Clamp01((measSpeed - 0.06f) / 0.45f), dt * 4f);
+        runBlend = Mathf.MoveTowards(runBlend, cRun != null ? Mathf.Clamp01((measSpeed - 2.1f) / 0.9f) : 0f, dt * 3f);
         mixer.SetInputWeight(0, 1f - walkBlend);
-        mixer.SetInputWeight(1, walkBlend);
+        mixer.SetInputWeight(1, walkBlend * (1f - runBlend));
+        mixer.SetInputWeight(2, walkBlend * runBlend);
         pWalk.SetSpeed(Mathf.Clamp(measSpeed / 1.3f, 0.7f, 1.8f));      // stride follows ground speed: no foot sliding
+        pRun.SetSpeed(Mathf.Clamp(measSpeed / 3.4f, 0.8f, 1.35f));
 
         // once, when standing still: make sure the animated body faces forward and the feet touch the ground
         if (!fitted && Time.time - bornAt > 0.25f && walkBlend < 0.02f && rbRoot != null)
