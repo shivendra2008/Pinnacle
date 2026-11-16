@@ -1,0 +1,9 @@
+Kamala.glb - "Animated Woman" by Quaternius (CC0 / Public Domain)
+Source: https://poly.pizza/m/nIItLV9nxS
+Rigged low-poly character. Recoloured at runtime in KamalaNPC.cs (skin, hair, dress).
+Requires the glTFast package (com.unity.cloud.gltfast) to import .glb files.
+
+Casual.glb - "Casual Character" by Quaternius (CC0), https://poly.pizza/m/kZ3DmIoGip
+Suit.glb   - "Business Man" by Quaternius (CC0),   https://poly.pizza/m/JFrLIKqvCH
+Hoodie.glb - "Hoodie Character" by Quaternius (CC0), https://poly.pizza/m/gKLBoRsyKe
+All recoloured at runtime (see NpcStyle in CharacterNPC.cs).
