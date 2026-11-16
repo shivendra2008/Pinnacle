@@ -205,8 +205,8 @@ public class MarketStory : MonoBehaviour
 
         if (Time.time > nextHorn && phase != Phase.Hook && phase != Phase.Choice && phase != Phase.Outcome && phase != Phase.Ending)
         {
-            sfx.PlayOneShot(hornClip, UnityEngine.Random.Range(0.12f, 0.3f));
-            nextHorn = Time.time + UnityEngine.Random.Range(9f, 20f);
+            sfx.PlayOneShot(hornClip, UnityEngine.Random.Range(0.08f, 0.2f));
+            nextHorn = Time.time + UnityEngine.Random.Range(25f, 55f);
         }
 
         if (phase == Phase.Ending)
@@ -1011,19 +1011,31 @@ public class MarketStory : MonoBehaviour
             yield return new WaitForSeconds(UnityEngine.Random.Range(11f, 20f));
             if (phase != Phase.Free || hookStarted) continue;
             bool auto = UnityEngine.Random.value < 0.5f;
-            float x = UnityEngine.Random.Range(-0.1f, 0.2f);
+            float x = UnityEngine.Random.Range(-0.4f, -0.15f);      // left of centre: clear of the auto parked at the lane entrance
             Transform v = auto ? world.SpawnAuto(new Vector3(x, 0, -5f), 0f)
                                : world.SpawnScooter(new Vector3(x, 0, -5f), 0f, Color.HSVToRGB(UnityEngine.Random.value, 0.7f, 0.8f));
-            sfx.PlayOneShot(hornClip, 0.5f);
-            float cur = 0f, top = auto ? 4.2f : 5.5f, honkAt = 0f;
+            sfx.PlayOneShot(hornClip, 0.35f);
+            float cur = 0f, top = auto ? 4.2f : 5.5f, honkAt = 0f, blockedFor = 0f; int honks = 0;
             vehicles.Add(v);
             while (v != null && v.position.z < 80f && !hookStarted)
             {
-                // brake for anyone (you, the crowd, the cow, another vehicle) in the way, and honk
-                bool blocked = PathBlocked(v, 1f, auto ? 0.95f : 0.6f, auto ? 1.4f : 0.8f);
+                // brake for anyone (you, the crowd, the cow, another vehicle) in the way
+                bool blocked = PathBlocked(v, 1f, auto ? 0.72f : 0.45f, auto ? 1.4f : 0.9f);
                 cur = Mathf.MoveTowards(cur, blocked ? 0f : top, 6f * Time.deltaTime);
                 v.position += new Vector3(0, 0, cur * Time.deltaTime);
-                if (blocked && Time.time > honkAt) { sfx.PlayOneShot(hornClip, 0.7f); honkAt = Time.time + 1.4f; }
+                if (!blocked) { blockedFor = 0f; honks = 0; }
+                else
+                {
+                    blockedFor += Time.deltaTime;
+                    // a couple of impatient taps, then the driver just waits: nobody leans on the horn for a minute
+                    if (honks < 2 && blockedFor > 1.2f && Time.time > honkAt)
+                    {
+                        sfx.PlayOneShot(hornClip, 0.45f); honks++;
+                        honkAt = Time.time + UnityEngine.Random.Range(3.5f, 6f);
+                    }
+                    // properly stuck and nobody is watching: give up on this run
+                    if (blockedFor > 20f && Vector3.Distance(v.position, player.transform.position) > 14f) break;
+                }
                 yield return null;
             }
             vehicles.Remove(v);

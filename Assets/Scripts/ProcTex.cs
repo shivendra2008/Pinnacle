@@ -6,6 +6,7 @@ public class PbrSet
 {
     public Texture2D albedo, normal, mask;
     public float scale = 1f;        // how many "procedural tiles" one repeat of this texture covers (photo scans cover more ground)
+    public float gloss = 1f;        // multiplies the smoothness: scanned surfaces are dry and matte unless something makes them wet
 }
 
 /// <summary>
@@ -140,6 +141,7 @@ public static class ProcTex
         }
         var set = new PbrSet { albedo = alb, normal = Resources.Load<Texture2D>("Textures/" + key + "_normal"), mask = Resources.Load<Texture2D>("Textures/" + key + "_mask") };
         set.scale = key == "wood" ? 1.3f : key == "asphalt" || key == "stone" ? 2.2f : 1.8f;
+        set.gloss = key == "wood_floor" ? 0.55f : key == "stone" || key == "wood" ? 0.6f : 0.8f;
         foreach (var t in new[] { set.albedo, set.normal, set.mask })
             if (t != null) { t.wrapMode = TextureWrapMode.Repeat; t.anisoLevel = 8; }
         return set;
@@ -314,7 +316,7 @@ public static class ProcTex
             m.SetTexture("_MetallicGlossMap", s.mask);
             m.EnableKeyword("_METALLICSPECGLOSSMAP");
         }
-        if (m.HasProperty("_Smoothness")) m.SetFloat("_Smoothness", smoothness);
+        if (m.HasProperty("_Smoothness")) m.SetFloat("_Smoothness", s.mask != null ? Mathf.Clamp01(smoothness * s.gloss) : Mathf.Min(smoothness, 0.3f));
         if (m.HasProperty("_Metallic")) m.SetFloat("_Metallic", 0f);
         return m;
     }
