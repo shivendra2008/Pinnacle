@@ -491,7 +491,7 @@ public class CharacterNPC : MonoBehaviour
         usingPlayable = true;
     }
 
-    void OnDestroy() { if (usingPlayable && graph.IsValid()) graph.Destroy(); }
+    void OnDestroy() { if (graph.IsValid()) graph.Destroy(); }
 
     void PlayableUpdate()
     {
@@ -609,6 +609,9 @@ public class CharacterNPC : MonoBehaviour
         if (b.size.y > 0.2f) inst.transform.localScale *= style.height / b.size.y;
 
         // face the same way as the NPC object: the feet tell us which way the model was authored
+        var humanAnimator = inst.GetComponentInChildren<Animator>(true);
+        bool human = humanAnimator != null && humanAnimator.avatar != null && humanAnimator.avatar.isValid && humanAnimator.avatar.isHuman;
+        if (!human)
         {
             Vector3 f = Vector3.zero;          // both feet, so a splayed stance does not skew the result
             foreach (var sd in new[] { "L", "R" })
@@ -647,6 +650,10 @@ public class CharacterNPC : MonoBehaviour
         headBone = rHead;
         walkCycle = Random.value * 6.28f;
         usingModel = true; rbMode = true;
+        rToe[0] = all.ContainsKey("Bip01 L Toe0") ? all["Bip01 L Toe0"] : null; rToe[1] = all.ContainsKey("Bip01 R Toe0") ? all["Bip01 R Toe0"] : null;
+        if (rJaw != null) jawRest = rJaw.localRotation;
+        lastPos = transform.position; bornAt = Time.time;
+        if (human && SetupRbClips(humanAnimator)) return true;
         RbAnimate();                 // leave the T-pose before the first frame is drawn
         return true;
     }
@@ -673,6 +680,7 @@ public class CharacterNPC : MonoBehaviour
     /// </summary>
     void RbAnimate()
     {
+        if (rbClips) { RbClips(); return; }
         for (int i = 0; i < rBones.Count; i++) if (rBones[i] != null) rBones[i].localRotation = rRest[i];
         float dt = Time.deltaTime, time = Time.time + walkCycle;      // per-character offset so a crowd is not in sync
 
@@ -742,6 +750,122 @@ public class CharacterNPC : MonoBehaviour
         // jaw follows the loudness of the voice
         if (rJaw != null && talk > 0.01f)
             rJaw.rotation = Quaternion.AngleAxis(Mathf.Clamp01(talk * 1.6f) * 11f, Vector3.Cross(transform.up, HeadForward()).normalized) * rJaw.rotation;
+    }
+
+    // ------------------------------------------------ motion-capture clips (the normal path)
+    bool rbClips, fitted;
+    float measSpeed, bornAt;
+    Vector3 lastPos;
+    Quaternion jawRest;
+    readonly Transform[] rToe = new Transform[2];
+    static readonly Dictionary<string, AnimationClip> clipCache = new Dictionary<string, AnimationClip>();
+
+    static AnimationClip Clip(string res)
+    {
+        AnimationClip c;
+        if (clipCache.TryGetValue(res, out c) && c != null) return c;
+        foreach (var k in Resources.LoadAll<AnimationClip>("Anim/" + res))
+            if (!k.name.StartsWith("__preview")) { c = k; break; }
+        clipCache[res] = c;
+        return c;
+    }
+
+    /// <summary>Plays real motion-capture idle + walk on the avatar (Humanoid retargeting), blended by how fast the NPC is actually moving.</summary>
+    bool SetupRbClips(Animator an)
+    {
+        bool fem = style.rb.Contains("Female");
+        cIdle = Clip(fem ? "f_Idle" : "m_Idle"); cWalk = Clip(fem ? "f_WalkForwards" : "m_WalkForwards");
+        if (cIdle == null || cWalk == null) return false;
+        an.enabled = true;
+        an.runtimeAnimatorController = null;
+        an.applyRootMotion = false;
+        an.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+        graph = PlayableGraph.Create("Npc_" + name);
+        graph.SetTimeUpdateMode(DirectorUpdateMode.GameTime);
+        var output = AnimationPlayableOutput.Create(graph, "Anim", an);
+        mixer = AnimationMixerPlayable.Create(graph, 2);
+        pIdle = AnimationClipPlayable.Create(graph, cIdle);
+        pWalk = AnimationClipPlayable.Create(graph, cWalk);
+        pIdle.SetApplyFootIK(false); pWalk.SetApplyFootIK(false);
+        graph.Connect(pIdle, 0, mixer, 0);
+        graph.Connect(pWalk, 0, mixer, 1);
+        mixer.SetInputWeight(0, 1f); mixer.SetInputWeight(1, 0f);
+        output.SetSourcePlayable(mixer);
+        graph.Play();
+        pIdle.SetTime(Random.value * cIdle.length);          // so a crowd does not breathe in unison
+        pWalk.SetTime(Random.value * cWalk.length);
+        graph.Evaluate(0f);                                   // out of the T-pose before the first frame is drawn
+        rbClips = true;
+        return true;
+    }
+
+    void AimW(Transform bone, Transform child, Vector3 localDir, float w)
+    {
+        if (bone == null || child == null || w <= 0.001f) return;
+        Vector3 cur = child.position - bone.position;
+        if (cur.sqrMagnitude < 1e-8f) return;
+        bone.rotation = Quaternion.Slerp(Quaternion.identity, Quaternion.FromToRotation(cur, transform.TransformDirection(localDir)), w) * bone.rotation;
+    }
+
+    void RbClips()
+    {
+        float dt = Time.deltaTime;
+        if (dt <= 0f) return;                     // paused: the Animator has not rewritten the pose, so add nothing on top
+
+        // walk blend from the real movement, whoever is moving this NPC (WalkTo, a cutscene, a shove)
+        Vector3 p = transform.position, d = p - lastPos; d.y = 0; lastPos = p;
+        measSpeed = Mathf.Lerp(measSpeed, d.magnitude / dt, Mathf.Clamp01(dt * 10f));
+        walkBlend = Mathf.MoveTowards(walkBlend, Mathf.Clamp01((measSpeed - 0.06f) / 0.45f), dt * 4f);
+        mixer.SetInputWeight(0, 1f - walkBlend);
+        mixer.SetInputWeight(1, walkBlend);
+        pWalk.SetSpeed(Mathf.Clamp(measSpeed / 1.3f, 0.7f, 1.8f));      // stride follows ground speed: no foot sliding
+
+        // once, when standing still: make sure the animated body faces forward and the feet touch the ground
+        if (!fitted && Time.time - bornAt > 0.25f && walkBlend < 0.02f && rbRoot != null)
+        {
+            fitted = true;
+            Vector3 f = Vector3.zero; float minY = float.MaxValue;
+            for (int i = 0; i < 2; i++)
+                if (rToe[i] != null && rFoot[i] != null) { f += rToe[i].position - rFoot[i].position; minY = Mathf.Min(minY, rToe[i].position.y); }
+            f.y = 0;
+            if (f.sqrMagnitude > 1e-6f && Mathf.Abs(Vector3.SignedAngle(f, transform.forward, Vector3.up)) > 100f)
+                rbRoot.RotateAround(transform.position, Vector3.up, 180f);
+            if (minY < float.MaxValue)
+            {
+                float lift = transform.position.y + 0.025f * style.height / 1.7f - minY;
+                if (Mathf.Abs(lift) > 0.02f && Mathf.Abs(lift) < 0.6f) rbRoot.position += Vector3.up * lift;
+            }
+        }
+
+        // layered on top of the clip: the right hand talks and waves, the head follows the player, the jaw follows the voice
+        bool waving = Time.time < waveUntil;
+        gestureAmt = Mathf.MoveTowards(gestureAmt, waving ? 1f : Mathf.Clamp01(talk * 2.2f) * 0.6f * (1f - walkBlend), dt * (waving ? 5f : 2.5f));
+        if (gestureAmt > 0.01f)
+        {
+            float s = -sideL, beat = Mathf.Sin(Time.time * (waving && waveIsWave ? 9f : 3.3f));
+            Vector3 up, fo;
+            if (waving && waveIsWave) { up = new Vector3(s * 0.75f, 0.35f, 0.3f); fo = new Vector3(s * (0.15f + 0.3f * beat), 1f, 0.2f); }
+            else { up = new Vector3(s * 0.22f, -1f, 0.38f); fo = new Vector3(-s * 0.15f, 0.05f + 0.18f * beat, 1f); }
+            AimW(rArm[1], rFore[1], up.normalized, gestureAmt);
+            AimW(rFore[1], rHand[1], fo.normalized, gestureAmt);
+        }
+        float wantYaw = 0f, wantPitch = 0f;
+        if (lookTarget != null && rHead != null && walkBlend < 0.3f)
+        {
+            Vector3 l = transform.InverseTransformPoint(lookTarget.position) - transform.InverseTransformPoint(rHead.position);
+            wantYaw = Mathf.Clamp(Mathf.Atan2(l.x, l.z) * Mathf.Rad2Deg, -55f, 55f);
+            wantPitch = Mathf.Clamp(-Mathf.Atan2(l.y, new Vector2(l.x, l.z).magnitude) * Mathf.Rad2Deg, -22f, 25f);
+        }
+        lookYaw = Mathf.Lerp(lookYaw, wantYaw, dt * 4f); lookPitch = Mathf.Lerp(lookPitch, wantPitch, dt * 4f);
+        float nod = talk * Mathf.Sin(Time.time * 6.5f) * 3.5f;
+        Vector3 rightAxis = Vector3.Cross(transform.up, HeadForward()).normalized;
+        if (rNeck != null) rNeck.rotation = Quaternion.AngleAxis(lookYaw * 0.35f, transform.up) * rNeck.rotation;
+        if (rHead != null) rHead.rotation = Quaternion.AngleAxis(lookYaw * 0.65f, transform.up) * Quaternion.AngleAxis(lookPitch + nod, rightAxis) * rHead.rotation;
+        if (rJaw != null)
+        {
+            rJaw.localRotation = jawRest;
+            if (talk > 0.01f) rJaw.rotation = Quaternion.AngleAxis(Mathf.Clamp01(talk * 1.6f) * 11f, rightAxis) * rJaw.rotation;
+        }
     }
 
     Vector3 HeadForward()

@@ -3,7 +3,7 @@ using UnityEngine;
 
 /// <summary>
 /// Import settings for the realistic avatars in Assets/Resources/Characters/RB (Microsoft Rocketbox, MIT licence):
-/// normal maps are flagged as normal maps, models come in without an Animator (they are posed in code, see CharacterNPC).
+/// normal maps are flagged as normal maps, models are imported as Humanoid so the motion-capture clips in Resources/Anim retarget onto them.
 /// Also re-checks the folder on editor load, so files copied in before this script existed get fixed too.
 /// </summary>
 public class RocketboxImport : AssetPostprocessor
@@ -34,7 +34,9 @@ public class RocketboxImport : AssetPostprocessor
     {
         if (!assetPath.StartsWith(Folder)) return;
         var mi = (ModelImporter)assetImporter;
-        mi.animationType = ModelImporterAnimationType.None;
+        mi.animationType = ModelImporterAnimationType.Human;          // Humanoid: lets the mocap clips in Resources/Anim retarget onto it
+        mi.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel;
+        mi.optimizeGameObjects = false;
         mi.importAnimation = false;
         mi.importBlendShapes = false;
         mi.materialName = ModelImporterMaterialName.BasedOnMaterialName;
@@ -59,9 +61,10 @@ public class RocketboxImport : AssetPostprocessor
             foreach (var guid in AssetDatabase.FindAssets("t:Model", new[] { Folder }))
             {
                 var mi = AssetImporter.GetAtPath(AssetDatabase.GUIDToAssetPath(guid)) as ModelImporter;
-                if (mi != null && mi.animationType != ModelImporterAnimationType.None)
+                if (mi != null && mi.animationType != ModelImporterAnimationType.Human)
                 {
-                    mi.animationType = ModelImporterAnimationType.None; mi.importAnimation = false; mi.importBlendShapes = false;
+                    mi.animationType = ModelImporterAnimationType.Human;
+                    mi.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel;
                     mi.SaveAndReimport();
                 }
             }

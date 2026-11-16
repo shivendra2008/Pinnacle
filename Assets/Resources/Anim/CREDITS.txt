@@ -1,0 +1,5 @@
+Motion-capture idle and walk clips (male + female) and their rigs:
+Unity Technologies, "Standard Assets: Characters"
+https://github.com/Unity-Technologies/Standard-Assets-Characters
+Licensed under the Unity Companion License (for Unity-dependent projects).
+The .meta files are Unity's originals, so the clips import as Humanoid with the right loop settings.
