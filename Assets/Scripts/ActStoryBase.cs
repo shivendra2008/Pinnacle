@@ -59,20 +59,20 @@ public static class Cast
             .Set("suit", suit).Set("white", shirt).Set("tie", suit * 0.6f).Set("black", C(0.03f, 0.03f, 0.03f));
     }
 
-    public static NpcStyle Sharma() { return Casual(1.62f, C(0.55f, 0.5f, 0.35f), C(0.35f, 0.32f, 0.25f), C(0.5f, 0.33f, 0.22f), C(0.75f, 0.75f, 0.75f)); }
-    public static NpcStyle Pandit() { return Casual(1.6f, C(0.95f, 0.5f, 0.1f), C(0.95f, 0.92f, 0.85f), C(0.55f, 0.36f, 0.24f), C(0.85f, 0.85f, 0.85f)); }
+    public static NpcStyle Sharma() { return Casual(1.62f, C(0.55f, 0.5f, 0.35f), C(0.35f, 0.32f, 0.25f), C(0.5f, 0.33f, 0.22f), C(0.75f, 0.75f, 0.75f)).Rb("Security_Male_01"); }
+    public static NpcStyle Pandit() { return Casual(1.6f, C(0.95f, 0.5f, 0.1f), C(0.95f, 0.92f, 0.85f), C(0.55f, 0.36f, 0.24f), C(0.85f, 0.85f, 0.85f)).Rb("Male_Adult_15", C(1f, 0.62f, 0.26f)); }
     public static NpcStyle Devotee(int seed) { return seed % 2 == 0 ? NpcStyle.CrowdWoman(seed) : NpcStyle.Crowd(seed); }
-    public static NpcStyle Raj() { return Suit(1.76f, C(0.32f, 0.33f, 0.36f), C(0.85f, 0.85f, 0.82f), C(0.62f, 0.44f, 0.3f), C(0.15f, 0.12f, 0.1f)); }
-    public static NpcStyle Rohan() { return Casual(1.72f, C(0.2f, 0.4f, 0.7f), C(0.15f, 0.15f, 0.2f), C(0.6f, 0.42f, 0.29f), C(0.05f, 0.04f, 0.04f)); }
+    public static NpcStyle Raj() { return Suit(1.76f, C(0.32f, 0.33f, 0.36f), C(0.85f, 0.85f, 0.82f), C(0.62f, 0.44f, 0.3f), C(0.15f, 0.12f, 0.1f)).Rb("Business_Male_05"); }
+    public static NpcStyle Rohan() { return Casual(1.72f, C(0.2f, 0.4f, 0.7f), C(0.15f, 0.15f, 0.2f), C(0.6f, 0.42f, 0.29f), C(0.05f, 0.04f, 0.04f)).Rb("Male_Adult_17"); }
     public static NpcStyle Kamala() { return NpcStyle.Kamala(); }
     public static NpcStyle Reddy() { return NpcStyle.Reddy(); }
-    public static NpcStyle Priya() { return Woman(1.62f, C(0.93f, 0.92f, 0.88f), C(0.62f, 0.43f, 0.3f), C(0.04f, 0.03f, 0.03f), C(0.75f, 0.2f, 0.2f)); }
-    public static NpcStyle Deshpande() { return Woman(1.6f, C(0.1f, 0.42f, 0.32f), C(0.64f, 0.46f, 0.33f), C(0.12f, 0.1f, 0.1f), C(0.95f, 0.78f, 0.3f)); }
-    public static NpcStyle Judge() { return Suit(1.72f, C(0.04f, 0.04f, 0.05f), C(0.95f, 0.95f, 0.95f), C(0.55f, 0.38f, 0.26f), C(0.7f, 0.7f, 0.7f)); }
-    public static NpcStyle Lawyer() { return Suit(1.75f, C(0.06f, 0.06f, 0.07f), C(0.95f, 0.95f, 0.95f), C(0.6f, 0.42f, 0.3f), C(0.1f, 0.08f, 0.08f)); }
-    public static NpcStyle Curator() { return Suit(1.95f, C(0.16f, 0.03f, 0.05f), C(0.12f, 0.05f, 0.06f), C(0.72f, 0.6f, 0.52f), C(0.72f, 0.72f, 0.74f)); }
+    public static NpcStyle Priya() { return Woman(1.62f, C(0.93f, 0.92f, 0.88f), C(0.62f, 0.43f, 0.3f), C(0.04f, 0.03f, 0.03f), C(0.75f, 0.2f, 0.2f)).Rb("Female_Adult_03"); }
+    public static NpcStyle Deshpande() { return Woman(1.6f, C(0.1f, 0.42f, 0.32f), C(0.64f, 0.46f, 0.33f), C(0.12f, 0.1f, 0.1f), C(0.95f, 0.78f, 0.3f)).Rb("Business_Female_03", C(0.75f, 0.95f, 0.85f)); }
+    public static NpcStyle Judge() { return Suit(1.72f, C(0.04f, 0.04f, 0.05f), C(0.95f, 0.95f, 0.95f), C(0.55f, 0.38f, 0.26f), C(0.7f, 0.7f, 0.7f)).Rb("Male_Adult_03", C(0.5f, 0.5f, 0.52f)); }
+    public static NpcStyle Lawyer() { return Suit(1.75f, C(0.06f, 0.06f, 0.07f), C(0.95f, 0.95f, 0.95f), C(0.6f, 0.42f, 0.3f), C(0.1f, 0.08f, 0.08f)).Rb("Business_Male_03"); }
+    public static NpcStyle Curator() { return Suit(1.95f, C(0.16f, 0.03f, 0.05f), C(0.12f, 0.05f, 0.06f), C(0.72f, 0.6f, 0.52f), C(0.72f, 0.72f, 0.74f)).Rb("Business_Male_04", C(0.8f, 0.62f, 0.62f)); }
     public static NpcStyle Vikram() { return NpcStyle.Vikram(); }
-    public static NpcStyle Owner() { return Casual(1.6f, C(0.9f, 0.9f, 0.88f), C(0.3f, 0.28f, 0.25f), C(0.68f, 0.52f, 0.4f), C(0.8f, 0.8f, 0.8f)); }
+    public static NpcStyle Owner() { return Casual(1.6f, C(0.9f, 0.9f, 0.88f), C(0.3f, 0.28f, 0.25f), C(0.68f, 0.52f, 0.4f), C(0.8f, 0.8f, 0.8f)).Rb("Male_Adult_03"); }
 }
 
 /// <summary>
