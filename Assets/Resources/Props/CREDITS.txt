@@ -1,0 +1,2 @@
+Photo-scanned props from Poly Haven (https://polyhaven.com), CC0 / public domain, 1k glTF versions.
+Placed by PropKit.Place (see VehicleKit.cs) in the Act II market.
