@@ -61,3 +61,14 @@ Backups of the originals were not committed; the old numbers are in the table ab
 - Go back to the low-poly set: `CharacterNPC.Realistic = false` (it is also the automatic fallback if a model is missing).
 - Children in the market still use the low-poly model (the realistic set here is adults only).
 - For a standalone build, the runtime materials need the URP Lit normal-map and alpha-clip shader variants included.
+
+## Real-world assets pass (Nov 2026)
+- **Motion capture**: `Assets/Resources/Anim` holds Unity Standard Assets idle + walk clips (male/female). The Rocketbox
+  avatars are imported as Humanoid and `CharacterNPC.SetupRbClips` plays the clips, blended by the NPC's measured speed.
+  Head look, jaw and the talking / waving hand are layered on top in `RbClips`.
+- **Texture pack**: `Assets/Resources/Textures` has photo-scanned Poly Haven materials. `ProcTex.Get(key)` loads
+  `{key}_albedo/_normal/_mask` when present and falls back to the procedural texture otherwise, so every existing
+  `GameKit.Surface(...)` call picked them up. New keys: `brick`, `shutter`, `corrugated`, `concrete`, `metal`.
+- **Vehicles** (`VehicleKit.cs`): bodies are lofted through rounded cross-sections (`Sec`), wheels are lathed.
+  The scooter, auto-rickshaw and SUV body in `MarketWorld.cs` use it.
+- **Props** (`PropKit.Place`): Poly Haven scans in `Assets/Resources/Props` replace the box clutter in the market.

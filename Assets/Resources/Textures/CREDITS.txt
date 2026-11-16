@@ -1,0 +1,5 @@
+Photo-scanned surface materials from Poly Haven (https://polyhaven.com), CC0 / public domain.
+wood_floor = wood_floor_worn, wood = dark_wooden_planks, plaster = painted_plaster_wall, facade = worn_plaster_wall,
+asphalt = asphalt_04, stone = stone_tiles_02, brick = painted_brick, shutter = rusty_metal_shutter,
+corrugated = rusty_corrugated_iron, concrete = dirty_concrete, metal = rusty_painted_metal.
+Albedo maps were converted to near-neutral detail maps (the game tints them); roughness was packed into the mask alpha.

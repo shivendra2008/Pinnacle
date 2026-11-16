@@ -292,14 +292,14 @@ public class MarketWorld : MonoBehaviour
         for (int side = -1; side <= 1; side += 2)
         {
             var pl = B(transform, "Plinth", new Vector3(side * 3.65f, 0.09f, 39f), new Vector3(0.7f, 0.18f, 90f), Rgb(0.5f, 0.48f, 0.45f), true, 0.3f);
-            GameKit.Surface(pl, "stone", 1.0f, 1f, 1f, Rgb(0.55f, 0.52f, 0.48f));
+            GameKit.Surface(pl, "concrete", 1.0f, 1f, 1f, Rgb(0.55f, 0.52f, 0.48f));
         }
         var wet = GameKit.Lit(new Color(0.05f, 0.06f, 0.09f), 1f);
         for (int i = 0; i < 12; i++)
             GameKit.Box(transform, "Puddle", new Vector3((R() - 0.5f) * 4.5f, 0.006f, 3 + i * 6.5f + R() * 3f), new Vector3(0.8f + R() * 1.4f, 0.01f, 0.6f + R()), wet);
         GameKit.Box(transform, "Drain", new Vector3(0, 0.002f, 39f), new Vector3(0.18f, 0.01f, 90f), GameKit.Lit(new Color(0.03f, 0.03f, 0.03f), 0.4f));
 
-        B(transform, "Wall_Start", new Vector3(0, 3f, -6.6f), new Vector3(9f, 6f, 1f), Rgb(0.2f, 0.18f, 0.18f), true);
+        GameKit.Surface(B(transform, "Wall_Start", new Vector3(0, 3f, -6.6f), new Vector3(9f, 6f, 1f), Rgb(0.2f, 0.18f, 0.18f), true), "brick", 2.2f, 1f, 1f, Rgb(0.34f, 0.3f, 0.28f));
         // the far end of the lane is a gateway onto a dark main road: the SUV drives in through it
         B(transform, "Wall_EndL", new Vector3(-3.4f, 3f, 80.6f), new Vector3(2.2f, 6f, 1f), Rgb(0.16f, 0.15f, 0.18f), true);
         B(transform, "Wall_EndR", new Vector3(3.4f, 3f, 80.6f), new Vector3(2.2f, 6f, 1f), Rgb(0.16f, 0.15f, 0.18f), true);
@@ -331,15 +331,18 @@ public class MarketWorld : MonoBehaviour
                 float h = 3.5f + (floors - 1) * 3.2f + 0.7f;
                 Color paint = Paints[rnd.Next(Paints.Length)];
                 var body = B(transform, "Building", new Vector3(side * (FX + 4f), h / 2f, zc), new Vector3(8f, h, 6f), paint * 0.7f, true, 0.1f);
-                GameKit.SurfaceZY(body, "facade", 3.2f, new Color(Mathf.Min(1f, paint.r * 1.15f), Mathf.Min(1f, paint.g * 1.15f), Mathf.Min(1f, paint.b * 1.15f)), 1f, 1f);
+                GameKit.SurfaceZY(body, k % 3 == 1 ? "brick" : "facade", 3.2f, new Color(Mathf.Min(1f, paint.r * 1.15f), Mathf.Min(1f, paint.g * 1.15f), Mathf.Min(1f, paint.b * 1.15f)), 1f, 1f);
                 BuildFacade(side, zc, h, floors, paint, k);
             }
         }
     }
 
+    float alleyZ = 45f;
+
     void BuildAlley(float zc)
     {
-        B(transform, "AlleyFloor", new Vector3(8.5f, -0.1f, zc), new Vector3(9f, 0.2f, 6f), Rgb(0.1f, 0.09f, 0.09f), true, 0.7f);
+        GameKit.Surface(B(transform, "AlleyFloor", new Vector3(8.5f, -0.1f, zc), new Vector3(9f, 0.2f, 6f), Rgb(0.1f, 0.09f, 0.09f), true, 0.7f), "concrete", 2f, 1f, 1f, Rgb(0.22f, 0.2f, 0.19f));
+        alleyZ = zc;
         B(transform, "AlleyEnd", new Vector3(13.2f, 5f, zc), new Vector3(1f, 10f, 6f), Rgb(0.2f, 0.18f, 0.17f), true);
         AddLight(new Vector3(8f, 3f, zc), Tungsten, 2.4f, 7f);
         Cy(transform, "Bin", new Vector3(7f, 0.45f, zc + 2.2f), 0.3f, 0.9f, Rgb(0.12f, 0.35f, 0.18f));
@@ -368,7 +371,7 @@ public class MarketWorld : MonoBehaviour
         }
         else
         {
-            B(transform, "Shutter", P(0.04f, 1.4f, 0), new Vector3(0.1f, 2.8f, 4.6f), Rgb(0.34f, 0.37f, 0.4f), false, 0.4f, 0.5f);
+            GameKit.SurfaceZY(B(transform, "Shutter", P(0.04f, 1.4f, 0), new Vector3(0.1f, 2.8f, 4.6f), Rgb(0.34f, 0.37f, 0.4f), false, 0.4f, 0.5f), "shutter", 2.2f, Rgb(0.5f, 0.54f, 0.58f));
             for (int i = 0; i < 9; i++) B(transform, "Rib", P(0.1f, 0.25f + i * 0.3f, 0), new Vector3(0.04f, 0.03f, 4.6f), Rgb(0.5f, 0.52f, 0.55f), false, 0.4f, 0.5f);
         }
         foreach (float dz in new[] { -2.4f, 2.4f }) B(transform, "ShopPost", P(0.12f, 1.45f, dz), new Vector3(0.3f, 2.9f, 0.25f), Rgb(0.7f, 0.62f, 0.5f), false, 0.2f);
@@ -810,14 +813,33 @@ public class MarketWorld : MonoBehaviour
         var s = new GameObject("Scooter").transform;
         s.SetParent(transform, false);
         s.position = pos; s.rotation = Quaternion.Euler(0, yaw, 0);
-        B(s, "Floor", new Vector3(0, 0.3f, 0), new Vector3(0.38f, 0.1f, 0.9f), body, false, 0.5f);
-        B(s, "Rear", new Vector3(0, 0.5f, -0.4f), new Vector3(0.4f, 0.4f, 0.5f), body, false, 0.5f);
-        B(s, "Front", new Vector3(0, 0.65f, 0.38f), new Vector3(0.36f, 0.7f, 0.12f), body, false, 0.5f);
-        B(s, "Seat", new Vector3(0, 0.74f, -0.3f), new Vector3(0.34f, 0.1f, 0.65f), Rgb(0.05f, 0.05f, 0.05f), false, 0.3f);
-        B(s, "Handle", new Vector3(0, 1.05f, 0.4f), new Vector3(0.7f, 0.04f, 0.05f), Rgb(0.1f, 0.1f, 0.1f), false, 0.5f, 0.7f);
-        GameKit.Sphere(s, "Headlight", new Vector3(0, 0.95f, 0.5f), 0.14f, GameKit.Glow(Color.white, new Color(1f, 0.9f, 0.6f), 3f));
-        foreach (float z in new[] { 0.42f, -0.5f })
-            Cy(s, "Wheel", new Vector3(0, 0.2f, z), 0.2f, 0.1f, Rgb(0.04f, 0.04f, 0.04f), 0.3f).transform.localRotation = Quaternion.Euler(0, 0, 90);
+        var paint = GameKit.Lit(body, 0.82f, 0.2f);
+        var plastic = GameKit.Lit(Rgb(0.05f, 0.05f, 0.055f), 0.35f);
+        var seat = GameKit.Lit(Rgb(0.07f, 0.06f, 0.06f), 0.22f);
+        var chrome = GameKit.Lit(Rgb(0.7f, 0.71f, 0.73f), 0.9f, 1f);
+        // step-through floor, rounded rear body, seat, front apron
+        VehicleKit.Body(s, "Floor", new[] { new Sec(0.32f, 0.30f, 0.17f, 0.05f, 4f), new Sec(-0.08f, 0.30f, 0.18f, 0.05f, 4f) }, plastic, "sc_floor");
+        VehicleKit.Body(s, "Rear", new[] { new Sec(0.00f, 0.42f, 0.14f, 0.10f, 3f), new Sec(-0.22f, 0.52f, 0.20f, 0.19f, 3f), new Sec(-0.60f, 0.54f, 0.19f, 0.18f, 3f), new Sec(-0.84f, 0.57f, 0.10f, 0.09f, 2.5f), new Sec(-0.90f, 0.58f, 0.04f, 0.04f, 2.2f) }, paint, "sc_rear");
+        VehicleKit.Body(s, "Seat", new[] { new Sec(0.04f, 0.745f, 0.12f, 0.04f, 3f), new Sec(-0.30f, 0.765f, 0.16f, 0.05f, 3f), new Sec(-0.70f, 0.76f, 0.14f, 0.045f, 3f), new Sec(-0.76f, 0.755f, 0.08f, 0.03f, 2.5f) }, seat, "sc_seat");
+        VehicleKit.Body(s, "Apron", new[] { new Sec(0.25f, 0.60f, 0.17f, 0.26f, 3.5f), new Sec(0.34f, 0.63f, 0.20f, 0.32f, 3.5f), new Sec(0.41f, 0.64f, 0.16f, 0.29f, 3f), new Sec(0.45f, 0.64f, 0.08f, 0.20f, 2.5f) }, paint, "sc_apron");
+        VehicleKit.Blob(s, "FrontFender", new Vector3(0, 0.29f, 0.58f), new Vector3(0.15f, 0.26f, 0.5f), paint);
+        VehicleKit.Blob(s, "Head", new Vector3(0, 0.98f, 0.40f), new Vector3(0.30f, 0.17f, 0.22f), paint);
+        foreach (float fx in new[] { -0.07f, 0.07f }) TubeSeg(s, new Vector3(fx, 0.2f, 0.58f), new Vector3(fx, 0.72f, 0.43f), 0.03f, Rgb(0.6f, 0.6f, 0.62f));
+        TubeSeg(s, new Vector3(0, 0.72f, 0.43f), new Vector3(0, 0.95f, 0.40f), 0.045f, Rgb(0.05f, 0.05f, 0.05f));
+        B(s, "Handle", new Vector3(0, 1.03f, 0.37f), new Vector3(0.62f, 0.035f, 0.035f), Rgb(0.08f, 0.08f, 0.08f), false, 0.4f, 0.5f);
+        foreach (float gx in new[] { -0.3f, 0.3f })
+        {
+            B(s, "Grip", new Vector3(gx, 1.03f, 0.37f), new Vector3(0.11f, 0.045f, 0.045f), Rgb(0.03f, 0.03f, 0.03f), false, 0.2f);
+            TubeSeg(s, new Vector3(gx * 0.8f, 1.04f, 0.38f), new Vector3(gx * 1.05f, 1.22f, 0.36f), 0.012f, Rgb(0.6f, 0.6f, 0.62f));
+            VehicleKit.Blob(s, "Mirror", new Vector3(gx * 1.07f, 1.24f, 0.36f), new Vector3(0.11f, 0.07f, 0.02f), chrome);
+        }
+        GameKit.Sphere(s, "Headlight", new Vector3(0, 0.97f, 0.49f), 0.12f, GameKit.Glow(Color.white, new Color(1f, 0.9f, 0.6f), 3f));
+        GameKit.Box(s, "TailLight", new Vector3(0, 0.62f, -0.89f), new Vector3(0.1f, 0.05f, 0.03f), GameKit.Glow(new Color(0.5f, 0.02f, 0.02f), Color.red, 1.2f));
+        B(s, "NumberPlate", new Vector3(0, 0.47f, -0.9f), new Vector3(0.18f, 0.1f, 0.01f), Rgb(0.92f, 0.92f, 0.9f), false, 0.3f);
+        Cy(s, "Exhaust", new Vector3(0.16f, 0.3f, -0.55f), 0.04f, 0.5f, Rgb(0.6f, 0.6f, 0.62f), 0.85f, 1f).transform.localRotation = Quaternion.Euler(90, 0, 0);
+        TubeSeg(s, new Vector3(-0.12f, 0.28f, -0.1f), new Vector3(-0.3f, 0.02f, -0.05f), 0.02f, Rgb(0.1f, 0.1f, 0.1f));       // side stand
+        VehicleKit.Wheel(s, new Vector3(0, 0.2f, 0.58f), 0.2f, 0.1f);
+        VehicleKit.Wheel(s, new Vector3(0, 0.2f, -0.55f), 0.2f, 0.11f);
         var col = s.gameObject.AddComponent<BoxCollider>(); col.center = new Vector3(0, 0.5f, 0); col.size = new Vector3(0.7f, 1f, 1.3f);
         return s;
     }
@@ -865,42 +887,65 @@ public class MarketWorld : MonoBehaviour
         a.SetParent(transform, false);
         a.position = pos; a.rotation = Quaternion.Euler(0, yaw, 0);
 
-        var yellow = Rgb(0.98f, 0.76f, 0.1f);
-        var green = Rgb(0.08f, 0.4f, 0.2f);
-        var black = Rgb(0.04f, 0.04f, 0.04f);
-        B(a, "Chassis", new Vector3(0, 0.38f, 0), new Vector3(1.2f, 0.12f, 2.5f), black);
-        B(a, "BodyLow", new Vector3(0, 0.78f, -0.4f), new Vector3(1.3f, 0.7f, 1.5f), yellow, false, 0.5f);       // passenger body (yellow)
-        B(a, "BodyBelt", new Vector3(0, 0.45f, -0.4f), new Vector3(1.32f, 0.18f, 1.52f), green, false, 0.5f);     // green stripe (CNG auto)
-        B(a, "Hood", new Vector3(0, 0.75f, 0.95f), new Vector3(0.62f, 0.6f, 0.75f), yellow, false, 0.5f);
-        B(a, "HoodTop", new Vector3(0, 1.08f, 0.9f), new Vector3(0.6f, 0.06f, 0.65f), black);
-        var ws = B(a, "Windscreen", new Vector3(0, 1.4f, 0.55f), new Vector3(0.85f, 0.55f, 0.04f), Rgb(0.5f, 0.7f, 0.8f), false, 0.9f);
-        ws.transform.localRotation = Quaternion.Euler(-16f, 0, 0);
-        B(a, "Roof", new Vector3(0, 1.78f, -0.3f), new Vector3(1.4f, 0.07f, 2.1f), black, false, 0.3f);       // black canvas roof
-        foreach (float px in new[] { -0.62f, 0.62f })
+        // a Bajaj-style three-wheeler in CNG colours: green body, yellow canopy
+        var green = GameKit.Lit(Rgb(0.07f, 0.36f, 0.19f), 0.72f, 0.15f);
+        var yellow = GameKit.Lit(Rgb(0.95f, 0.74f, 0.1f), 0.4f);
+        var blackM = GameKit.Lit(Rgb(0.04f, 0.04f, 0.045f), 0.3f);
+        var vinyl = GameKit.Lit(Rgb(0.28f, 0.06f, 0.06f), 0.35f);
+        var chrome = GameKit.Lit(Rgb(0.7f, 0.71f, 0.73f), 0.9f, 1f);
+        var black = Rgb(0.04f, 0.04f, 0.045f);
+
+        VehicleKit.Body(a, "FloorPan", new[] { new Sec(0.78f, 0.47f, 0.50f, 0.10f, 5f), new Sec(0.45f, 0.48f, 0.63f, 0.12f, 6f), new Sec(-1.30f, 0.48f, 0.64f, 0.12f, 6f) }, blackM, "au_floor");
+        VehicleKit.Body(a, "RearBody", new[] { new Sec(-0.28f, 0.70f, 0.655f, 0.16f, 5f), new Sec(-0.48f, 0.80f, 0.67f, 0.29f, 6f), new Sec(-1.14f, 0.82f, 0.67f, 0.31f, 6f), new Sec(-1.33f, 0.84f, 0.61f, 0.27f, 5f) }, green, "au_rear");
+        VehicleKit.Body(a, "Cowl", new[] { new Sec(1.43f, 0.72f, 0.15f, 0.15f, 2.6f), new Sec(1.27f, 0.76f, 0.29f, 0.26f, 3f), new Sec(0.97f, 0.82f, 0.44f, 0.36f, 3.5f), new Sec(0.72f, 0.84f, 0.55f, 0.41f, 4f) }, green, "au_cowl");
+        VehicleKit.Body(a, "Canopy", new[] { new Sec(0.80f, 1.61f, 0.58f, 0.05f, 3f), new Sec(0.45f, 1.74f, 0.68f, 0.07f, 3.5f), new Sec(-0.90f, 1.76f, 0.69f, 0.07f, 3.5f), new Sec(-1.32f, 1.63f, 0.66f, 0.06f, 3f) }, yellow, "au_canopy");
+        VehicleKit.Blob(a, "Mudguard", new Vector3(0, 0.33f, 1.05f), new Vector3(0.2f, 0.4f, 0.66f), blackM);
+        // back of the canopy: yellow vinyl with a small window, quarter panels
+        GameKit.Box(a, "RearPanel", new Vector3(0, 1.36f, -1.31f), new Vector3(1.3f, 0.56f, 0.04f), yellow);
+        GameKit.Box(a, "RearWindow", new Vector3(0, 1.42f, -1.335f), new Vector3(0.52f, 0.24f, 0.02f), GameKit.Lit(Rgb(0.03f, 0.04f, 0.05f), 0.95f, 0.2f));
+        foreach (float px in new[] { -0.66f, 0.66f })
         {
-            B(a, "Pillar", new Vector3(px, 1.3f, 0.5f), new Vector3(0.05f, 1.0f, 0.05f), black);
-            B(a, "Pillar", new Vector3(px, 1.3f, -1.0f), new Vector3(0.05f, 1.0f, 0.05f), black);
+            GameKit.Box(a, "Quarter", new Vector3(px, 1.36f, -1.1f), new Vector3(0.03f, 0.58f, 0.44f), yellow);
+            B(a, "PillarA", new Vector3(px * 0.86f, 1.40f, 0.74f), new Vector3(0.05f, 0.5f, 0.05f), black);
+            B(a, "PillarB", new Vector3(px * 0.98f, 1.15f, -0.05f), new Vector3(0.04f, 1.2f, 0.04f), black);
+            B(a, "GrabRail", new Vector3(px * 0.98f, 1.0f, -0.45f), new Vector3(0.03f, 0.03f, 0.8f), Rgb(0.6f, 0.6f, 0.62f), false, 0.8f, 0.9f);
+            GameKit.Box(a, "Indicator", new Vector3(px * 0.55f, 0.92f, 1.08f), new Vector3(0.07f, 0.05f, 0.04f), GameKit.Glow(new Color(0.6f, 0.3f, 0.02f), new Color(1f, 0.55f, 0.1f), lightsOff ? 0.2f : 1.5f));
+            VehicleKit.Wheel(a, new Vector3(px * 0.92f, 0.22f, -0.78f), 0.22f, 0.12f);
         }
-        B(a, "Seat", new Vector3(0, 0.98f, -0.55f), new Vector3(1.1f, 0.12f, 0.55f), Rgb(0.3f, 0.06f, 0.06f), false, 0.3f);
-        B(a, "SeatBack", new Vector3(0, 1.28f, -0.85f), new Vector3(1.1f, 0.5f, 0.1f), Rgb(0.3f, 0.06f, 0.06f), false, 0.3f);
-        var tyre = Rgb(0.03f, 0.03f, 0.03f);
-        Cy(a, "WheelF", new Vector3(0, 0.28f, 1.0f), 0.28f, 0.14f, tyre).transform.localRotation = Quaternion.Euler(0, 0, 90);
-        foreach (float x in new[] { -0.6f, 0.6f })
-            Cy(a, "WheelR", new Vector3(x, 0.28f, -0.7f), 0.28f, 0.14f, tyre).transform.localRotation = Quaternion.Euler(0, 0, 90);
-        B(a, "Handlebar", new Vector3(0, 1.0f, 0.7f), new Vector3(0.7f, 0.04f, 0.04f), black, false, 0.4f, 0.7f);
+        var ws = B(a, "Windscreen", new Vector3(0, 1.42f, 0.75f), new Vector3(1.08f, 0.44f, 0.03f), Rgb(0.2f, 0.28f, 0.32f), false, 0.95f);
+        ws.transform.localRotation = Quaternion.Euler(-8f, 0, 0);
+        B(a, "WiperArm", new Vector3(0.1f, 1.3f, 0.79f), new Vector3(0.4f, 0.012f, 0.012f), black).transform.localRotation = Quaternion.Euler(0, 0, 25f);
+        // inside: driver's seat on its box, handlebar, meter, passenger bench
+        B(a, "DriverBox", new Vector3(0, 0.74f, 0.12f), new Vector3(0.5f, 0.3f, 0.42f), black);
+        GameKit.Box(a, "DriverSeat", new Vector3(0, 0.93f, 0.12f), new Vector3(0.52f, 0.09f, 0.44f), vinyl);
+        GameKit.Box(a, "DriverBack", new Vector3(0, 1.15f, -0.1f), new Vector3(0.52f, 0.4f, 0.06f), vinyl);
+        B(a, "Handlebar", new Vector3(0, 1.08f, 0.62f), new Vector3(0.68f, 0.035f, 0.035f), black, false, 0.4f, 0.7f);
+        TubeSeg(a, new Vector3(0, 1.08f, 0.62f), new Vector3(0, 0.8f, 0.86f), 0.04f, black);
+        B(a, "Meter", new Vector3(0.36f, 1.14f, 0.55f), new Vector3(0.12f, 0.16f, 0.08f), Rgb(0.6f, 0.1f, 0.08f), false, 0.4f);
+        GameKit.Box(a, "Seat", new Vector3(0, 1.15f, -0.78f), new Vector3(1.16f, 0.12f, 0.52f), vinyl);
+        GameKit.Box(a, "SeatBack", new Vector3(0, 1.38f, -1.08f), new Vector3(1.16f, 0.5f, 0.1f), vinyl);
+        B(a, "RearBumper", new Vector3(0, 0.44f, -1.36f), new Vector3(1.26f, 0.07f, 0.07f), black, false, 0.4f, 0.5f);
+        GameKit.Box(a, "NumberPlate", new Vector3(0, 0.6f, -1.345f), new Vector3(0.4f, 0.12f, 0.01f), GameKit.Lit(Rgb(0.95f, 0.85f, 0.2f), 0.3f));
+        VehicleKit.Wheel(a, new Vector3(0, 0.22f, 1.05f), 0.22f, 0.1f);
+        VehicleKit.Blob(a, "HeadlampHousing", new Vector3(0, 0.9f, 1.3f), new Vector3(0.2f, 0.2f, 0.16f), chrome);
         if (!lightsOff)
         {
-            GameKit.Sphere(a, "Headlight", new Vector3(0, 0.9f, 1.35f), 0.2f, GameKit.Glow(Color.white, new Color(1f, 0.9f, 0.6f), 5f));
-            GameKit.Box(a, "Tail", new Vector3(-0.5f, 0.8f, -1.17f), new Vector3(0.15f, 0.1f, 0.03f), GameKit.Glow(Color.red, Color.red, 3f));
-            GameKit.Box(a, "Tail", new Vector3(0.5f, 0.8f, -1.17f), new Vector3(0.15f, 0.1f, 0.03f), GameKit.Glow(Color.red, Color.red, 3f));
+            GameKit.Sphere(a, "Headlight", new Vector3(0, 0.9f, 1.36f), 0.15f, GameKit.Glow(Color.white, new Color(1f, 0.9f, 0.6f), 5f));
+            GameKit.Box(a, "Tail", new Vector3(-0.52f, 0.8f, -1.35f), new Vector3(0.12f, 0.09f, 0.03f), GameKit.Glow(Color.red, Color.red, 3f));
+            GameKit.Box(a, "Tail", new Vector3(0.52f, 0.8f, -1.35f), new Vector3(0.12f, 0.09f, 0.03f), GameKit.Glow(Color.red, Color.red, 3f));
             var spot = new GameObject("HeadSpot").AddComponent<Light>();
             spot.transform.SetParent(a, false);
-            spot.transform.localPosition = new Vector3(0, 0.9f, 1.4f);
+            spot.transform.localPosition = new Vector3(0, 0.9f, 1.45f);
             spot.type = LightType.Spot; spot.spotAngle = 65f; spot.range = 11f; spot.intensity = 5f; spot.color = new Color(1f, 0.92f, 0.7f);
             spot.shadows = LightShadows.None;
         }
-        GameKit.Text(a, "CHANDNI AUTO", new Vector3(0, 0.95f, -1.17f), Quaternion.Euler(0, 180f, 0), 0.1f, Color.black);
-        GameKit.Text(a, "HORN OK PLEASE", new Vector3(0, 0.62f, -1.17f), Quaternion.Euler(0, 180f, 0), 0.07f, Rgb(0.3f, 0.05f, 0.05f));
+        else
+        {
+            GameKit.Sphere(a, "Headlight", new Vector3(0, 0.9f, 1.36f), 0.15f, GameKit.Lit(Rgb(0.75f, 0.75f, 0.7f), 0.95f, 0.3f));
+            foreach (float tx in new[] { -0.52f, 0.52f }) GameKit.Box(a, "Tail", new Vector3(tx, 0.8f, -1.35f), new Vector3(0.12f, 0.09f, 0.03f), GameKit.Lit(Rgb(0.35f, 0.03f, 0.03f), 0.8f));
+        }
+        GameKit.Text(a, "CHANDNI AUTO", new Vector3(0, 1.2f, -1.335f), Quaternion.Euler(0, 180f, 0), 0.085f, Color.black);
+        GameKit.Text(a, "HORN OK PLEASE", new Vector3(0, 0.95f, -1.345f), Quaternion.Euler(0, 180f, 0), 0.07f, Rgb(0.95f, 0.85f, 0.3f));
         var col = a.gameObject.AddComponent<BoxCollider>();
         col.center = new Vector3(0, 0.9f, 0.1f); col.size = new Vector3(1.5f, 1.8f, 2.7f);
         return a;
@@ -952,6 +997,7 @@ public class MarketWorld : MonoBehaviour
         {
             int side = i % 2 == 0 ? 1 : -1;
             float x = side * 3.55f, z = zs[i];
+            if (PropKit.Has("plastic_crate_02") && PropClutter(i % 4, side, x, z)) continue;
             switch (i % 4)
             {
                 case 0:   // stacked plastic crates
@@ -971,8 +1017,71 @@ public class MarketWorld : MonoBehaviour
                     break;
             }
         }
+        if (PropKit.Has("covered_car"))      // a car under a tarpaulin, parked up the side alley
+        {
+            PropKit.Place(transform, "covered_car", new Vector3(9.4f, 0f, alleyZ - 0.6f), 90f);
+            var cc = new GameObject("CoveredCarCollider").AddComponent<BoxCollider>();
+            cc.transform.SetParent(transform, false); cc.transform.localPosition = new Vector3(9.4f, 0.7f, alleyZ - 0.6f); cc.size = new Vector3(4.4f, 1.4f, 1.8f);
+            PropKit.Place(transform, "old_tyre", new Vector3(6.2f, 0.08f, alleyZ + 2.3f), 30f, 1f, new Vector3(90f, 0, 0));
+            PropKit.Place(transform, "trashbag", new Vector3(6.6f, 0f, alleyZ - 2.4f), 70f);
+            PropKit.Place(transform, "trashbag", new Vector3(7.2f, 0f, alleyZ - 2.5f), 200f, 0.9f);
+        }
         for (int i = 0; i < 14; i++)   // litter on the road
             GameKit.Box(transform, "Litter", new Vector3((R() - 0.5f) * 4.5f, 0.012f, 2 + R() * 76f), new Vector3(0.2f, 0.01f, 0.15f), GameKit.Lit(Color.HSVToRGB(R(), 0.3f, 0.8f), 0.2f));
+    }
+
+    /// <summary>One cluster of photo-scanned street clutter on the shop plinth. Returns false if nothing could be placed.</summary>
+    bool PropClutter(int kind, int side, float x, float z)
+    {
+        const float top = 0.18f;       // top of the plinth
+        float ry = side > 0 ? -90f : 90f;
+        switch (kind)
+        {
+            case 0:   // crates of produce
+                for (int c = 0; c < 3; c++) PropKit.Place(transform, "plastic_crate_02", new Vector3(x, top + c * 0.25f, z), ry + (R() - 0.5f) * 14f);
+                PropKit.Place(transform, "plastic_crate_01", new Vector3(x, top, z + 0.55f), ry + 20f, 1.2f);
+                PropKit.Place(transform, "bananas", new Vector3(x, top + 0.78f, z), R() * 360f);
+                Pile("yellow_onion", new Vector3(x, top + 0.2f, z + 0.55f), 6, 0.1f, 1.3f);
+                PropKit.Place(transform, "wooden_crate_02", new Vector3(x, top, z - 0.75f), ry + 90f, 0.8f);
+                break;
+            case 1:   // baskets of fruit, a chair for the shopkeeper
+                PropKit.Place(transform, "wicker_basket_01", new Vector3(x, top, z), R() * 360f, 1.7f);
+                Pile("food_pomegranate_01", new Vector3(x, top + 0.08f, z), 8, 0.16f, 1.1f);
+                PropKit.Place(transform, "wicker_basket_01", new Vector3(x, top, z + 0.7f), R() * 360f, 1.7f);
+                Pile("food_apple_01", new Vector3(x, top + 0.08f, z + 0.7f), 9, 0.16f, 1.1f);
+                PropKit.Place(transform, "wicker_basket_01", new Vector3(x - side * 0.02f, top, z - 0.7f), R() * 360f, 1.7f);
+                Pile("food_lime_01", new Vector3(x, top + 0.08f, z - 0.7f), 12, 0.15f, 1.2f);
+                PropKit.Place(transform, "plastic_monobloc_chair_01", new Vector3(x - side * 0.05f, top, z + 1.5f), ry + (R() - 0.5f) * 40f);
+                break;
+            case 2:   // gas cylinders, a drum, cans
+                PropKit.Place(transform, "small_lpg_tank", new Vector3(x, top, z), R() * 360f, 1.25f);
+                PropKit.Place(transform, "small_lpg_tank", new Vector3(x, top, z + 0.55f), R() * 360f, 1.25f);
+                PropKit.Place(transform, "barrel_03", new Vector3(x, top, z - 0.65f), R() * 360f);
+                PropKit.Place(transform, "plastic_jerrycan", new Vector3(x - side * 0.1f, top, z + 1.1f), R() * 360f);
+                PropKit.Place(transform, "brass_pot_01", new Vector3(x, top + 0.93f, z - 0.65f), 0f);
+                break;
+            default:  // rubbish and cartons, a stool
+                PropKit.Place(transform, "trashbag", new Vector3(x, top, z), R() * 360f);
+                PropKit.Place(transform, "trashbag", new Vector3(x, top, z - 0.5f), R() * 360f, 0.85f);
+                for (int c = 0; c < 2; c++) PropKit.Place(transform, "cardboard_box_01", new Vector3(x, top + c * 0.34f, z + 0.7f), ry + (R() - 0.5f) * 25f);
+                PropKit.Place(transform, "cardboard_box_01", new Vector3(x, top, z + 1.3f), ry + 40f, 0.9f);
+                PropKit.Place(transform, "metal_stool_01", new Vector3(x - side * 0.05f, top, z - 1.2f), R() * 360f, 0.6f);
+                break;
+        }
+        var col = new GameObject("ClutterCollider").AddComponent<BoxCollider>();
+        col.transform.SetParent(transform, false);
+        col.transform.localPosition = new Vector3(x, 0.6f, z);
+        col.size = new Vector3(0.6f, 1.2f, 1.6f);
+        return true;
+    }
+
+    void Pile(string id, Vector3 centre, int count, float radius, float scale)
+    {
+        for (int i = 0; i < count; i++)
+        {
+            float a = R() * 6.283f, r = Mathf.Sqrt(R()) * radius;
+            PropKit.Place(transform, id, centre + new Vector3(Mathf.Cos(a) * r, (i % 3) * 0.035f, Mathf.Sin(a) * r), R() * 360f, scale, new Vector3(R() * 40f, 0, R() * 40f));
+        }
     }
 
     // ------------------------------------------------------------------- SUV
@@ -997,9 +1106,8 @@ public class MarketWorld : MonoBehaviour
         var alloy = GameKit.Lit(new Color(0.55f, 0.57f, 0.6f), 0.9f, 0.9f);
 
         // ---- body
-        GameKit.Box(s, "LowerBody", new Vector3(0, 0.78f, 0), new Vector3(1.88f, 0.66f, 4.7f), paint);
-        var hood = GameKit.Box(s, "Hood", new Vector3(0, 1.14f, 1.52f), new Vector3(1.84f, 0.14f, 1.5f), paint);
-        hood.transform.localRotation = Quaternion.Euler(-4f, 0, 0);
+        VehicleKit.Body(s, "LowerBody", new[] { new Sec(2.36f, 0.78f, 0.90f, 0.32f, 7f), new Sec(2.15f, 0.78f, 0.94f, 0.33f, 8f), new Sec(-2.15f, 0.78f, 0.94f, 0.33f, 8f), new Sec(-2.36f, 0.78f, 0.90f, 0.32f, 7f) }, paint);
+        VehicleKit.Body(s, "Hood", new[] { new Sec(2.3f, 1.09f, 0.88f, 0.07f, 5f), new Sec(1.6f, 1.15f, 0.91f, 0.08f, 5f), new Sec(0.8f, 1.19f, 0.91f, 0.08f, 5f) }, paint);
         GameKit.Box(s, "Tailgate", new Vector3(0, 1.1f, -2.28f), new Vector3(1.84f, 0.5f, 0.2f), paint);
         GameKit.Box(s, "SideSillL", new Vector3(-0.96f, 0.5f, 0), new Vector3(0.08f, 0.2f, 3.5f), cladding);
         GameKit.Box(s, "SideSillR", new Vector3(0.96f, 0.5f, 0), new Vector3(0.08f, 0.2f, 3.5f), cladding);
@@ -1020,7 +1128,7 @@ public class MarketWorld : MonoBehaviour
             GameKit.Box(s, "Mirror", new Vector3(x * 1.12f, 1.3f, 0.82f), new Vector3(0.14f, 0.12f, 0.2f), paint);
             GameKit.Box(s, "RoofRail", new Vector3(x * 0.78f, 1.82f, -0.35f), new Vector3(0.04f, 0.05f, 2.3f), chrome);
         }
-        GameKit.Box(s, "Roof", new Vector3(0, 1.76f, -0.35f), new Vector3(1.66f, 0.08f, 2.5f), paint);
+        VehicleKit.Body(s, "Roof", new[] { new Sec(0.78f, 1.75f, 0.78f, 0.045f, 4f), new Sec(0.25f, 1.79f, 0.83f, 0.055f, 5f), new Sec(-1.40f, 1.79f, 0.83f, 0.055f, 5f), new Sec(-1.64f, 1.76f, 0.80f, 0.045f, 4f) }, paint);
         GameKit.Box(s, "RoofSpoiler", new Vector3(0, 1.74f, -1.72f), new Vector3(1.5f, 0.05f, 0.25f), cladding);
         GameKit.Box(s, "SharkFin", new Vector3(0, 1.84f, -1.1f), new Vector3(0.06f, 0.08f, 0.22f), cladding);
 
@@ -1030,10 +1138,7 @@ public class MarketWorld : MonoBehaviour
             {
                 GameKit.Box(s, "ArchFlare", new Vector3(x * 1.02f, 0.84f, z), new Vector3(0.1f, 0.12f, 1.0f), cladding);
                 GameKit.Box(s, "ArchDark", new Vector3(x * 0.97f, 0.62f, z), new Vector3(0.14f, 0.5f, 0.92f), cladding);
-                var w = GameKit.Cyl(s, "Tyre", new Vector3(x, 0.4f, z), 0.4f, 0.26f, tyre);
-                w.transform.localRotation = Quaternion.Euler(0, 0, 90);
-                var rim = GameKit.Cyl(s, "Alloy", new Vector3(x * 1.04f, 0.4f, z), 0.27f, 0.25f, alloy);
-                rim.transform.localRotation = Quaternion.Euler(0, 0, 90);
+                VehicleKit.Wheel(s, new Vector3(x, 0.4f, z), 0.4f, 0.27f, alloy);
                 var cap = GameKit.Cyl(s, "HubCap", new Vector3(x * 1.1f, 0.4f, z), 0.07f, 0.1f, chrome);
                 cap.transform.localRotation = Quaternion.Euler(0, 0, 90);
             }

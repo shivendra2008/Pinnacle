@@ -5,6 +5,7 @@ using UnityEngine;
 public class PbrSet
 {
     public Texture2D albedo, normal, mask;
+    public float scale = 1f;        // how many "procedural tiles" one repeat of this texture covers (photo scans cover more ground)
 }
 
 /// <summary>
@@ -103,6 +104,8 @@ public static class ProcTex
     {
         PbrSet s;
         if (cache.TryGetValue(key, out s) && s.albedo != null) return s;
+        s = Photo(key);
+        if (s != null) { cache[key] = s; return s; }
         switch (key)
         {
             case "wood_floor": s = WoodFloor(); break;
@@ -117,6 +120,29 @@ public static class ProcTex
         }
         cache[key] = s;
         return s;
+    }
+
+    /// <summary>
+    /// Photo-scanned materials (Poly Haven, CC0) in Resources/Textures: {key}_albedo, {key}_normal, {key}_mask.
+    /// The albedo files were pre-processed into near-neutral detail maps, so the game's own surface colours still apply.
+    /// Returns null when a set is not there, and the procedural texture is used instead.
+    /// </summary>
+    static PbrSet Photo(string key)
+    {
+        var alb = Resources.Load<Texture2D>("Textures/" + key + "_albedo");
+        if (alb == null)
+        {
+            // new material names fall back to the nearest scanned set before falling back to procedural
+            string alt = key == "brick" || key == "concrete" ? "facade" : key == "shutter" || key == "corrugated" || key == "metal" ? null : null;
+            if (alt == null) return null;
+            alb = Resources.Load<Texture2D>("Textures/" + alt + "_albedo"); key = alt;
+            if (alb == null) return null;
+        }
+        var set = new PbrSet { albedo = alb, normal = Resources.Load<Texture2D>("Textures/" + key + "_normal"), mask = Resources.Load<Texture2D>("Textures/" + key + "_mask") };
+        set.scale = key == "wood" ? 1.3f : key == "asphalt" || key == "stone" ? 2.2f : 1.8f;
+        foreach (var t in new[] { set.albedo, set.normal, set.mask })
+            if (t != null) { t.wrapMode = TextureWrapMode.Repeat; t.anisoLevel = 8; }
+        return set;
     }
 
     // ======================================================== the textures
@@ -268,15 +294,16 @@ public static class ProcTex
         var m = new Material(sh);
         m.color = tint;
         if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", tint);
+        if (s.scale > 0f && s.scale != 1f) tiling /= s.scale;
         if (m.HasProperty("_BaseMap")) { m.SetTexture("_BaseMap", s.albedo); m.SetTextureScale("_BaseMap", tiling); }
         else { m.mainTexture = s.albedo; m.mainTextureScale = tiling; }
-        if (m.HasProperty("_BumpMap"))
+        if (m.HasProperty("_BumpMap") && s.normal != null)
         {
             m.SetTexture("_BumpMap", s.normal);
             m.SetFloat("_BumpScale", bump);
             m.EnableKeyword("_NORMALMAP");
         }
-        if (m.HasProperty("_MetallicGlossMap"))
+        if (m.HasProperty("_MetallicGlossMap") && s.mask != null)
         {
             m.SetTexture("_MetallicGlossMap", s.mask);
             m.EnableKeyword("_METALLICSPECGLOSSMAP");

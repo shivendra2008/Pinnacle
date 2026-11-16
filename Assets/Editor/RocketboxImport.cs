@@ -9,12 +9,28 @@ using UnityEngine;
 public class RocketboxImport : AssetPostprocessor
 {
     const string Folder = "Assets/Resources/Characters/RB";
+    const string TexFolder = "Assets/Resources/Textures";        // photo-scanned surface materials (Poly Haven, CC0)
 
     void OnPreprocessTexture()
     {
+        if (assetPath.StartsWith(TexFolder)) { ApplySurface((TextureImporter)assetImporter, assetPath); return; }
         if (!assetPath.StartsWith(Folder)) return;
         var ti = (TextureImporter)assetImporter;
         Apply(ti, assetPath);
+    }
+
+    static bool ApplySurface(TextureImporter ti, string path)
+    {
+        bool normal = path.Contains("_normal"), mask = path.Contains("_mask");
+        var want = normal ? TextureImporterType.NormalMap : TextureImporterType.Default;
+        bool changed = ti.textureType != want || ti.anisoLevel != 8 || ti.wrapMode != TextureWrapMode.Repeat || (mask && ti.sRGBTexture);
+        ti.textureType = want;
+        ti.maxTextureSize = 2048;
+        ti.mipmapEnabled = true;
+        ti.anisoLevel = 8;
+        ti.wrapMode = TextureWrapMode.Repeat;
+        if (!normal) { ti.sRGBTexture = !mask; ti.alphaSource = mask ? TextureImporterAlphaSource.FromInput : TextureImporterAlphaSource.None; ti.alphaIsTransparency = false; }
+        return changed;
     }
 
     static bool Apply(TextureImporter ti, string path)
@@ -51,6 +67,13 @@ public class RocketboxImport : AssetPostprocessor
     {
         EditorApplication.delayCall += () =>
         {
+            if (AssetDatabase.IsValidFolder(TexFolder))
+                foreach (var guid in AssetDatabase.FindAssets("t:Texture2D", new[] { TexFolder }))
+                {
+                    string path = AssetDatabase.GUIDToAssetPath(guid);
+                    var ti = AssetImporter.GetAtPath(path) as TextureImporter;
+                    if (ti != null && ApplySurface(ti, path)) ti.SaveAndReimport();
+                }
             if (!AssetDatabase.IsValidFolder(Folder)) return;
             foreach (var guid in AssetDatabase.FindAssets("t:Texture2D", new[] { Folder }))
             {
