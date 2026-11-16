@@ -1068,6 +1068,7 @@ public class PriyaRoomStory : MonoBehaviour
         float W = Screen.width / s, H = Screen.height / s;
 
         bool playing = phase != Phase.Title && phase != Phase.Intro && phase != Phase.Ending;
+        UiKit.Letterbox(W, H, !paused && phase != Phase.Title && (phase == Phase.Intro || !string.IsNullOrEmpty(dlgText)));
 
         // crosshair
         if (playing && !paused) UiKit.Crosshair(W, H);
@@ -1085,7 +1086,7 @@ public class PriyaRoomStory : MonoBehaviour
         {
             var r = new Rect(20, 18, Mathf.Min(560, W * 0.5f), 62);
             Panel(r, 0.5f);
-            GUI.Label(new Rect(r.x + 12, r.y + 6, r.width - 24, 20), "OBJECTIVE", sHead);
+            GUI.Label(new Rect(r.x + 12, r.y + 6, r.width - 24, 20), UiKit.Track("Objective"), sHead);
             GUI.Label(new Rect(r.x + 12, r.y + 27, r.width - 24, 34), objective, sSmall);
         }
 
@@ -1107,7 +1108,7 @@ public class PriyaRoomStory : MonoBehaviour
         // toast
         if (Time.time < toastUntil && !string.IsNullOrEmpty(toast) && !paused)
         {
-            var r = new Rect(W / 2 - 300, 24, 600, 40);
+            var r = new Rect(W / 2 - 300, 96, 600, 40);        // below the objective box, not on top of it
             Panel(r, 0.65f);
             GUI.Label(new Rect(r.x, r.y + 6, r.width, 30), toast, new GUIStyle(sPrompt) { fontSize = 18 });
         }
@@ -1257,7 +1258,7 @@ public class PriyaRoomStory : MonoBehaviour
     void DrawPause(float W, float H)
     {
         Panel(new Rect(0, 0, W, H), 0.7f);
-        GUI.Label(new Rect(0, H * 0.2f, W, 60), "PAUSED", sTitle);
+        GUI.Label(new Rect(0, H * 0.2f, W, 60), UiKit.Track("Paused"), sTitle);
         if (GUI.Button(new Rect(W / 2 - 130, H * 0.36f, 260, 46), "Resume", sBtn)) SetPaused(false);
         if (GUI.Button(new Rect(W / 2 - 130, H * 0.36f + 58, 260, 46), "Quit to main menu", sBtn))
         {
@@ -1317,26 +1318,15 @@ public class PriyaRoomStory : MonoBehaviour
     // --- journal ----------------------------------------------------------------
     void DrawJournal(float W, float H)
     {
-        var r = new Rect(W / 2 - 360, H / 2 - 300, 720, 600);
-        Panel(new Rect(0, 0, W, H), 0.45f);
-        Panel(r, 0.88f);
-        GUI.Label(new Rect(r.x + 24, r.y + 14, r.width - 48, 34), "CASE JOURNAL  -  Priya Kapoor", sTitle2);
-        GUI.Label(new Rect(r.x + 24, r.y + 50, r.width - 48, 24),
-            "Clues found: " + foundCount + " / 9      (all 9 are needed)      [J] close", sHead);
-
-        float y = r.y + 86;
+        var notes = new System.Collections.Generic.List<UiKit.Note>();
         foreach (var id in ClueOrder)
         {
             var ci = Info[id];
             bool found = false;
             foreach (var t in builder.ClueTags) if (t != null && t.id == id) found = t.found;
-            var head = new GUIStyle(sHead); head.normal.textColor = found ? new Color(0.5f, 0.9f, 0.6f) : new Color(1f, 0.82f, 0.4f);
-            GUI.Label(new Rect(r.x + 24, y, r.width - 48, 22), Check(found) + ci.name, head);
-            var body = new GUIStyle(sSmall) { fontSize = 15 };
-            body.normal.textColor = found ? Color.white : new Color(0.75f, 0.75f, 0.75f);
-            GUI.Label(new Rect(r.x + 56, y + 21, r.width - 80, 40), found ? ci.desc : "Where to look: " + ci.where, body);
-            y += 55;
+            notes.Add(new UiKit.Note(ci.name, found ? ci.desc : "Where to look: " + ci.where, found ? 1 : 0));
         }
+        UiKit.CaseFile(W, H, "Priya Kapoor  -  Missing", "Clues found  " + foundCount + " / 9\nAll nine are needed", notes, "");
     }
 
     // --- dialogue ---------------------------------------------------------------

@@ -44,14 +44,14 @@ public static class CinematicLook
         bloom.highQualityFiltering.Override(true);
 
         var vig = prof.Add<Vignette>(true);
-        vig.intensity.Override(apt ? 0.18f : 0.16f);
-        vig.smoothness.Override(0.62f);
+        vig.intensity.Override(apt ? 0.27f : 0.24f);
+        vig.smoothness.Override(0.5f);
         vig.rounded.Override(false);
 
         var ca = prof.Add<ColorAdjustments>(true);
-        ca.postExposure.Override(apt ? 0.75f : 1.15f);
-        ca.contrast.Override(apt ? 6f : 8f);
-        ca.saturation.Override(apt ? -2f : 14f);          // pull back the harsh "mobile game" saturation
+        ca.postExposure.Override(apt ? 0.92f : 1.28f);     // lifted to offset the stronger contrast curve
+        ca.contrast.Override(apt ? 16f : 18f);
+        ca.saturation.Override(apt ? -16f : -8f);         // muted, filmic colour: the single biggest step away from the "cartoon" look
         ca.colorFilter.Override(apt ? new Color(1f, 0.96f, 0.9f) : new Color(0.92f, 0.95f, 1f));
 
         var wb = prof.Add<WhiteBalance>(true);
@@ -59,7 +59,7 @@ public static class CinematicLook
         wb.tint.Override(apt ? 3f : 6f);
 
         var smh = prof.Add<ShadowsMidtonesHighlights>(true);     // teal shadows, warm highlights
-        smh.shadows.Override(apt ? new Vector4(0.92f, 0.98f, 1.06f, -0.04f) : new Vector4(0.88f, 0.94f, 1.12f, -0.03f));
+        smh.shadows.Override(apt ? new Vector4(0.88f, 0.98f, 1.08f, -0.05f) : new Vector4(0.84f, 0.95f, 1.12f, -0.05f));
         smh.midtones.Override(new Vector4(1f, 1f, 1f, 0f));
         smh.highlights.Override(apt ? new Vector4(1.08f, 1.0f, 0.9f, 0.02f) : new Vector4(1.1f, 0.96f, 0.92f, 0.02f));
 
@@ -77,11 +77,15 @@ public static class CinematicLook
         mb.clamp.Override(0.06f);
 
         var chroma = prof.Add<ChromaticAberration>(true);
-        chroma.intensity.Override(0.06f);
+        chroma.intensity.Override(0.1f);
+
+        var lens = prof.Add<LensDistortion>(true);          // a touch of anamorphic barrel, like a real lens
+        lens.intensity.Override(-0.07f);
+        lens.scale.Override(1.02f);
 
         var grain = prof.Add<FilmGrain>(true);
-        grain.type.Override(FilmGrainLookup.Thin1);
-        grain.intensity.Override(apt ? 0.14f : 0.2f);
+        grain.type.Override(FilmGrainLookup.Medium1);
+        grain.intensity.Override(apt ? 0.24f : 0.28f);
         grain.response.Override(0.8f);
 
         // auto-focus follows what you look at (or the person you are talking to)
@@ -164,7 +168,7 @@ public class LookController : MonoBehaviour
 {
     public VolumeProfile profile;
     public ReflectionProbe probe;
-    static int tier = 1;               // default: Balanced (F2 to switch); survives restarts
+    static int tier = 0;               // default: Cinematic (F2 to switch); survives restarts
     float shownUntil;
     GUIStyle style;
 
@@ -194,6 +198,7 @@ public class LookController : MonoBehaviour
         Set<DepthOfField>(tier == 0);
         Set<MotionBlur>(tier == 0);
         Set<ChromaticAberration>(tier == 0);
+        Set<LensDistortion>(tier == 0);
         Set<FilmGrain>(tier <= 1);
         if (profile.TryGet(out Bloom b)) b.highQualityFiltering.value = tier <= 1;
     }

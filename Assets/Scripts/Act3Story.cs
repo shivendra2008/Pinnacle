@@ -76,7 +76,7 @@ public class Act3Story : ActStoryBase
         {
             if (v.sharedProfile == null) continue;
             if (v.sharedProfile.TryGet(out ColorAdjustments ca)) ca.postExposure.value += 0.45f;
-            if (v.sharedProfile.TryGet(out Vignette vg)) vg.intensity.value = 0.12f;
+            if (v.sharedProfile.TryGet(out Vignette vg)) vg.intensity.value = 0.2f;
         }
     }
 
