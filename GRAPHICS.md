@@ -72,3 +72,13 @@ Backups of the originals were not committed; the old numbers are in the table ab
 - **Vehicles** (`VehicleKit.cs`): bodies are lofted through rounded cross-sections (`Sec`), wheels are lathed.
   The scooter, auto-rickshaw and SUV body in `MarketWorld.cs` use it.
 - **Props** (`PropKit.Place`): Poly Haven scans in `Assets/Resources/Props` replace the box clutter in the market.
+
+## Market realism pass (Nov 2026)
+- **Scale**: camera FOV 68 -> 56, walking pace 2.2 -> 1.75 m/s, much gentler depth of field and lens distortion
+  (wide lens + strong background blur is what makes a scene read as a miniature). Scooters scaled to real size.
+- **Stalls**: bamboo frames, sagging two-sided tarpaulins (`VehicleKit.Tarp`), jute drapes, scanned fruit and baskets.
+- **Shop fronts**: corrugated tin shades, tube lights over the signs, rain pipes, stone steps, AC units.
+- **`MarketWorld.TexturePass`** gives real materials to every part that was still a flat colour (matched by object name).
+- **Inspector Reddy's exit**: `MarketWorld.SpawnBike` builds a commuter motorbike; `CharacterNPC.Ride` seats a character
+  with two-bone IK (hands on grips, feet on pegs); `MarketStory.ReddyFlees` runs her to it and rides out through the gate.
+  A run clip (`*_RunForwards`) blends in above about 2 m/s.

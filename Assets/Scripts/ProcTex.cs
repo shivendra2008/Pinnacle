@@ -287,11 +287,17 @@ public static class ProcTex
     }
 
     // ============================================================ material
+    static readonly Dictionary<string, Material> matCache = new Dictionary<string, Material>();
+
     public static Material Mat(PbrSet s, Color tint, Vector2 tiling, float smoothness = 1f, float bump = 1f)
     {
+        string ck = System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(s.albedo) + "|" + ColorUtility.ToHtmlStringRGB(tint) + "|" + Mathf.RoundToInt(tiling.x * 20f) + "," + Mathf.RoundToInt(tiling.y * 20f) + "|" + Mathf.RoundToInt(smoothness * 20f) + "|" + Mathf.RoundToInt(bump * 10f);
+        Material hit;
+        if (matCache.TryGetValue(ck, out hit) && hit != null) return hit;
         var sh = Shader.Find("Universal Render Pipeline/Lit");
         if (sh == null) sh = Shader.Find("Standard");
         var m = new Material(sh);
+        matCache[ck] = m;
         m.color = tint;
         if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", tint);
         if (s.scale > 0f && s.scale != 1f) tiling /= s.scale;

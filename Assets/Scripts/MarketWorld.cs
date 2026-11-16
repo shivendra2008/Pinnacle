@@ -74,6 +74,8 @@ public class MarketWorld : MonoBehaviour
     // ===================================================================== helpers
     static Color Rgb(float r, float g, float b) { return new Color(r, g, b); }
     float R() { return (float)rnd.NextDouble(); }
+    System.Random rnd2 = new System.Random(77);       // for added dressing, so the original layout's random sequence is untouched
+    float R2() { return (float)rnd2.NextDouble(); }
 
     GameObject B(Transform p, string n, Vector3 pos, Vector3 size, Color c, bool col = false, float sm = 0.25f, float met = 0f)
     { return GameKit.Box(p, n, pos, size, GameKit.Lit(c, sm, met), col); }
@@ -169,6 +171,7 @@ public class MarketWorld : MonoBehaviour
         BuildVehicles();
         BuildAnimals();
         BuildClutter();
+        TexturePass();
         CombineStatic();
         BuildAuto();
         BuildSuv();
@@ -266,6 +269,35 @@ public class MarketWorld : MonoBehaviour
     }
 
     /// <summary>Merges all the static scenery into a few big meshes (thousands of props would otherwise be thousands of draw calls).</summary>
+    /// <summary>
+    /// Gives real materials to parts that were built as flat-coloured boxes (keeping each one's own colour):
+    /// wood for crates, frames and shutters, plaster and concrete for masonry, rusty metal for boxes and fittings.
+    /// </summary>
+    void TexturePass()
+    {
+        var map = new Dictionary<string, string>
+        {
+            { "ShopPost", "plaster" }, { "FloorBand", "plaster" }, { "Parapet", "plaster" }, { "AlleyEnd", "brick" },
+            { "Wall_EndL", "brick" }, { "Wall_EndR", "brick" }, { "Wall_EndTop", "brick" }, { "RoadFar", "asphalt" },
+            { "Sunshade", "concrete" }, { "BalconySlab", "concrete" }, { "Plinth", "concrete" },
+            { "Top", "wood" }, { "Shelf", "wood" }, { "Crate", "wood" }, { "CartBed", "wood" }, { "Bed", "wood" }, { "WinFrame", "wood" },
+            { "Shutter", "wood" }, { "Stand", "wood" }, { "Handle", "wood" }, { "Log", "wood" },
+            { "RollerBox", "metal" }, { "MeterBox", "metal" }, { "Cooler", "metal" }, { "SignFrame", "metal" }, { "Hoarding", "metal" },
+            { "Sack", "fabric" }, { "Carton", "fabric" }, { "Fold", "fabric" }, { "Saree", "fabric" }, { "Cloth", "fabric" },
+        };
+        foreach (var mr in GetComponentsInChildren<MeshRenderer>())
+        {
+            string key;
+            if (!map.TryGetValue(mr.gameObject.name, out key)) continue;
+            var m = mr.sharedMaterial;
+            if (m == null || (m.HasProperty("_BaseMap") && m.GetTexture("_BaseMap") != null)) continue;    // already textured
+            if (m.IsKeywordEnabled("_EMISSION")) continue;
+            Vector3 sc = mr.transform.lossyScale;
+            if (Mathf.Max(sc.x, Mathf.Max(sc.y, sc.z)) < 0.25f) continue;                                 // too small to matter
+            GameKit.Surface(mr.gameObject, key, key == "fabric" ? 0.3f : key == "wood" ? 0.9f : 1.6f, 1f, 1f, m.color);
+        }
+    }
+
     void CombineStatic()
     {
         try
@@ -384,6 +416,27 @@ public class MarketWorld : MonoBehaviour
         B(transform, "SignFrame", P(0.14f, 3.55f, 0), new Vector3(0.1f, 0.95f, 4.6f), Rgb(0.9f, 0.85f, 0.7f), false, 0.3f);
         Color tc = (sc.r + sc.g + sc.b) > 1.6f ? Rgb(0.08f, 0.08f, 0.1f) : Rgb(1f, 0.97f, 0.85f);
         GameKit.Sign(transform, names[0], names[1], P(0.27f, 3.55f, 0), face, 0.34f, 4.2f, tc);
+
+        // tin shade over the shop on rusty brackets, a tube light over the sign, a rainwater pipe, a worn stone step
+        if (R2() < 0.65f)
+        {
+            var shade = B(transform, "TinShade", P(0.62f, 2.99f, 0), new Vector3(1.15f, 0.03f, 5.0f), Rgb(0.6f, 0.55f, 0.5f), false, 0.3f, 0.4f);
+            shade.transform.localRotation = Quaternion.Euler(0, 0, side * 11f);
+            GameKit.Surface(shade, "corrugated", 0.9f, 1f, 1.3f, Rgb(0.62f, 0.56f, 0.5f) * (0.8f + R2() * 0.3f));
+            foreach (float dz in new[] { -2.2f, 0f, 2.2f })
+                Seg("ShadeBracket", P(0.1f, 2.75f, dz), P(1.05f, 2.93f, dz), 0.025f, Rgb(0.2f, 0.14f, 0.1f));
+        }
+        Gl(transform, "SignTube", P(0.34f, 4.07f, 0), new Vector3(0.04f, 0.04f, 1.2f), Tube, 2.6f);
+        B(transform, "TubeFitting", P(0.3f, 4.1f, 0), new Vector3(0.07f, 0.03f, 1.3f), Rgb(0.8f, 0.8f, 0.78f), false, 0.4f);
+        Cy(transform, "RainPipe", P(0.1f, h / 2f, 2.88f), 0.05f, h, Rgb(0.25f, 0.2f, 0.17f), 0.3f, 0.3f);
+        for (int cl = 0; cl < floors; cl++) B(transform, "PipeClamp", P(0.1f, 1.2f + cl * 3.1f, 2.88f), new Vector3(0.14f, 0.04f, 0.14f), Rgb(0.15f, 0.12f, 0.1f), false, 0.3f, 0.5f);
+        GameKit.Surface(B(transform, "ShopStep", P(0.42f, 0.24f, 0), new Vector3(0.5f, 0.12f, 4.4f), Rgb(0.5f, 0.47f, 0.43f), false, 0.3f), "stone", 1.1f, 1f, 1f, Rgb(0.55f, 0.52f, 0.48f));
+        if (R2() < 0.4f)       // split air-conditioner on the first floor wall
+        {
+            B(transform, "AcUnit", P(0.3f, 4.5f, -2.5f), new Vector3(0.36f, 0.6f, 0.85f), Rgb(0.82f, 0.82f, 0.8f), false, 0.4f, 0.2f);
+            Cy(transform, "AcFan", P(0.49f, 4.5f, -2.5f), 0.22f, 0.02f, Rgb(0.12f, 0.12f, 0.12f), 0.4f, 0.5f).transform.localRotation = Quaternion.Euler(0, 0, 90);
+            Seg("AcPipe", P(0.12f, 4.25f, -2.5f), P(0.12f, 3.2f, -2.75f), 0.025f, Rgb(0.85f, 0.85f, 0.82f));
+        }
 
         // ---------- upper floors
         for (int f = 1; f < floors; f++)
@@ -525,18 +578,26 @@ public class MarketWorld : MonoBehaviour
         var ctr = B(st, "Counter", new Vector3(0, 0.42f, 0), new Vector3(2.2f, 0.85f, 0.8f), wood, true, 0.2f);
         GameKit.Surface(ctr, "wood", 0.9f, 1f, 1f, wood);
         B(st, "Top", new Vector3(0, 0.87f, 0), new Vector3(2.3f, 0.04f, 0.9f), Rgb(0.45f, 0.4f, 0.35f), false, 0.3f);
+        var bamboo = Rgb(0.6f, 0.5f, 0.28f);
         foreach (float x in new[] { -1.1f, 1.1f })
         {
-            B(st, "Pole", new Vector3(x, 1.25f, 0.45f), new Vector3(0.05f, 2.5f, 0.05f), Rgb(0.35f, 0.25f, 0.15f));
-            B(st, "PoleB", new Vector3(x, 1.25f, -0.45f), new Vector3(0.05f, 2.5f, 0.05f), Rgb(0.35f, 0.25f, 0.15f));
+            Cy(st, "Pole", new Vector3(x, 1.4f, 0.5f), 0.028f, 2.8f, bamboo * (0.85f + R2() * 0.3f), 0.35f);      // lane side: the high edge
+            Cy(st, "PoleB", new Vector3(x, 1.3f, -0.45f), 0.028f, 2.6f, bamboo * (0.85f + R2() * 0.3f), 0.35f);
+            for (int kn = 0; kn < 4; kn++) Cy(st, "Knot", new Vector3(x, 0.5f + kn * 0.6f, 0.5f), 0.032f, 0.02f, bamboo * 0.7f, 0.3f);
+            TubeSeg(st, new Vector3(x, 2.78f, 0.5f), new Vector3(x, 2.58f, -0.45f), 0.02f, bamboo * 0.9f);
         }
-        var aw = B(st, "Awning", new Vector3(0, 2.52f, 0.0f), new Vector3(2.6f, 0.04f, 1.7f), tarp, false, 0.1f);
-        aw.transform.localRotation = Quaternion.Euler(-9f, 0, 0);
-        for (int i = 0; i < 5; i++)
-        {
-            var s = B(st, "Stripe", new Vector3(-1.1f + i * 0.55f, 2.54f, 0.0f), new Vector3(0.16f, 0.045f, 1.7f), Rgb(0.97f, 0.95f, 0.9f), false, 0.1f);
-            s.transform.localRotation = Quaternion.Euler(-9f, 0, 0);
-        }
+        TubeSeg(st, new Vector3(-1.15f, 2.78f, 0.5f), new Vector3(1.15f, 2.78f, 0.5f), 0.02f, bamboo);
+        TubeSeg(st, new Vector3(-1.15f, 2.58f, -0.45f), new Vector3(1.15f, 2.58f, -0.45f), 0.02f, bamboo);
+        // a plastic tarpaulin tied over the frame: it sags, and no two are quite the same colour
+        Color tc = Color.Lerp(tarp, Rgb(0.45f, 0.45f, 0.45f), 0.15f + R2() * 0.25f);
+        var tarpMat = ProcTex.Mat(ProcTex.Get("fabric"), tc, new Vector2(2.7f, 1.9f) / 0.35f, 0.45f, 0.6f);
+        if (tarpMat.HasProperty("_Cull")) tarpMat.SetFloat("_Cull", 0f);
+        var aw = VehicleKit.Part(st, "Awning", VehicleKit.Tarp(2.7f, 1.9f, 0.1f + (R2() < 0.5f ? 0.05f : 0.1f)), tarpMat, new Vector3(0, 2.7f, 0.1f));
+        aw.transform.localRotation = Quaternion.Euler(-11f, 0, 0);
+        // jute cloth hung over the front of the counter
+        var drape = B(st, "Drape", new Vector3(0, 0.46f, 0.41f), new Vector3(2.24f, 0.82f, 0.015f), Rgb(0.62f, 0.52f, 0.36f), false, 0.05f);
+        GameKit.Surface(drape, "fabric", 0.25f, 0.3f, 1.4f, Rgb(0.62f, 0.52f, 0.36f) * (0.8f + R2() * 0.3f));
+        TubeSeg(st, new Vector3(0, 2.6f, 0.35f), new Vector3(0, 2.27f, 0.35f), 0.008f, Rgb(0.05f, 0.05f, 0.05f));
         // hanging bulb (tungsten) + light
         GameKit.Sphere(st, "Bulb", new Vector3(0, 2.2f, 0.35f), 0.14f, GameKit.Glow(Color.white, new Color(1f, 0.78f, 0.4f), 5f));
         AddLight(st.TransformPoint(new Vector3(0, 2.0f, 0.5f)), Tungsten, 2.2f, 5f);
@@ -552,8 +613,28 @@ public class MarketWorld : MonoBehaviour
         {
             float a = R() * Mathf.PI * 2f, r = R() * spread;
             float h = (1f - r / Mathf.Max(0.01f, spread)) * spread * 0.9f;
-            Sp(p, "Item", center + new Vector3(Mathf.Cos(a) * r, h, Mathf.Sin(a) * r), d, c * (0.85f + R() * 0.3f), 0.5f);
+            var it = Sp(p, "Item", center + new Vector3(Mathf.Cos(a) * r, h, Mathf.Sin(a) * r), d, c * (0.85f + R() * 0.3f), 0.5f);
+            it.transform.localScale = new Vector3(d * (0.88f + R2() * 0.24f), d * (0.78f + R2() * 0.26f), d * (0.88f + R2() * 0.24f));
+            it.transform.localRotation = Quaternion.Euler(R2() * 30f, R2() * 360f, R2() * 30f);
         }
+    }
+
+    /// <summary>A heap of one scanned prop (falls back to coloured spheres if the model is missing).</summary>
+    void PileP(Transform p, string id, Vector3 center, int count, float spread, float scale, Color fallback, float d)
+    {
+        if (!PropKit.Has(id)) { Pile(p, center, fallback, count, spread, d); return; }
+        for (int i = 0; i < count; i++)
+        {
+            float a = R2() * Mathf.PI * 2f, r = Mathf.Sqrt(R2()) * spread;
+            float h = (1f - r / Mathf.Max(0.01f, spread)) * spread * 0.7f;
+            PropKit.Place(p, id, center + new Vector3(Mathf.Cos(a) * r, h - 0.02f, Mathf.Sin(a) * r), R2() * 360f, scale, new Vector3(R2() * 50f, 0, R2() * 50f));
+        }
+    }
+
+    void BasketP(Transform p, Vector3 pos)
+    {
+        if (PropKit.Place(p, "wicker_basket_01", pos + Vector3.down * 0.15f, R2() * 360f, 1.25f) == null)
+            Cy(p, "Basket", pos, 0.2f, 0.3f, Rgb(0.7f, 0.55f, 0.3f), 0.1f);
     }
 
     void Stall(int side, float z, string kind)
@@ -567,10 +648,12 @@ public class MarketWorld : MonoBehaviour
             case "veg":
                 for (int i = 0; i < 4; i++) B(st, "Crate", new Vector3(-0.8f + i * 0.55f, top + 0.1f, 0.05f), new Vector3(0.5f, 0.18f, 0.55f), Rgb(0.55f, 0.4f, 0.25f), false, 0.2f);
                 Pile(st, new Vector3(-0.8f, top + 0.2f, 0.05f), Rgb(0.85f, 0.12f, 0.1f), 14, 0.2f, 0.1f);   // tomatoes
-                Pile(st, new Vector3(-0.25f, top + 0.2f, 0.05f), Rgb(0.6f, 0.25f, 0.35f), 14, 0.2f, 0.1f);  // onions
+                PileP(st, "yellow_onion", new Vector3(-0.25f, top + 0.2f, 0.05f), 16, 0.2f, 1.25f, Rgb(0.6f, 0.25f, 0.35f), 0.1f);  // onions
                 Pile(st, new Vector3(0.3f, top + 0.2f, 0.05f), Rgb(0.6f, 0.45f, 0.3f), 14, 0.2f, 0.1f);    // potatoes
                 Pile(st, new Vector3(0.85f, top + 0.2f, 0.05f), Rgb(0.2f, 0.6f, 0.2f), 12, 0.2f, 0.11f);   // greens
-                for (int i = 0; i < 4; i++) Cy(st, "Basket", new Vector3(-0.8f + i * 0.55f, 0.15f, 0.7f), 0.2f, 0.3f, Rgb(0.7f, 0.55f, 0.3f), 0.1f);
+                for (int i = 0; i < 4; i++) BasketP(st, new Vector3(-0.8f + i * 0.55f, 0.15f, 0.7f));
+                PileP(st, "food_lime_01", new Vector3(-0.8f, 0.1f, 0.7f), 10, 0.13f, 1.2f, Rgb(0.4f, 0.7f, 0.2f), 0.06f);
+                PileP(st, "yellow_onion", new Vector3(0.3f, 0.1f, 0.7f), 8, 0.13f, 1.2f, Rgb(0.6f, 0.25f, 0.35f), 0.08f);
                 GameKit.Sign(st, "SABZI", "सब्ज़ी", new Vector3(0, 2.2f, 0.88f), Quaternion.Euler(0, 180f, 0), 0.22f, 1.2f, Rgb(1f, 0.95f, 0.8f));
                 break;
             case "spice":
@@ -641,7 +724,10 @@ public class MarketWorld : MonoBehaviour
                 foreach (float x in new[] { -0.95f, 0.95f })
                     Cy(st, "CartWheel", new Vector3(x, 0.38f, 0.2f), 0.38f, 0.07f, Rgb(0.08f, 0.08f, 0.08f), 0.3f).transform.localRotation = Quaternion.Euler(0, 0, 90);
                 B(st, "Handle", new Vector3(0, 0.6f, -0.9f), new Vector3(1.4f, 0.05f, 0.05f), Rgb(0.4f, 0.28f, 0.15f));
-                Pile(st, new Vector3(-0.6f, 0.85f, 0.2f), Rgb(0.85f, 0.1f, 0.1f), 14, 0.24f, 0.1f);   // apples
+                PileP(st, "food_apple_01", new Vector3(-0.6f, 0.85f, 0.2f), 18, 0.24f, 1f, Rgb(0.85f, 0.1f, 0.1f), 0.1f);   // apples
+                PileP(st, "food_pomegranate_01", new Vector3(-0.1f, 0.85f, -0.1f), 8, 0.14f, 1f, Rgb(0.7f, 0.1f, 0.15f), 0.11f);
+                PropKit.Place(st, "bananas", new Vector3(0.62f, 0.84f, 0.2f), 20f);
+                PropKit.Place(st, "bananas", new Vector3(0.66f, 0.84f, -0.08f), 200f);
                 Pile(st, new Vector3(0.0f, 0.85f, 0.2f), Rgb(1f, 0.55f, 0.05f), 14, 0.24f, 0.1f);      // oranges
                 for (int i = 0; i < 7; i++)                                                              // bananas
                     Cy(st, "Banana", new Vector3(0.6f + (i % 3) * 0.08f, 0.9f + (i / 3) * 0.06f, 0.2f), 0.035f, 0.22f, Rgb(0.98f, 0.85f, 0.2f), 0.4f).transform.localRotation = Quaternion.Euler(80f, 0, 0);
@@ -841,7 +927,84 @@ public class MarketWorld : MonoBehaviour
         VehicleKit.Wheel(s, new Vector3(0, 0.2f, 0.58f), 0.2f, 0.1f);
         VehicleKit.Wheel(s, new Vector3(0, 0.2f, -0.55f), 0.2f, 0.11f);
         var col = s.gameObject.AddComponent<BoxCollider>(); col.center = new Vector3(0, 0.5f, 0); col.size = new Vector3(0.7f, 1f, 1.3f);
+        s.localScale = Vector3.one * 1.18f;            // a real scooter is about 1.8 m long and 1.15 m to the mirrors
         return s;
+    }
+
+    /// <summary>
+    /// A 100-125 cc commuter motorcycle (the kind half of India rides): about 2 m long, saddle at 0.8 m.
+    /// Local +Z is forward. Rider points: seat (0, 0.84, -0.32), pegs (0.22, 0.34, -0.02), grips (0.3, 1.06, 0.34).
+    /// </summary>
+    public Transform SpawnBike(Vector3 pos, float yaw, Color c)
+    {
+        var s = new GameObject("Motorbike").transform;
+        s.SetParent(transform, false);
+        s.position = pos; s.rotation = Quaternion.Euler(0, yaw, 9f);       // leaning on its side stand
+        var paint = GameKit.Lit(c, 0.85f, 0.25f);
+        var blackM = GameKit.Lit(Rgb(0.04f, 0.04f, 0.045f), 0.35f);
+        var seat = GameKit.Lit(Rgb(0.06f, 0.055f, 0.05f), 0.25f);
+        var engine = GameKit.Lit(Rgb(0.42f, 0.43f, 0.45f), 0.6f, 0.85f);
+        var chrome = GameKit.Lit(Rgb(0.72f, 0.73f, 0.75f), 0.92f, 1f);
+        var dk = Rgb(0.05f, 0.05f, 0.055f); var steel = Rgb(0.6f, 0.6f, 0.62f);
+
+        VehicleKit.Wheel(s, new Vector3(0, 0.3f, 0.68f), 0.3f, 0.09f);
+        VehicleKit.Wheel(s, new Vector3(0, 0.3f, -0.62f), 0.3f, 0.11f);
+        // frame, forks, swing arm, shocks
+        foreach (float fx in new[] { -0.075f, 0.075f })
+        {
+            TubeSeg(s, new Vector3(fx, 0.3f, 0.68f), new Vector3(fx * 0.8f, 0.98f, 0.40f), 0.035f, steel);
+            TubeSeg(s, new Vector3(fx, 0.3f, -0.62f), new Vector3(fx, 0.42f, -0.12f), 0.035f, dk);
+            TubeSeg(s, new Vector3(fx * 1.6f, 0.36f, -0.58f), new Vector3(fx * 1.5f, 0.74f, -0.42f), 0.03f, steel);
+        }
+        TubeSeg(s, new Vector3(0, 0.92f, 0.40f), new Vector3(0, 0.50f, 0.20f), 0.045f, dk);
+        TubeSeg(s, new Vector3(0, 0.80f, 0.36f), new Vector3(0, 0.72f, -0.55f), 0.045f, dk);
+        TubeSeg(s, new Vector3(0, 0.72f, -0.20f), new Vector3(0, 0.40f, -0.12f), 0.04f, dk);
+        // engine, tank, saddle, panels, mudguards
+        VehicleKit.Body(s, "Engine", new[] { new Sec(0.26f, 0.44f, 0.11f, 0.13f, 4f), new Sec(0.10f, 0.46f, 0.15f, 0.17f, 4f), new Sec(-0.14f, 0.44f, 0.14f, 0.14f, 4f) }, engine, "mb_engine");
+        VehicleKit.Body(s, "Cylinder", new[] { new Sec(0.20f, 0.62f, 0.07f, 0.07f, 3f), new Sec(0.02f, 0.64f, 0.08f, 0.08f, 3f) }, engine, "mb_cyl");
+        VehicleKit.Body(s, "Tank", new[] { new Sec(0.40f, 0.86f, 0.07f, 0.06f, 2.6f), new Sec(0.26f, 0.90f, 0.14f, 0.10f, 3f), new Sec(0.02f, 0.89f, 0.15f, 0.10f, 3f), new Sec(-0.14f, 0.85f, 0.10f, 0.06f, 2.6f) }, paint, "mb_tank");
+        VehicleKit.Body(s, "Saddle", new[] { new Sec(-0.10f, 0.83f, 0.11f, 0.045f, 3f), new Sec(-0.42f, 0.845f, 0.15f, 0.05f, 3f), new Sec(-0.84f, 0.87f, 0.13f, 0.045f, 3f), new Sec(-0.90f, 0.87f, 0.07f, 0.03f, 2.6f) }, seat, "mb_seat");
+        VehicleKit.Blob(s, "SidePanel", new Vector3(0, 0.64f, -0.32f), new Vector3(0.27f, 0.2f, 0.42f), paint);
+        VehicleKit.Blob(s, "RearMudguard", new Vector3(0, 0.56f, -0.70f), new Vector3(0.13f, 0.34f, 0.6f), paint);
+        VehicleKit.Blob(s, "FrontMudguard", new Vector3(0, 0.50f, 0.68f), new Vector3(0.11f, 0.30f, 0.56f), paint);
+        B(s, "ChainCover", new Vector3(-0.11f, 0.36f, -0.35f), new Vector3(0.02f, 0.09f, 0.55f), dk, false, 0.4f);
+        Cy(s, "Exhaust", new Vector3(0.17f, 0.34f, -0.42f), 0.045f, 0.85f, steel, 0.9f, 1f).transform.localRotation = Quaternion.Euler(84f, 0, 0);
+        B(s, "Pegs", new Vector3(0, 0.34f, -0.02f), new Vector3(0.5f, 0.025f, 0.04f), dk, false, 0.4f, 0.6f);
+        B(s, "Carrier", new Vector3(0, 0.90f, -0.92f), new Vector3(0.24f, 0.02f, 0.2f), steel, false, 0.8f, 0.9f);
+        // headlamp, bars, mirrors, lights, plate
+        VehicleKit.Blob(s, "HeadlampHousing", new Vector3(0, 0.98f, 0.48f), new Vector3(0.2f, 0.2f, 0.17f), blackM);
+        GameKit.Sphere(s, "Headlight", new Vector3(0, 0.98f, 0.54f), 0.15f, GameKit.Lit(Rgb(0.8f, 0.8f, 0.75f), 0.95f, 0.3f));
+        B(s, "Clocks", new Vector3(0, 1.06f, 0.42f), new Vector3(0.16f, 0.06f, 0.08f), dk);
+        B(s, "Handle", new Vector3(0, 1.06f, 0.34f), new Vector3(0.66f, 0.03f, 0.03f), steel, false, 0.8f, 0.9f);
+        foreach (float gx in new[] { -0.3f, 0.3f })
+        {
+            B(s, "Grip", new Vector3(gx, 1.06f, 0.34f), new Vector3(0.12f, 0.042f, 0.042f), Rgb(0.03f, 0.03f, 0.03f), false, 0.2f);
+            TubeSeg(s, new Vector3(gx * 0.8f, 1.07f, 0.35f), new Vector3(gx * 1.08f, 1.26f, 0.33f), 0.012f, dk);
+            VehicleKit.Blob(s, "Mirror", new Vector3(gx * 1.1f, 1.28f, 0.33f), new Vector3(0.12f, 0.075f, 0.02f), chrome);
+            GameKit.Box(s, "Indicator", new Vector3(gx * 0.55f, 0.80f, -0.9f), new Vector3(0.05f, 0.04f, 0.04f), GameKit.Lit(Rgb(0.8f, 0.4f, 0.05f), 0.8f));
+        }
+        GameKit.Box(s, "TailLight", new Vector3(0, 0.80f, -0.96f), new Vector3(0.11f, 0.06f, 0.03f), GameKit.Lit(Rgb(0.4f, 0.03f, 0.03f), 0.8f));
+        B(s, "NumberPlate", new Vector3(0, 0.66f, -1.0f), new Vector3(0.2f, 0.11f, 0.01f), Rgb(0.93f, 0.93f, 0.9f), false, 0.3f);
+        TubeSeg(s, new Vector3(-0.12f, 0.30f, -0.05f), new Vector3(-0.30f, 0.02f, 0.0f), 0.022f, dk);
+        var col = s.gameObject.AddComponent<BoxCollider>(); col.center = new Vector3(0, 0.6f, 0); col.size = new Vector3(0.7f, 1.2f, 2.0f);
+        Kinematic(s);
+        return s;
+    }
+
+    /// <summary>Switch a motorbike's lamps on (glowing lenses plus a real beam).</summary>
+    public void BikeLights(Transform bike)
+    {
+        foreach (Transform ch in bike)
+        {
+            if (ch.name == "Headlight") ch.GetComponent<Renderer>().sharedMaterial = GameKit.Glow(Color.white, new Color(1f, 0.92f, 0.7f), 6f);
+            if (ch.name == "TailLight") ch.GetComponent<Renderer>().sharedMaterial = GameKit.Glow(Color.red, Color.red, 3f);
+        }
+        var spot = new GameObject("HeadSpot").AddComponent<Light>();
+        spot.transform.SetParent(bike, false);
+        spot.transform.localPosition = new Vector3(0, 0.98f, 0.62f);
+        spot.transform.localRotation = Quaternion.Euler(6f, 0, 0);
+        spot.type = LightType.Spot; spot.spotAngle = 62f; spot.range = 16f; spot.intensity = 7f; spot.color = new Color(1f, 0.93f, 0.75f);
+        spot.shadows = LightShadows.None;
     }
 
     void Bicycle(Vector3 pos, float yaw)
