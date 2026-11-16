@@ -293,8 +293,80 @@ public class CharacterNPC : MonoBehaviour
     {
         string n = m != null ? m.name.ToLowerInvariant() : "";
         foreach (var kv in style.map)
-            if (n.Contains(kv.Key)) return Mat(kv.Value, 0.3f);
+            if (n.Contains(kv.Key)) return Surface(kv.Key, kv.Value);
         return m;
+    }
+
+    /// <summary>
+    /// Each part of a person reflects light differently. Giving skin, hair, eyes, cloth and metal their own response
+    /// (instead of one flat plastic value) is what stops the models reading as toys under the film lighting.
+    /// </summary>
+    static Material Surface(string key, Color c)
+    {
+        float smooth = 0.14f, metal = 0f;                     // default: matte cloth
+        if (key.Contains("skin")) smooth = 0.46f;              // soft sheen
+        else if (key.Contains("eyebrow")) smooth = 0.2f;
+        else if (key.Contains("eye")) smooth = 0.92f;          // wet, catches a highlight
+        else if (key.Contains("hair") || key == "brown" || key == "red") smooth = 0.58f;   // "red"/"brown" are the hair on the woman model
+        else if (key.Contains("gold")) { smooth = 0.82f; metal = 0.95f; }
+        else if (key.Contains("black") || key.Contains("red_dark")) smooth = 0.5f;   // leather shoes, belts
+        else if (key.Contains("suit") || key.Contains("tie")) smooth = 0.24f;
+        var m = Mat(c, smooth);
+        if (m.HasProperty("_Metallic")) m.SetFloat("_Metallic", metal);
+        if (key.Contains("skin") && m.HasProperty("_SpecColor")) m.SetColor("_SpecColor", new Color(0.25f, 0.2f, 0.18f));
+        return m;
+    }
+
+    // The source models are flat-shaded (every polygon has its own hard-edged normals), which is exactly what makes
+    // them look like low-poly cartoons. Re-averaging the normals across shared positions gives rounded, continuous
+    // shading on faces, arms and cloth while keeping genuinely sharp edges (collars, hems, shoe soles).
+    static readonly Dictionary<Mesh, Mesh> smoothCache = new Dictionary<Mesh, Mesh>();
+
+    static Mesh Smoothed(Mesh src)
+    {
+        if (src == null) return null;
+        Mesh done;
+        if (smoothCache.TryGetValue(src, out done) && done != null) return done;
+        if (!src.isReadable) { smoothCache[src] = src; return src; }
+        var mesh = Instantiate(src);
+        mesh.name = src.name + "_smooth";
+        var v = mesh.vertices; var n = mesh.normals;
+        if (n == null || n.Length != v.Length) { smoothCache[src] = src; return src; }
+        var faces = new Dictionary<Vector3Int, List<Vector3>>();
+        for (int s = 0; s < mesh.subMeshCount; s++)
+        {
+            var tri = mesh.GetTriangles(s);
+            for (int i = 0; i + 2 < tri.Length; i += 3)
+            {
+                Vector3 fn = Vector3.Cross(v[tri[i + 1]] - v[tri[i]], v[tri[i + 2]] - v[tri[i]]);   // length = 2 x area, so big faces count more
+                if (fn.sqrMagnitude < 1e-14f) continue;
+                for (int k = 0; k < 3; k++)
+                {
+                    var key = Key(v[tri[i + k]]);
+                    List<Vector3> list;
+                    if (!faces.TryGetValue(key, out list)) { list = new List<Vector3>(6); faces[key] = list; }
+                    list.Add(fn);
+                }
+            }
+        }
+        const float cosLimit = 0.3f;        // about 72 degrees: sharper creases than this stay sharp
+        for (int i = 0; i < v.Length; i++)
+        {
+            List<Vector3> list;
+            if (!faces.TryGetValue(Key(v[i]), out list)) continue;
+            Vector3 acc = Vector3.zero;
+            foreach (var fn in list)
+                if (Vector3.Dot(fn.normalized, n[i]) > cosLimit) acc += fn;
+            if (acc.sqrMagnitude > 1e-12f) n[i] = acc.normalized;
+        }
+        mesh.normals = n;
+        smoothCache[src] = mesh;
+        return mesh;
+    }
+
+    static Vector3Int Key(Vector3 p)
+    {
+        return new Vector3Int(Mathf.RoundToInt(p.x * 20000f), Mathf.RoundToInt(p.y * 20000f), Mathf.RoundToInt(p.z * 20000f));
     }
 
     static Transform FindDeep(Transform t, string name)
@@ -328,6 +400,9 @@ public class CharacterNPC : MonoBehaviour
             for (int i = 0; i < mats.Length; i++) mats[i] = Recolor(mats[i]);
             r.sharedMaterials = mats;
             r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
+            var smr = r as SkinnedMeshRenderer;
+            if (smr != null) { smr.sharedMesh = Smoothed(smr.sharedMesh); smr.quality = SkinQuality.Bone4; smr.updateWhenOffscreen = false; }
+            else { var mf = r.GetComponent<MeshFilter>(); if (mf != null) mf.sharedMesh = Smoothed(mf.sharedMesh); }
         }
 
         // glTFast keeps the glTF front facing +Z, which is Unity's forward, so no rotation is needed.

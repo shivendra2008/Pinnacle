@@ -41,3 +41,14 @@ Backups of the originals were not committed; the old numbers are in the table ab
 - Act II market rebuilt from scratch as an Indian bazaar lane (8 m wide, 3-4 storey faded buildings, ~22 stalls,
   shrine, gate arch, cow, scooters, autos, bunting). Bilingual Hindi/English signs are pre-rendered images:
   `swift Tools/make_signs.swift` regenerates `Assets/Resources/Signs/*.png` (correct Devanagari shaping).
+
+## Thriller pass (Nov 2026)
+- **One UI language** (`UiKit.cs`): near-black square panels, hairline borders, a single aged-brass accent, bone-white text,
+  tracked capitals for labels. The journal in every act is now `UiKit.CaseFile` (numbered, scrollable dossier).
+- **Cinema bars** slide in during conversations, document cards and act intros (`UiKit.Letterbox`).
+- **Film grade** (`CinematicLook.Apply`): muted saturation, stronger contrast, cooler shadows, heavier vignette and grain,
+  slight lens distortion. Default tier is now Cinematic (F2 to step down).
+- **Characters** (`CharacterNPC.cs`): normals are re-smoothed at load (no more faceted low-poly shading) and skin, hair,
+  eyes, cloth and metal each get their own surface response. The models themselves are still the low-poly CC0 set -
+  replacing them with realistic rigged humans is the next step.
+- **Render settings**: MSAA 4x, 4096 shadow maps, shadow distance 40, SSAO high samples / 0.9 intensity, 48 LUT.

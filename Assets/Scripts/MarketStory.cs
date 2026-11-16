@@ -1309,6 +1309,7 @@ public class MarketStory : MonoBehaviour
         float W = Screen.width / s, H = Screen.height / s;
         bool playing = phase == Phase.Free || phase == Phase.Dialogue || phase == Phase.Hook || phase == Phase.Choice || phase == Phase.Outcome;
 
+        UiKit.Letterbox(W, H, !paused && (phase == Phase.Dialogue || phase == Phase.Choice));
         if (playing && !paused) UiKit.Crosshair(W, H);
 
         if (phase == Phase.Free && objectiveTarget.HasValue && !paused) DrawTargetMarker(s);
@@ -1320,7 +1321,7 @@ public class MarketStory : MonoBehaviour
         {
             var r = new Rect(20, 18, Mathf.Min(620, W * 0.55f), 62);
             Panel(r, 0.5f);
-            GUI.Label(new Rect(r.x + 12, r.y + 6, r.width - 24, 20), "OBJECTIVE", sHead);
+            GUI.Label(new Rect(r.x + 12, r.y + 6, r.width - 24, 20), UiKit.Track("Objective"), sHead);
             GUI.Label(new Rect(r.x + 12, r.y + 27, r.width - 24, 34), objective, sSmall);
         }
 
@@ -1336,7 +1337,7 @@ public class MarketStory : MonoBehaviour
         if (Time.time < toastUntil && !string.IsNullOrEmpty(toast) && !paused)
         {
             float tw = toastBig ? 640 : 600;
-            var r = new Rect(W / 2 - tw / 2, toastBig ? H * 0.2f : 24, tw, toastBig ? 56 : 40);
+            var r = new Rect(W / 2 - tw / 2, toastBig ? H * 0.2f : 96, tw, toastBig ? 56 : 40);
             Panel(r, 0.7f);
             GUI.Label(new Rect(r.x, r.y + (toastBig ? 10 : 6), r.width, 40), toast, new GUIStyle(sPrompt) { fontSize = toastBig ? 24 : 18 });
         }
@@ -1484,27 +1485,17 @@ public class MarketStory : MonoBehaviour
 
     void DrawJournal(float W, float H)
     {
-        Panel(new Rect(0, 0, W, H), 0.45f);
-        var r = new Rect(W / 2 - 400, H / 2 - 300, 800, 600);
-        Panel(r, 0.9f);
-        GUI.Label(new Rect(r.x + 24, r.y + 14, r.width - 48, 34), "EVIDENCE NOTES  -  Act II", sTitle2);
-        GUI.Label(new Rect(r.x + 24, r.y + 50, r.width - 48, 24), "[J] close", sHead);
-        float y = r.y + 84;
-        if (evidence.Count == 0)
-            GUI.Label(new Rect(r.x + 24, y, r.width - 48, 40), "Nothing yet. Talk to people and look for clues in the market.", sPanel);
-        foreach (var e in evidence)
-        {
-            float h = sPanel.CalcHeight(new GUIContent("-  " + e), r.width - 56);
-            if (y + h > r.yMax - 10) break;
-            GUI.Label(new Rect(r.x + 24, y, r.width - 48, h), "-  " + e, sPanel);
-            y += h + 6;
-        }
+        var notes = new List<UiKit.Note>();
+        for (int i = evidence.Count - 1; i >= 0; i--)
+            notes.Add(new UiKit.Note("Evidence " + (i + 1).ToString("00"), evidence[i]));
+        UiKit.CaseFile(W, H, "The Streets Know", "Act II\nEvidence notes  " + evidence.Count, notes,
+            "Nothing yet. Talk to people and look for clues in the market.");
     }
 
     void DrawPause(float W, float H)
     {
         Panel(new Rect(0, 0, W, H), 0.7f);
-        GUI.Label(new Rect(0, H * 0.2f, W, 60), "PAUSED", sTitle);
+        GUI.Label(new Rect(0, H * 0.2f, W, 60), UiKit.Track("Paused"), sTitle);
         if (GUI.Button(new Rect(W / 2 - 130, H * 0.36f, 260, 46), "Resume", sBtn)) SetPaused(false);
         if (GUI.Button(new Rect(W / 2 - 130, H * 0.36f + 58, 260, 46), "Quit to main menu", sBtn))
         {

@@ -108,8 +108,8 @@ public class GameMenu : IDisposable
     void Styles()
     {
         if (sTitle != null) return;
-        sTitle = new GUIStyle(GUI.skin.label) { font = UiKit.Title, fontSize = 60, alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
-        sTitle.normal.textColor = UiKit.Gold;
+        sTitle = new GUIStyle(GUI.skin.label) { font = UiKit.Title, fontSize = 44, alignment = TextAnchor.MiddleCenter };
+        sTitle.normal.textColor = UiKit.Cream;
         sSub = new GUIStyle(GUI.skin.label) { font = UiKit.Body, fontSize = 20, alignment = TextAnchor.MiddleCenter };
         sSub.normal.textColor = UiKit.Muted;
         sBody = new GUIStyle(GUI.skin.label) { font = UiKit.Body, fontSize = 19, wordWrap = true };
@@ -126,8 +126,9 @@ public class GameMenu : IDisposable
     public void Draw(float W, float H)
     {
         Styles();
-        UiKit.Text(new Rect(0, H * 0.07f, W, 80), "SHADOWS OF CHANDNI", sTitle);
-        GUI.Label(new Rect(0, H * 0.07f + 76, W, 30), "A non-violent mystery thriller", sSub);
+        UiKit.Text(new Rect(0, H * 0.07f, W, 80), UiKit.Track("Shadows of Chandni"), sTitle);
+        UiKit.Fill(new Rect(W / 2 - 40, H * 0.07f + 78, 80, 2), UiKit.Gold);
+        GUI.Label(new Rect(0, H * 0.07f + 88, W, 30), "A non-violent mystery thriller", sSub);
         switch (screen)
         {
             case Screen.Name: DrawName(W, H); break;

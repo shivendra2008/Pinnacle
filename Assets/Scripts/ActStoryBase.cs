@@ -25,6 +25,7 @@ public static class ActLoader
             m.builder = builder; m.player = player; m.resume = resume;
             return;
         }
+        if (!resume) SaveSystem.ResetAct(act);      // a fresh start must not inherit an old run's progress
         ActStoryBase story;
         if (act == 3) story = root.AddComponent<Act3Story>();
         else if (act == 4) story = root.AddComponent<Act4Story>();
@@ -198,7 +199,7 @@ public abstract class ActStoryBase : MonoBehaviour
         if (SaveSystem.Data.evidence.Contains(e)) return;
         SaveSystem.AddEvidence(e);
         sfx.PlayOneShot(dingClip, 0.5f);
-        Toast("Evidence added to your notes (J)", 3f);
+        Toast("Added to the case file  (J)", 3f);
     }
 
     protected IEnumerator W(float seconds)
@@ -433,7 +434,7 @@ public abstract class ActStoryBase : MonoBehaviour
     void UpdateInteraction()
     {
         prompt = "";
-        if (phase != Phase.Free || PriyaRoomPlayer.Locked) return;
+        if (phase != Phase.Free || PriyaRoomPlayer.Locked || journalOpen) return;   // no interacting through the open case file
         Spot best = null; float bestScore = float.MaxValue;
         Vector3 o = cam.position, f = cam.forward;
         foreach (var s in spots)
@@ -675,6 +676,8 @@ public abstract class ActStoryBase : MonoBehaviour
         GUI.matrix = Matrix4x4.Scale(new Vector3(s, s, 1));
         float W = Screen.width / s, H = Screen.height / s;
 
+        UiKit.Letterbox(W, H, !paused && creditsStart <= 0 && (phase == Phase.Intro || !string.IsNullOrEmpty(dlgText) || cardOpen));
+
         if (phase == Phase.Free && !paused)
         {
             UiKit.Crosshair(W, H);
@@ -684,16 +687,16 @@ public abstract class ActStoryBase : MonoBehaviour
             {
                 var r = new Rect(20, 18, Mathf.Min(640, W * 0.55f), 62);
                 UiKit.Card(r, 0.5f);
-                GUI.Label(new Rect(r.x + 12, r.y + 6, r.width - 24, 20), "OBJECTIVE", sHead);
+                GUI.Label(new Rect(r.x + 12, r.y + 6, r.width - 24, 20), UiKit.Track("Objective"), sHead);
                 GUI.Label(new Rect(r.x + 12, r.y + 27, r.width - 24, 34), objective, sSmall);
             }
-            UiKit.Text(new Rect(0, H - 30, W - 20, 24), "E Interact   |   J Case notes   |   Esc Pause", new GUIStyle(sSmall) { alignment = TextAnchor.LowerRight, fontSize = 14 });
+            UiKit.Text(new Rect(0, H - 30, W - 20, 24), "E  Interact      J  Case file      Esc  Pause", new GUIStyle(sSmall) { alignment = TextAnchor.LowerRight, fontSize = 14 });
         }
 
         if (Time.time < toastUntil && !string.IsNullOrEmpty(toast) && !paused)
         {
             float tw = toastBig ? 660 : 620;
-            var r = new Rect(W / 2 - tw / 2, toastBig ? H * 0.2f : 24, tw, toastBig ? 56 : 40);
+            var r = new Rect(W / 2 - tw / 2, toastBig ? H * 0.2f : 96, tw, toastBig ? 56 : 40);      // below the objective box, not on top of it
             UiKit.Card(r, 0.75f);
             GUI.Label(new Rect(r.x, r.y + (toastBig ? 10 : 6), r.width, 40), toast, new GUIStyle(sPrompt) { fontSize = toastBig ? 24 : 18 });
         }
@@ -808,20 +811,13 @@ public abstract class ActStoryBase : MonoBehaviour
 
     void DrawJournal(float W, float H)
     {
-        UiKit.Card(new Rect(0, 0, W, H), 0.45f);
-        var r = new Rect(W / 2 - 420, H / 2 - 320, 840, 640);
-        UiKit.Card(r, 0.92f);
         var d = SaveSystem.Data;
-        GUI.Label(new Rect(r.x + 24, r.y + 14, r.width - 48, 34), "CASE NOTES  -  Detective " + d.playerName, sTitle2);
-        GUI.Label(new Rect(r.x + 24, r.y + 50, r.width - 48, 24), "Apartment clues: " + d.clues.Count + " of 9      |      Evidence total: " + SaveSystem.EvidenceCount + "      [J] close", sHead);
-        float y = r.y + 84;
+        var notes = new List<UiKit.Note>();
         for (int i = d.evidence.Count - 1; i >= 0; i--)          // newest first
-        {
-            float h = sSmall.CalcHeight(new GUIContent("-  " + d.evidence[i]), r.width - 56);
-            if (y + h > r.yMax - 10) break;
-            GUI.Label(new Rect(r.x + 24, y, r.width - 48, h), "-  " + d.evidence[i], new GUIStyle(sSmall) { normal = { textColor = UiKit.Cream } });
-            y += h + 4;
-        }
+            notes.Add(new UiKit.Note("Evidence " + (i + 1).ToString("00"), d.evidence[i]));
+        UiKit.CaseFile(W, H, "Detective " + d.playerName,
+            "Apartment clues  " + d.clues.Count + " / 9\nEvidence notes  " + d.evidence.Count,
+            notes, "Nothing recorded yet. Talk to people and examine what you find.");
     }
 
     void DrawCredits(float W, float H)
@@ -845,7 +841,7 @@ public abstract class ActStoryBase : MonoBehaviour
     void DrawPause(float W, float H)
     {
         UiKit.Card(new Rect(0, 0, W, H), 0.7f);
-        GUI.Label(new Rect(0, H * 0.2f, W, 60), "PAUSED", sTitle);
+        GUI.Label(new Rect(0, H * 0.2f, W, 60), UiKit.Track("Paused"), sTitle);
         if (GUI.Button(new Rect(W / 2 - 130, H * 0.36f, 260, 46), "Resume", UiKit.ButtonStyle())) SetPaused(false);
         if (GUI.Button(new Rect(W / 2 - 130, H * 0.36f + 58, 260, 46), "Quit to main menu", UiKit.ButtonStyle())) { SetPaused(false); builder.Build(); }
         GUI.Label(new Rect(W / 2 - 330, H * 0.36f + 130, 660, 90),
