@@ -49,6 +49,15 @@ Backups of the originals were not committed; the old numbers are in the table ab
 - **Film grade** (`CinematicLook.Apply`): muted saturation, stronger contrast, cooler shadows, heavier vignette and grain,
   slight lens distortion. Default tier is now Cinematic (F2 to step down).
 - **Characters** (`CharacterNPC.cs`): normals are re-smoothed at load (no more faceted low-poly shading) and skin, hair,
-  eyes, cloth and metal each get their own surface response. The models themselves are still the low-poly CC0 set -
-  replacing them with realistic rigged humans is the next step.
+  eyes, cloth and metal each get their own surface response. (This only applies to the low-poly fallback models now.)
 - **Render settings**: MSAA 4x, 4096 shadow maps, shadow distance 40, SSAO high samples / 0.9 intensity, 48 LUT.
+
+## Realistic characters (Nov 2026)
+- 14 avatars from the Microsoft Rocketbox library (MIT) live in `Assets/Resources/Characters/RB` (see CREDITS.txt there).
+  `NpcStyle.Rb("Male_Adult_15", tint)` picks the avatar; the tint multiplies the clothing texture.
+- They ship without animation clips. `CharacterNPC.RbAnimate` poses the skeleton in code every frame:
+  arms down from the T-pose, breathing, head tracking, jaw + hand moving with the voice, walk cycle, wave.
+- `Assets/Editor/RocketboxImport.cs` sets the import options (normal maps, no Animator).
+- Go back to the low-poly set: `CharacterNPC.Realistic = false` (it is also the automatic fallback if a model is missing).
+- Children in the market still use the low-poly model (the realistic set here is adults only).
+- For a standalone build, the runtime materials need the URP Lit normal-map and alpha-clip shader variants included.

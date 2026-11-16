@@ -13,6 +13,11 @@ public class NpcStyle
     public string model = "Characters/Kamala";
     public float height = 1.62f;
     public readonly List<KeyValuePair<string, Color>> map = new List<KeyValuePair<string, Color>>();
+    /// <summary>Realistic avatar (Microsoft Rocketbox, MIT) in Resources/Characters/RB; null = use the low-poly model.</summary>
+    public string rb;
+    public Color bodyTint = Color.white;      // multiplies the clothing texture (white kurta x saffron = saffron kurta)
+    public NpcStyle Rb(string avatar) { rb = avatar; return this; }
+    public NpcStyle Rb(string avatar, Color tint) { rb = avatar; bodyTint = tint; return this; }
     public NpcStyle Set(string key, Color c) { map.Add(new KeyValuePair<string, Color>(key, c)); return this; }
 
     static Color C(float r, float g, float b) { return new Color(r, g, b); }
@@ -21,14 +26,14 @@ public class NpcStyle
     {
         return new NpcStyle { model = "Characters/Kamala", height = 1.58f }
             .Set("skin", C(0.60f, 0.40f, 0.27f)).Set("red", C(0.20f, 0.18f, 0.18f)).Set("green", C(0.50f, 0.12f, 0.16f))
-            .Set("gold", C(0.92f, 0.74f, 0.28f)).Set("brown", C(0.08f, 0.05f, 0.04f));
+            .Set("gold", C(0.92f, 0.74f, 0.28f)).Set("brown", C(0.08f, 0.05f, 0.04f)).Rb("Female_Adult_06");
     }
 
     public static NpcStyle Reddy()   // Inspector Sonal Reddy, plainclothes: simple salwar kameez
     {
         return new NpcStyle { model = "Characters/Kamala", height = 1.66f }
             .Set("skin", C(0.62f, 0.43f, 0.30f)).Set("red", C(0.06f, 0.05f, 0.05f)).Set("green", C(0.20f, 0.36f, 0.48f))
-            .Set("gold", C(0.75f, 0.75f, 0.78f)).Set("brown", C(0.05f, 0.04f, 0.04f));
+            .Set("gold", C(0.75f, 0.75f, 0.78f)).Set("brown", C(0.05f, 0.04f, 0.04f)).Rb("Business_Female_01");
     }
 
     public static NpcStyle Bhaskar()  // auto driver: khaki uniform
@@ -37,7 +42,7 @@ public class NpcStyle
             .Set("skin_darker", C(0.45f, 0.29f, 0.19f)).Set("skin", C(0.52f, 0.34f, 0.23f)).Set("hair", C(0.05f, 0.04f, 0.04f))
             .Set("eyebrows", C(0.05f, 0.04f, 0.04f)).Set("eye", C(0.03f, 0.02f, 0.02f))
             .Set("lightbrown", C(0.62f, 0.56f, 0.38f)).Set("lightblue", C(0.42f, 0.38f, 0.27f))
-            .Set("red_dark", C(0.20f, 0.14f, 0.10f)).Set("white", C(0.35f, 0.3f, 0.25f));
+            .Set("red_dark", C(0.20f, 0.14f, 0.10f)).Set("white", C(0.35f, 0.3f, 0.25f)).Rb("Male_Adult_05", C(0.92f, 0.86f, 0.7f));
     }
 
     public static NpcStyle Vikram()   // chai seller: white kurta, grey hair
@@ -46,7 +51,7 @@ public class NpcStyle
             .Set("skin_darker", C(0.47f, 0.30f, 0.20f)).Set("skin", C(0.55f, 0.36f, 0.24f)).Set("hair", C(0.55f, 0.55f, 0.55f))
             .Set("eyebrows", C(0.35f, 0.35f, 0.35f)).Set("eye", C(0.03f, 0.02f, 0.02f))
             .Set("lightbrown", C(0.88f, 0.85f, 0.76f)).Set("lightblue", C(0.22f, 0.20f, 0.22f))
-            .Set("red_dark", C(0.25f, 0.18f, 0.12f)).Set("white", C(0.5f, 0.45f, 0.4f));
+            .Set("red_dark", C(0.25f, 0.18f, 0.12f)).Set("white", C(0.5f, 0.45f, 0.4f)).Rb("Male_Adult_15");
     }
 
     public static NpcStyle Thug()     // dark suit
@@ -54,8 +59,11 @@ public class NpcStyle
         return new NpcStyle { model = "Characters/Suit", height = 1.82f }
             .Set("skin", C(0.58f, 0.40f, 0.28f)).Set("hair", C(0.04f, 0.04f, 0.04f)).Set("eyebrows", C(0.04f, 0.04f, 0.04f))
             .Set("eye", C(0.02f, 0.02f, 0.02f)).Set("suit", C(0.04f, 0.04f, 0.05f)).Set("white", C(0.08f, 0.08f, 0.09f))
-            .Set("tie", C(0.03f, 0.03f, 0.03f)).Set("black", C(0.02f, 0.02f, 0.02f));
+            .Set("tie", C(0.03f, 0.03f, 0.03f)).Set("black", C(0.02f, 0.02f, 0.02f)).Rb("Business_Male_03", C(0.7f, 0.7f, 0.72f));
     }
+
+    static readonly string[] WomenRb = { "Female_Adult_06", "Female_Adult_06", "Female_Adult_09", "Female_Adult_03", "Business_Female_03" };
+    static readonly string[] MenRb = { "Male_Adult_15", "Male_Adult_15", "Wood_Male_01", "Male_Adult_17", "Male_Adult_05", "Male_Adult_03", "Business_Male_05" };
 
     /// <summary>Women in bright sari / salwar colours (the dress model, recoloured).</summary>
     public static NpcStyle CrowdWoman(int seed)
@@ -69,7 +77,8 @@ public class NpcStyle
         float t = 0.46f + (float)r.NextDouble() * 0.2f;
         return new NpcStyle { model = "Characters/Kamala", height = 1.5f + (float)r.NextDouble() * 0.14f }
             .Set("skin", C(t, t * 0.68f, t * 0.48f)).Set("red", C(0.05f, 0.04f, 0.04f))
-            .Set("green", saris[r.Next(saris.Length)]).Set("gold", C(0.92f, 0.74f, 0.28f)).Set("brown", C(0.05f, 0.04f, 0.04f));
+            .Set("green", saris[r.Next(saris.Length)]).Set("gold", C(0.92f, 0.74f, 0.28f)).Set("brown", C(0.05f, 0.04f, 0.04f))
+            .Rb(WomenRb[r.Next(WomenRb.Length)], Color.Lerp(Color.white, saris[r.Next(saris.Length)], 0.45f));
     }
 
     /// <summary>A child (same casual model, much smaller).</summary>
@@ -77,6 +86,7 @@ public class NpcStyle
     {
         var st = Crowd(seed);
         st.height = 1.05f + (float)new System.Random(seed).NextDouble() * 0.2f;
+        st.rb = null;        // the realistic set used here is adults only; a shrunken adult looks wrong
         return st;
     }
 
@@ -93,6 +103,7 @@ public class NpcStyle
         var st = new NpcStyle { model = hood ? "Characters/Hoodie" : "Characters/Casual", height = 1.55f + (float)r.NextDouble() * 0.28f };
         st.Set("skin_darker", skin * 0.85f).Set("skin", skin).Set("hair", hair).Set("eyebrows", hair).Set("eye", C(0.03f, 0.02f, 0.02f))
           .Set("lightbrown", shirt).Set("purple", shirt).Set("lightblue", pants).Set("red_dark", C(0.2f, 0.12f, 0.1f)).Set("white", C(0.45f, 0.4f, 0.36f));
+        st.Rb(MenRb[r.Next(MenRb.Length)], Color.Lerp(Color.white, shirt, 0.35f));
         return st;
     }
 }
@@ -182,7 +193,7 @@ public class CharacterNPC : MonoBehaviour
         go.transform.localPosition = localPos;
         var k = go.AddComponent<CharacterNPC>();
         k.style = style ?? NpcStyle.Kamala();
-        if (!k.TryBuildModel()) k.BuildProcedural();
+        if (!(Realistic && k.TryBuildRocketbox()) && !k.TryBuildModel()) k.BuildProcedural();
         return k;
     }
 
@@ -512,10 +523,230 @@ public class CharacterNPC : MonoBehaviour
 
     void LateUpdate()
     {
+        if (rbMode) { RbAnimate(); return; }
         ProceduralWalk();
         // small nod in time with the speech
         if (usingModel && headBone != null && anim != null && anim.isPlaying && talk > 0.02f)
             headBone.localRotation *= Quaternion.Euler(talk * Mathf.Sin(Time.time * 7f) * 5f, 0, 0);
+    }
+
+
+    // ============================================================ realistic avatars
+    /// <summary>Set to false to go back to the low-poly models everywhere (they are also the automatic fallback).</summary>
+    public static bool Realistic = true;
+
+    bool rbMode, waveIsWave;
+    float waveUntil, walkAmt, gestureAmt, lookYaw, lookPitch, sideL = -1f, rbBaseY;
+    Transform rbRoot, rSpine, rNeck, rHead, rJaw, rPelvis;
+    Transform[] rArm = new Transform[2], rFore = new Transform[2], rHand = new Transform[2], rThigh = new Transform[2], rCalf = new Transform[2], rFoot = new Transform[2];
+    readonly List<Transform> rBones = new List<Transform>();
+    readonly List<Quaternion> rRest = new List<Quaternion>();
+    static readonly Dictionary<string, Material> rbMats = new Dictionary<string, Material>();
+
+    static Material RbMaterial(string matName, Color tint, Material fallback)
+    {
+        string baseName = matName.Replace(" (Instance)", "").Trim();
+        if (baseName.EndsWith("_color")) baseName = baseName.Substring(0, baseName.Length - 6);   // importer may name materials after the texture
+        string key = baseName + "#" + ColorUtility.ToHtmlStringRGB(tint);
+        Material m;
+        if (rbMats.TryGetValue(key, out m) && m != null) return m;
+        var col = Resources.Load<Texture2D>("Characters/RB/" + baseName + "_color");
+        if (col == null) return fallback;
+        var nrm = Resources.Load<Texture2D>("Characters/RB/" + baseName + "_normal");
+        bool head = baseName.EndsWith("_head"), cut = baseName.EndsWith("_opacity"), body = baseName.EndsWith("_body");
+        m = Mat(body ? tint : Color.white, head ? 0.4f : cut ? 0.35f : 0.2f);
+        m.name = key;
+        if (m.HasProperty("_BaseMap")) m.SetTexture("_BaseMap", col);
+        m.mainTexture = col;
+        if (nrm != null && m.HasProperty("_BumpMap")) { m.SetTexture("_BumpMap", nrm); m.EnableKeyword("_NORMALMAP"); }
+        if (cut)        // hair cards, lashes: alpha-tested and two-sided
+        {
+            m.SetFloat("_AlphaClip", 1f); m.SetFloat("_Cutoff", 0.38f); m.EnableKeyword("_ALPHATEST_ON");
+            m.SetFloat("_Cull", 0f); m.renderQueue = 2450;
+        }
+        rbMats[key] = m;
+        return m;
+    }
+
+    Transform Bone(Dictionary<string, Transform> all, string n)
+    {
+        Transform t;
+        if (!all.TryGetValue(n, out t)) return null;
+        if (!rBones.Contains(t)) { rBones.Add(t); rRest.Add(t.localRotation); }
+        return t;
+    }
+
+    bool TryBuildRocketbox()
+    {
+        if (style == null || string.IsNullOrEmpty(style.rb)) return false;
+        var prefab = Resources.Load<GameObject>("Characters/RB/" + style.rb);
+        if (prefab == null) return false;
+        var inst = Instantiate(prefab, transform);
+        inst.name = "Model";
+        inst.transform.localPosition = Vector3.zero;        // keep the importer's own rotation / scale (axis + unit conversion)
+        var renderers = inst.GetComponentsInChildren<Renderer>(true);
+        if (renderers.Length == 0) { Destroy(inst); return false; }
+        foreach (var a in inst.GetComponentsInChildren<Animator>(true)) a.enabled = false;
+
+        var all = new Dictionary<string, Transform>();
+        foreach (var t in inst.GetComponentsInChildren<Transform>(true)) if (!all.ContainsKey(t.name)) all[t.name] = t;
+        if (!all.ContainsKey("Bip01 Head") || !all.ContainsKey("Bip01 L UpperArm")) { Destroy(inst); return false; }
+
+        foreach (var r in renderers)
+        {
+            var mats = r.sharedMaterials;
+            for (int i = 0; i < mats.Length; i++)
+                if (mats[i] != null) mats[i] = RbMaterial(mats[i].name, style.bodyTint, mats[i]);
+            r.sharedMaterials = mats;
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
+            var smr = r as SkinnedMeshRenderer;
+            if (smr != null) { smr.quality = SkinQuality.Bone4; smr.updateWhenOffscreen = true; }
+        }
+
+        // height
+        Bounds b = renderers[0].bounds;
+        foreach (var r in renderers) b.Encapsulate(r.bounds);
+        if (b.size.y > 0.2f) inst.transform.localScale *= style.height / b.size.y;
+
+        // face the same way as the NPC object: the feet tell us which way the model was authored
+        {
+            Vector3 f = Vector3.zero;          // both feet, so a splayed stance does not skew the result
+            foreach (var sd in new[] { "L", "R" })
+                if (all.ContainsKey("Bip01 " + sd + " Foot") && all.ContainsKey("Bip01 " + sd + " Toe0"))
+                    f += all["Bip01 " + sd + " Toe0"].position - all["Bip01 " + sd + " Foot"].position;
+            f.y = 0;
+            if (f.sqrMagnitude > 1e-6f)
+            {
+                float ang = Vector3.SignedAngle(f, transform.forward, Vector3.up);
+                inst.transform.RotateAround(transform.position, Vector3.up, ang);
+            }
+        }
+        // stand on the ground, centred on the NPC origin
+        Transform pel = all.ContainsKey("Bip01 Pelvis") ? all["Bip01 Pelvis"] : null;
+        if (pel != null)
+        {
+            Vector3 off = transform.position - pel.position; off.y = 0;
+            inst.transform.position += off;
+        }
+        float minY = float.MaxValue;
+        foreach (var n in new[] { "Bip01 L Toe0", "Bip01 R Toe0", "Bip01 L Foot", "Bip01 R Foot" })
+            if (all.ContainsKey(n)) minY = Mathf.Min(minY, all[n].position.y);
+        if (minY < float.MaxValue) inst.transform.position += Vector3.up * (transform.position.y - minY + 0.03f * style.height / 1.7f);
+        rbBaseY = inst.transform.localPosition.y;
+
+        rbRoot = inst.transform;
+        rPelvis = pel;
+        rSpine = Bone(all, "Bip01 Spine1"); rNeck = Bone(all, "Bip01 Neck"); rHead = Bone(all, "Bip01 Head"); rJaw = Bone(all, "Bip01 MJaw");
+        string[] side = { "L", "R" };
+        for (int i = 0; i < 2; i++)
+        {
+            rArm[i] = Bone(all, "Bip01 " + side[i] + " UpperArm"); rFore[i] = Bone(all, "Bip01 " + side[i] + " Forearm"); rHand[i] = Bone(all, "Bip01 " + side[i] + " Hand");
+            rThigh[i] = Bone(all, "Bip01 " + side[i] + " Thigh"); rCalf[i] = Bone(all, "Bip01 " + side[i] + " Calf"); rFoot[i] = Bone(all, "Bip01 " + side[i] + " Foot");
+        }
+        if (rArm[0] != null) sideL = transform.InverseTransformPoint(rArm[0].position).x <= 0f ? -1f : 1f;
+        headBone = rHead;
+        walkCycle = Random.value * 6.28f;
+        usingModel = true; rbMode = true;
+        RbAnimate();                 // leave the T-pose before the first frame is drawn
+        return true;
+    }
+
+    /// <summary>Point a bone at its child along a direction given in the NPC's own space (x right, y up, z forward).</summary>
+    void Aim(Transform bone, Transform child, Vector3 localDir)
+    {
+        if (bone == null || child == null) return;
+        Vector3 cur = child.position - bone.position;
+        if (cur.sqrMagnitude < 1e-8f) return;
+        bone.rotation = Quaternion.FromToRotation(cur, transform.TransformDirection(localDir)) * bone.rotation;
+    }
+
+    static Vector3 Swing(float side, float outward, float angleDeg)
+    {
+        float a = angleDeg * Mathf.Deg2Rad;
+        return new Vector3(side * outward, -Mathf.Cos(a), Mathf.Sin(a));
+    }
+
+    /// <summary>
+    /// The avatars come without animation clips, so the body is posed in code every frame: arms down from the T-pose,
+    /// breathing, weight shift, head following the player, jaw and hand moving with the voice, and a walk cycle whose
+    /// stride follows the real ground speed.
+    /// </summary>
+    void RbAnimate()
+    {
+        for (int i = 0; i < rBones.Count; i++) if (rBones[i] != null) rBones[i].localRotation = rRest[i];
+        float dt = Time.deltaTime, time = Time.time + walkCycle;      // per-character offset so a crowd is not in sync
+
+        walkAmt = Mathf.MoveTowards(walkAmt, moving ? Mathf.Clamp01(curSpeed / 0.9f) : 0f, dt * 3.5f);
+        if (walkAmt > 0.001f) walkCycle += dt * Mathf.Max(0.6f, curSpeed) * 4.6f;
+        float ph = walkCycle, sn = Mathf.Sin(ph), cs = Mathf.Cos(ph);
+        bool waving = Time.time < waveUntil;
+        gestureAmt = Mathf.MoveTowards(gestureAmt, waving ? 1f : Mathf.Clamp01(talk * 2.2f) * 0.55f, dt * (waving ? 5f : 2.5f));
+
+        // torso: breathing + slow weight shift, a little lean into the walk
+        if (rSpine != null)
+        {
+            float breath = Mathf.Sin(time * 1.7f) * 1.1f;
+            float sway = Mathf.Sin(time * 0.45f) * 1.2f * (1f - walkAmt) + sn * 2.2f * walkAmt;
+            rSpine.rotation = Quaternion.AngleAxis(-breath + 3f * walkAmt, transform.right) * Quaternion.AngleAxis(sway, transform.forward) * rSpine.rotation;
+        }
+        if (rbRoot != null)
+            rbRoot.localPosition = new Vector3(rbRoot.localPosition.x, rbBaseY + Mathf.Cos(ph * 2f) * 0.014f * walkAmt, rbRoot.localPosition.z);
+
+        // legs
+        for (int i = 0; i < 2; i++)
+        {
+            float s = i == 0 ? sideL : -sideL, dir = i == 0 ? 1f : -1f;
+            float a = 27f * walkAmt * sn * dir;
+            float bend = 46f * walkAmt * Mathf.Max(0f, cs * dir);
+            Aim(rThigh[i], rCalf[i], Swing(s, 0.035f, a + bend * 0.35f));
+            Aim(rCalf[i], rFoot[i], Swing(s, 0.035f, a - bend));
+        }
+
+        // arms: down from the T-pose, swinging against the legs; the right hand talks and waves
+        for (int i = 0; i < 2; i++)
+        {
+            float s = i == 0 ? sideL : -sideL, dir = i == 0 ? -1f : 1f;
+            float sw = 22f * walkAmt * sn * dir + Mathf.Sin(time * 0.9f + i) * 1.5f;
+            Vector3 up = Swing(s, 0.17f, sw), fo = Swing(s, 0.10f, sw + 12f + 14f * walkAmt);
+            if (i == 1 && gestureAmt > 0.01f)
+            {
+                float g = gestureAmt, beat = Mathf.Sin(Time.time * (waving && waveIsWave ? 9f : 3.3f));
+                if (waving && waveIsWave)
+                {
+                    up = Vector3.Slerp(up, new Vector3(s * 0.75f, 0.35f, 0.3f), g);
+                    fo = Vector3.Slerp(fo, new Vector3(s * (0.15f + 0.3f * beat), 1f, 0.2f), g);
+                }
+                else
+                {
+                    up = Vector3.Slerp(up, new Vector3(s * 0.22f, -1f, 0.38f), g);
+                    fo = Vector3.Slerp(fo, new Vector3(-s * 0.15f, 0.05f + 0.18f * beat, 1f), g);
+                }
+            }
+            Aim(rArm[i], rFore[i], up.normalized);
+            Aim(rFore[i], rHand[i], fo.normalized);
+        }
+
+        // head: follow the player (limited), nod with the voice
+        float wantYaw = 0f, wantPitch = 0f;
+        if (lookTarget != null && rHead != null && !walking)
+        {
+            Vector3 l = transform.InverseTransformPoint(lookTarget.position) - transform.InverseTransformPoint(rHead.position);
+            wantYaw = Mathf.Clamp(Mathf.Atan2(l.x, l.z) * Mathf.Rad2Deg, -55f, 55f);
+            wantPitch = Mathf.Clamp(-Mathf.Atan2(l.y, new Vector2(l.x, l.z).magnitude) * Mathf.Rad2Deg, -22f, 25f);
+        }
+        lookYaw = Mathf.Lerp(lookYaw, wantYaw, dt * 4f); lookPitch = Mathf.Lerp(lookPitch, wantPitch, dt * 4f);
+        float nod = talk * Mathf.Sin(Time.time * 6.5f) * 3.5f + Mathf.Sin(time * 0.7f) * 0.8f;
+        if (rNeck != null) rNeck.rotation = Quaternion.AngleAxis(lookYaw * 0.35f, transform.up) * rNeck.rotation;
+        if (rHead != null)
+            rHead.rotation = Quaternion.AngleAxis(lookYaw * 0.65f, transform.up) * Quaternion.AngleAxis(lookPitch + nod, rHead.parent != null ? Vector3.Cross(transform.up, HeadForward()).normalized : transform.right) * rHead.rotation;
+        // jaw follows the loudness of the voice
+        if (rJaw != null && talk > 0.01f)
+            rJaw.rotation = Quaternion.AngleAxis(Mathf.Clamp01(talk * 1.6f) * 11f, Vector3.Cross(transform.up, HeadForward()).normalized) * rJaw.rotation;
+    }
+
+    Vector3 HeadForward()
+    {
+        return Quaternion.AngleAxis(lookYaw, transform.up) * transform.forward;
     }
 
     // ------------------------------------------------------------------- API
@@ -547,6 +778,7 @@ public class CharacterNPC : MonoBehaviour
     /// <summary>Plays a one-off animation clip (e.g. "Wave", "Interact") then returns to idle.</summary>
     public void PlayOnce(string key)
     {
+        if (rbMode) { waveUntil = Time.time + (key == "Wave" ? 1.8f : 1.2f); waveIsWave = key == "Wave"; return; }
         if (anim == null) return;
         foreach (AnimationState st in anim)
         {

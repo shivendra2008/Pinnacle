@@ -1,0 +1,8 @@
+Realistic avatars: Microsoft Rocketbox Avatar Library (MIT licence)
+https://github.com/microsoft/Microsoft-Rocketbox
+Copyright (c) Microsoft Corporation. Textures were downscaled to 1024 px and converted from TGA to JPG/PNG.
+
+Used: Female_Adult_03, Female_Adult_06, Female_Adult_09, Business_Female_01, Business_Female_03,
+Male_Adult_03, Male_Adult_05, Male_Adult_15, Male_Adult_17, Business_Male_03, Business_Male_04,
+Business_Male_05, Security_Male_01, Wood_Male_01.
+The models have no animation clips; CharacterNPC.RbAnimate poses them in code.
