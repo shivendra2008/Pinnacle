@@ -65,7 +65,20 @@ public class Act5Story : ActStoryBase
     {
         Room("Shelter", Vector3.zero, new Vector3(14f, 3.4f, 10f), new Color(0.62f, 0.7f, 0.6f), new Color(0.5f, 0.45f, 0.4f), "stone", "facade");
         B("Blackboard", new Vector3(0, 1.7f, 4.95f), new Vector3(4f, 1.3f, 0.05f), new Color(0.08f, 0.15f, 0.1f), false, 0.3f);
-        GameKit.Text(transform, "GOVT. PRIMARY SCHOOL  -  1931", new Vector3(0, 2.75f, 4.9f), Quaternion.Euler(0, 180f, 0), 0.14f, new Color(0.85f, 0.85f, 0.75f));
+        GameKit.Text(transform, "GOVT. PRIMARY SCHOOL  -  1931", new Vector3(0, 2.75f, 4.9f), Quaternion.identity, 0.14f, new Color(0.85f, 0.85f, 0.75f));
+        // an old schoolroom people are living in: desks pushed aside, trunks and bundles, water pots, a few chairs
+        Tex(B("BoardFrame", new Vector3(0, 1.7f, 4.97f), new Vector3(4.2f, 1.5f, 0.04f), new Color(0.35f, 0.22f, 0.12f), false), "wood", 0.9f, new Color(0.35f, 0.22f, 0.12f));
+        Tex(B("ChalkRail", new Vector3(0, 1.02f, 4.9f), new Vector3(4.2f, 0.04f, 0.1f), new Color(0.35f, 0.22f, 0.12f), false), "wood", 0.9f, new Color(0.35f, 0.22f, 0.12f));
+        for (int i = 0; i < 5; i++) Prop("SchoolChair_01", new Vector3(-6.3f + (i % 2) * 0.25f, i > 2 ? 0.45f : 0f, 1.2f - (i % 3) * 0.75f), 80f + i * 9f, 1f, i > 2 ? new Vector3(0, 0, 4f) : (Vector3?)null);
+        Prop("metal_office_desk", new Vector3(5.6f, 0, -3.9f), 180f, 0.9f);
+        Prop("ceiling_fan", new Vector3(-3f, 3.4f, 0f), 0f); Prop("ceiling_fan", new Vector3(3f, 3.4f, 0f), 45f);
+        Prop("wall_clock", new Vector3(3.2f, 2.5f, 4.97f), 180f);
+        Prop("wooden_crate_02", new Vector3(-0.8f, 0, 4.2f), 90f); Prop("cardboard_box_01", new Vector3(-0.8f, 0.46f, 4.2f), 20f);
+        Prop("cardboard_box_01", new Vector3(0.6f, 0, 4.35f), 70f); Prop("cardboard_box_01", new Vector3(1.2f, 0, 4.3f), 10f, 0.9f);
+        Prop("barrel_03", new Vector3(-4.2f, 0, 4.3f), 0f); Prop("brass_pot_01", new Vector3(-3.3f, 0, 4.3f), 0f, 1.4f); Prop("metal_jug", new Vector3(-2.9f, 0, 4.1f), 40f, 1.3f);
+        Prop("plastic_jerrycan", new Vector3(-4.9f, 0, 4.4f), 120f);
+        Prop("plastic_monobloc_chair_01", new Vector3(3.2f, 0, 1.6f), 250f); Prop("plastic_monobloc_chair_01", new Vector3(0.9f, 0, 0.2f), 60f);
+        Prop("pot_enamel_01", new Vector3(2.4f, 0, 0.7f), 0f, 1.4f); Prop("brass_pot_02", new Vector3(1.6f, 0, 1.3f), 0f, 1.1f);
         var rnd = new System.Random(12);
         for (int i = 0; i < 8; i++)
         {
@@ -76,11 +89,12 @@ public class Act5Story : ActStoryBase
         for (int i = 0; i < 5; i++)
             Npc(new Vector3(-5f + i * 2.4f, 0f, -0.2f + (i % 2) * 1.5f), 150f + i * 20f, i == 2 ? NpcStyle.Child(1200 + i) : Cast.Devotee(1200 + i), "Family" + i, false);
         for (int i = 0; i < 4; i++) B("StackedBench", new Vector3(-6.4f, 0.25f + i * 0.45f, 3.5f), new Vector3(0.6f, 0.4f, 2f), new Color(0.35f, 0.22f, 0.12f), i == 0);
-        Glow("Lantern", new Vector3(2f, 0.3f, 1f), new Vector3(0.14f, 0.2f, 0.14f), new Color(1f, 0.7f, 0.35f), 4f);
+        if (Prop("vintage_oil_lamp", new Vector3(2f, 0f, 1f), 0f, 0.6f) == null) Glow("Lantern", new Vector3(2f, 0.3f, 1f), new Vector3(0.14f, 0.2f, 0.14f), new Color(1f, 0.7f, 0.35f), 4f);
+        else Glow("LanternFlame", new Vector3(2f, 0.3f, 1f), new Vector3(0.03f, 0.06f, 0.03f), new Color(1f, 0.7f, 0.35f), 8f);
         PL(new Vector3(2f, 1f, 1f), new Color(1f, 0.7f, 0.4f), 2f, 7f);
         PL(new Vector3(-3f, 3f, -2f), new Color(0.6f, 0.7f, 1f), 0.9f, 9f);
         B("StairFrame", new Vector3(6.2f, 1.15f, 4.95f), new Vector3(1.3f, 2.3f, 0.1f), new Color(0.3f, 0.2f, 0.12f));
-        GameKit.Text(transform, "UPSTAIRS", new Vector3(6.2f, 2.5f, 4.88f), Quaternion.Euler(0, 180f, 0), 0.1f, new Color(0.9f, 0.85f, 0.7f));
+        GameKit.Text(transform, "UPSTAIRS", new Vector3(6.2f, 2.5f, 4.88f), Quaternion.identity, 0.1f, new Color(0.9f, 0.85f, 0.7f));
         stairs = new GameObject("Stairs").transform; stairs.SetParent(transform, false); stairs.position = new Vector3(6.2f, 1.1f, 4.8f);
         resident = Npc(new Vector3(4.6f, 0f, 3.4f), 200f, NpcStyle.CrowdWoman(1300), "Resident");
 
@@ -89,11 +103,19 @@ public class Act5Story : ActStoryBase
         B("Mattress", U + new Vector3(-1.2f, 0.08f, 1f), new Vector3(1.0f, 0.16f, 2f), new Color(0.75f, 0.8f, 0.9f), true, 0.05f);
         for (int i = 0; i < 6; i++) B("LegalFiles", U + new Vector3(0.3f + (i % 3) * 0.45f, 0.08f + (i / 3) * 0.16f, 1.6f), new Vector3(0.4f, 0.15f, 0.32f), new Color(0.75f, 0.68f, 0.5f), false, 0.1f);
         B("Biscuits", U + new Vector3(-0.4f, 0.04f, 0.2f), new Vector3(0.18f, 0.05f, 0.08f), new Color(0.85f, 0.15f, 0.12f), false, 0.3f);
-        Glow("OilLamp", U + new Vector3(-0.5f, 0.1f, 1.3f), new Vector3(0.1f, 0.12f, 0.1f), new Color(1f, 0.6f, 0.2f), 6f);
+        if (Prop("vintage_oil_lamp", U + new Vector3(-0.5f, 0f, 1.3f), 0f, 0.5f) == null) Glow("OilLamp", U + new Vector3(-0.5f, 0.1f, 1.3f), new Vector3(0.1f, 0.12f, 0.1f), new Color(1f, 0.6f, 0.2f), 6f);
+        else Glow("OilLampFlame", U + new Vector3(-0.5f, 0.26f, 1.3f), new Vector3(0.025f, 0.05f, 0.025f), new Color(1f, 0.6f, 0.2f), 9f);
+        Prop("wooden_crate_02", U + new Vector3(1.9f, 0, 0.4f), 0f); Prop("metal_jug", U + new Vector3(1.9f, 0.46f, 0.2f), 30f); Prop("pot_enamel_01", U + new Vector3(1.85f, 0.46f, 0.7f), 0f);
+        Prop("SchoolChair_01", U + new Vector3(0.9f, 0, 0.5f), 200f);
+        Prop("cardboard_box_01", U + new Vector3(2.3f, 0, 1.9f), 15f); Prop("cardboard_box_01", U + new Vector3(2.3f, 0.34f, 1.9f), 50f, 0.9f);
+        Tex(B("WindowFrame", U + new Vector3(1.5f, 1.7f, 2.46f), new Vector3(1.4f, 1.2f, 0.05f), new Color(0.3f, 0.2f, 0.12f), false), "wood", 0.9f, new Color(0.3f, 0.2f, 0.12f));
         PL(U + new Vector3(-0.5f, 0.6f, 1.2f), new Color(1f, 0.62f, 0.3f), 2.2f, 6f).gameObject.AddComponent<FlickerLight>();
         Glow("RiverWindow", U + new Vector3(1.5f, 1.7f, 2.47f), new Vector3(1.2f, 1f, 0.04f), new Color(0.2f, 0.28f, 0.5f), 1.2f);
         priya = Npc(U + new Vector3(-1.2f, 0f, 0.1f), 180f, Cast.Priya(), "Priya Kapoor");
     }
+
+    static readonly string[] CurioProps = { "brass_pot_01", "ceramic_pot", "jug_01", "metal_jug", "brass_pot_02", "pot_enamel_01" };
+    static readonly float[] CurioScale = { 1f, 0.6f, 1.1f, 1f, 0.9f, 1.3f };
 
     void BuildGallery()
     {
@@ -113,12 +135,18 @@ public class Act5Story : ActStoryBase
                     var p = G + new Vector3(x + (x < 0 ? 0.6f : -0.6f), y + 0.15f, -13f + k * 1.5f + (float)rnd.NextDouble() * 0.5f);
                     Color c = rnd.NextDouble() < 0.15 ? new Color(0.85f, 0.65f, 0.25f) : Color.HSVToRGB((float)rnd.NextDouble(), 0.35f, 0.25f + (float)rnd.NextDouble() * 0.4f);
                     int kind = rnd.Next(3);
+                    if (s < 5)
+                    {
+                        int pick = (s * 7 + k * 3 + kind) % CurioProps.Length;
+                        if (Prop(CurioProps[pick], p - Vector3.up * 0.13f, k * 47f, CurioScale[pick]) != null) continue;
+                    }
                     if (kind == 0) Sp("Curio", p, 0.22f, c, 0.6f);
                     else if (kind == 1) B("Curio", p, new Vector3(0.2f, 0.28f, 0.2f), c, false, 0.5f);
                     else GameKit.Cone(transform, "Curio", p - Vector3.up * 0.12f, 0.12f, 0.32f, GameKit.Lit(c, 0.5f));
                 }
             }
         }
+        Prop("brass_candleholders", G + new Vector3(-0.2f, 0.95f, 1.5f), 0f, 0.8f);
         // the long table with red velvet
         B("Table", G + new Vector3(0, 0.45f, 2f), new Vector3(6f, 0.9f, 1.6f), shelfWood, true, 0.4f);
         B("Velvet", G + new Vector3(0, 0.92f, 2f), new Vector3(6.2f, 0.05f, 1.8f), new Color(0.4f, 0.03f, 0.05f), false, 0.15f);
@@ -169,12 +197,40 @@ public class Act5Story : ActStoryBase
         Room("Court", C, new Vector3(16f, 6f, 20f), panel, new Color(0.35f, 0.25f, 0.18f), "wood_floor", "wood");
         B("JudgePlatform", C + new Vector3(0, 0.4f, 8.5f), new Vector3(7f, 0.8f, 2.6f), panel * 0.8f, true, 0.4f);
         B("JudgeDesk", C + new Vector3(0, 1.4f, 7.5f), new Vector3(5f, 1.2f, 0.6f), panel * 0.7f, true, 0.5f);
-        GameKit.Text(transform, "SATYAMEVA JAYATE", new Vector3(0, 4.8f, C.z + 9.9f), Quaternion.Euler(0, 180f, 0), 0.3f, new Color(0.95f, 0.8f, 0.4f));
-        Sp("Emblem", C + new Vector3(0, 3.9f, 9.9f), 0.8f, new Color(0.85f, 0.65f, 0.25f), 0.8f);
+        GameKit.Text(transform, "SATYAMEVA JAYATE", new Vector3(C.x, 4.8f, C.z + 9.9f), Quaternion.identity, 0.3f, new Color(0.95f, 0.8f, 0.4f));
+        // a cast brass seal on a wooden roundel instead of a gold ball
+        var brassM = GameKit.Lit(new Color(0.83f, 0.62f, 0.22f), 0.8f, 1f);
+        var seal = VehicleKit.Part(transform, "Emblem", VehicleKit.Lathe(new[] { new Vector2(0f, 0.62f), new Vector2(0.04f, 0.66f), new Vector2(0.07f, 0.6f), new Vector2(0.07f, 0.5f), new Vector2(0.1f, 0.46f), new Vector2(0.12f, 0.2f), new Vector2(0.16f, 0.0f) }, 32), brassM, C + new Vector3(0, 3.6f, 9.96f));
+        seal.transform.localRotation = Quaternion.Euler(0, 90f, 0);                 // lathe axis X -> out of the wall (-Z)
+        Tex(B("EmblemBoard", C + new Vector3(0, 3.6f, 9.97f), new Vector3(1.7f, 1.7f, 0.04f), panel * 0.6f, false), "wood", 0.9f, panel * 0.6f);
+        Prop("ArmChair_01", C + new Vector3(0f, 0.8f, 9.25f), 180f, 1.25f);
+        Prop("wall_clock", C + new Vector3(-7.97f, 4.2f, 6f), 90f, 1.6f);
+        Prop("ceiling_fan", C + new Vector3(-3.5f, 6f, 2f), 0f, 1.3f); Prop("ceiling_fan", C + new Vector3(3.5f, 6f, 2f), 30f, 1.3f);
+        Prop("ceiling_fan", C + new Vector3(-3.5f, 6f, -5f), 60f, 1.3f); Prop("ceiling_fan", C + new Vector3(3.5f, 6f, -5f), 10f, 1.3f);
+        // counsel tables and the bar that separates the court from the public
+        foreach (float tx in new[] { -2.6f, 2.6f })
+        {
+            if (Prop("WoodenTable_01", C + new Vector3(tx, 0, 5.0f), 0f, 1.36f) == null) Tex(B("CounselTable", C + new Vector3(tx, 0.72f, 5.0f), new Vector3(2.2f, 0.06f, 0.9f), panel, true), "wood", 0.9f, panel);
+            Prop("painted_wooden_chair_01", C + new Vector3(tx - 0.5f, 0, 4.1f), 0f);
+            if (tx > 0) Prop("painted_wooden_chair_01", C + new Vector3(tx + 0.5f, 0, 4.1f), 0f);       // the lawyer stands on the other side
+            Tex(B("BarRail", C + new Vector3(tx * 1.6f, 0.95f, 0.2f), new Vector3(6.2f, 0.08f, 0.1f), panel * 0.8f, true), "wood", 0.9f, panel * 0.8f);
+            for (int b = 0; b < 9; b++) B("Baluster", C + new Vector3(tx * 1.6f - 2.9f + b * 0.72f, 0.48f, 0.2f), new Vector3(0.06f, 0.9f, 0.06f), panel * 0.7f, false, 0.4f);
+        }
+        Prop("brass_pot_01", C + new Vector3(2.2f, 0.75f, 5.0f), 0f, 0.7f); Prop("jug_01", C + new Vector3(-2.3f, 0.75f, 5.1f), 40f);
+        for (int i = 0; i < 4; i++) Prop("hanging_picture_frame_01", C + new Vector3(-7.96f, 3.2f, -7f + i * 3.4f), 90f, 1.5f);
         B("WitnessBox", C + new Vector3(4.5f, 0.55f, 5.5f), new Vector3(1.4f, 1.1f, 1.4f), panel * 0.9f, true, 0.4f);
         for (int r = 0; r < 4; r++)
             foreach (float x in new[] { -4f, 4f })
-                B("Bench", C + new Vector3(x, 0.45f, -1f - r * 2f), new Vector3(5f, 0.9f, 0.5f), panel * 0.9f, true, 0.4f);
+            {
+                // a proper public bench (seat, back, end panels) instead of a solid block; the block stays as the collider
+                Vector3 bp = C + new Vector3(x, 0, -1f - r * 2f);
+                Hide(B("Bench", bp + new Vector3(0, 0.45f, 0), new Vector3(5f, 0.9f, 0.5f), panel * 0.9f, true, 0.4f));
+                Tex(B("BenchSeat", bp + new Vector3(0, 0.45f, 0.03f), new Vector3(5f, 0.06f, 0.44f), panel, false), "wood", 0.9f, panel);
+                Tex(B("BenchBack", bp + new Vector3(0, 0.78f, -0.21f), new Vector3(5f, 0.5f, 0.05f), panel, false), "wood", 0.9f, panel);
+                Tex(B("BenchRail", bp + new Vector3(0, 1.05f, -0.21f), new Vector3(5.06f, 0.06f, 0.09f), panel * 0.8f, false), "wood", 0.9f, panel * 0.8f);
+                foreach (float ex in new[] { -2.47f, -0.82f, 0.82f, 2.47f })
+                    Tex(B("BenchEnd", bp + new Vector3(ex, 0.4f, -0.02f), new Vector3(0.06f, 0.8f, 0.46f), panel * 0.85f, false), "wood", 0.9f, panel * 0.85f);
+            }
         for (int i = 0; i < 4; i++)
         {
             Glow("CourtLamp", C + new Vector3(-6f + i * 4f, 5.8f, 0), new Vector3(1.4f, 0.06f, 0.2f), new Color(1f, 0.95f, 0.85f), 2f);
@@ -193,7 +249,17 @@ public class Act5Story : ActStoryBase
         GameKit.Surface(B("Rooftop", T + new Vector3(0, -0.05f, 0), new Vector3(12f, 0.1f, 10f), new Color(0.5f, 0.47f, 0.44f), true, 0.3f), "stone", 1.2f);
         foreach (var w in new[] { new Vector4(0, 5, 12, 0.3f), new Vector4(0, -5, 12, 0.3f), new Vector4(6, 0, 0.3f, 10), new Vector4(-6, 0, 0.3f, 10) })
             B("Parapet", T + new Vector3(w.x, 0.5f, w.y), new Vector3(w.z, 1f, w.w), new Color(0.75f, 0.6f, 0.5f), true, 0.1f);
-        Cy("WaterTank", T + new Vector3(-4f, 0.6f, -3f), 0.6f, 1.2f, new Color(0.05f, 0.05f, 0.06f), 0.4f);
+        // the black ribbed plastic water tank on every Indian roof, on its brick stand
+        Tex(B("TankStand", T + new Vector3(-4f, 0.25f, -3f), new Vector3(1.5f, 0.5f, 1.5f), Color.white, true), "brick", 1.4f, new Color(0.8f, 0.6f, 0.5f));
+        Turned("WaterTank", T + new Vector3(-4f, 0.5f, -3f), new[]
+        {
+            new Vector2(0f, 0.6f), new Vector2(0.12f, 0.64f), new Vector2(0.24f, 0.6f), new Vector2(0.36f, 0.64f), new Vector2(0.48f, 0.6f), new Vector2(0.6f, 0.64f),
+            new Vector2(0.72f, 0.6f), new Vector2(0.84f, 0.64f), new Vector2(0.96f, 0.6f), new Vector2(1.1f, 0.5f), new Vector2(1.2f, 0.26f), new Vector2(1.28f, 0.24f), new Vector2(1.3f, 0.0f),
+        }, GameKit.Lit(new Color(0.03f, 0.03f, 0.035f), 0.5f), 24);
+        Prop("plastic_monobloc_chair_01", T + new Vector3(1.6f, 0, 1.2f), 200f); Prop("plastic_monobloc_chair_01", T + new Vector3(2.7f, 0, 1.5f), 150f);
+        Prop("potted_plant_02", T + new Vector3(-5.2f, 0, 4.2f), 0f); Prop("potted_plant_02", T + new Vector3(5.1f, 0, 4.1f), 120f, 1.1f);
+        Prop("planter_box_01", T + new Vector3(3.6f, 0, 4.5f), 0f); Prop("barrel_03", T + new Vector3(5.2f, 0, -4.2f), 0f); Prop("plastic_jerrycan", T + new Vector3(-2.6f, 0, -3.6f), 60f);
+        foreach (float px in new[] { 0.05f, 3.95f }) Cy("LinePole", T + new Vector3(px, 0.95f, -3f), 0.025f, 1.9f, new Color(0.35f, 0.3f, 0.25f), 0.4f, 0.5f);
         B("ClothesLine", T + new Vector3(2f, 1.8f, -3f), new Vector3(4f, 0.02f, 0.02f), new Color(0.2f, 0.2f, 0.2f));
         for (int i = 0; i < 4; i++) B("Washing", T + new Vector3(0.6f + i * 0.9f, 1.4f, -3f), new Vector3(0.5f, 0.7f, 0.02f), Color.HSVToRGB(i * 0.2f, 0.5f, 0.85f), false, 0.1f);
         var rnd = new System.Random(31);

@@ -618,6 +618,33 @@ public abstract class ActStoryBase : MonoBehaviour
     protected Light PL(Vector3 pos, Color c, float intensity, float range)
     { return GameKit.PointLight(transform, pos, c, intensity, range); }
 
+    /// <summary>Applies a scanned material (see ProcTex) to a box and returns it.</summary>
+    protected static GameObject Tex(GameObject go, string key, float tile, Color tint)
+    {
+        GameKit.Surface(go, key, tile, 1f, 1f, tint);
+        return go;
+    }
+
+    /// <summary>A shape turned on a lathe, standing upright. Profile points are (height, radius).</summary>
+    protected GameObject Turned(string name, Vector3 basePos, Vector2[] profile, Material mat, int seg = 20)
+    {
+        var go = VehicleKit.Part(transform, name, VehicleKit.Lathe(profile, seg), mat, basePos);
+        go.transform.localRotation = Quaternion.Euler(0, 0, 90f);       // lathe axis X -> up
+        return go;
+    }
+
+    /// <summary>A photo-scanned prop from Resources/Props (null if it is not in the project).</summary>
+    protected GameObject Prop(string id, Vector3 pos, float yaw = 0f, float scale = 1f, Vector3? tilt = null)
+    { return PropKit.Place(transform, id, pos, yaw, scale, tilt); }
+
+    /// <summary>Keeps a box as an invisible collider once a real model stands in its place.</summary>
+    protected static void Hide(GameObject box)
+    {
+        if (box == null) return;
+        var r = box.GetComponent<Renderer>();
+        if (r != null) r.enabled = false;
+    }
+
     protected CharacterNPC Npc(Vector3 pos, float yaw, NpcStyle style, string name, bool lookAtPlayer = true)
     {
         var n = CharacterNPC.Create(transform, pos, style, name);
