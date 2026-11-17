@@ -1,6 +1,8 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 
 /// <summary>
 /// Act IV - "The Web" (11:00 PM - 12:30 AM). Three variants, chosen at the end of Act III:
@@ -16,7 +18,7 @@ public class Act4Story : ActStoryBase
     protected override string ActTitle { get { return "ACT IV  -  THE WEB"; } }
     protected override string ActSubtitle
     {
-        get { return variant == 0 ? "Café Irani   |   11:05 PM" : variant == 1 ? "The Kapoor house   |   11:10 PM" : "Chandnipur Police Station   |   11:15 PM"; }
+        get { return variant == 0 ? "Café Irani   |   7:05 AM" : variant == 1 ? "The Kapoor house   |   11:10 PM" : "Chandnipur Police Station   |   11:15 PM"; }
     }
     protected override LookPreset Look { get { return variant == 2 ? LookPreset.Market : LookPreset.Apartment; } }
 
@@ -27,6 +29,14 @@ public class Act4Story : ActStoryBase
     {
         variant = Mathf.Clamp(SaveSystem.Data.branch, 0, 2);
         base.Start();
+        if (variant == 0)        // daylight: the film look is tuned for dim interiors and would burn out in the sun
+            foreach (var v in GetComponentsInChildren<Volume>())
+            {
+                if (v.sharedProfile == null) continue;
+                if (v.sharedProfile.TryGet(out ColorAdjustments ca)) { ca.postExposure.value = 0.1f; ca.saturation.value = 2f; ca.contrast.value = 10f; }
+                if (v.sharedProfile.TryGet(out Vignette vg)) vg.intensity.value = 0.14f;
+                if (v.sharedProfile.TryGet(out Bloom bl)) bl.intensity.value = 0.25f;
+            }
     }
 
     protected override void BuildWorld()
@@ -80,85 +90,166 @@ public class Act4Story : ActStoryBase
 
     void BuildCafe()
     {
-        RenderSettings.fogColor = new Color(0.12f, 0.1f, 0.08f); RenderSettings.fogDensity = 0.01f;
-        CinematicLook.Ambient(new Color(0.55f, 0.5f, 0.45f), new Color(0.38f, 0.32f, 0.26f), new Color(0.14f, 0.11f, 0.09f));
         PriyaRoomPlayer.Surface = 0;
-        // ---- the café
-        Room("Cafe", Vector3.zero, new Vector3(10f, 3.6f, 8f), new Color(0.88f, 0.82f, 0.66f), Color.white, "stone", "plaster");
-        var floor = GameObject.Find("Cafe_Floor");
-        if (floor != null) floor.GetComponent<Renderer>().sharedMaterial = Checker(new Color(0.12f, 0.12f, 0.12f), new Color(0.9f, 0.88f, 0.82f), new Vector2(16, 13));
-        var wood = new Color(0.3f, 0.18f, 0.1f);
-        // mirrors in dark frames
-        foreach (float z in new[] { -2.5f, 0f, 2.5f })
+        // ---- Café Irani: an open-air terrace in the morning sun, under a real photographed sky
+        if (!CinematicLook.Sky(camComp, "palermo_sidewalk", 1.05f, 120f, 1.05f))
         {
-            B("MirrorFrame", new Vector3(-4.97f, 1.9f, z), new Vector3(0.05f, 1.6f, 1.9f), wood, false, 0.4f);
-            B("Mirror", new Vector3(-4.94f, 1.9f, z), new Vector3(0.03f, 1.4f, 1.7f), new Color(0.75f, 0.8f, 0.82f), false, 1f, 1f);
+            camComp.backgroundColor = new Color(0.62f, 0.74f, 0.9f);
+            CinematicLook.Ambient(new Color(0.75f, 0.82f, 0.95f), new Color(0.7f, 0.68f, 0.62f), new Color(0.4f, 0.36f, 0.3f));
         }
-        // tables with checked cloths and bentwood chairs
-        var cloth = Checker(new Color(0.75f, 0.1f, 0.12f), new Color(0.95f, 0.93f, 0.88f), new Vector2(4, 4));
+        SetSun(new Color(1f, 0.93f, 0.8f), 1.45f, new Vector3(38f, 125f, 0f));      // low morning sun from the street side, onto the café front
+        RenderSettings.fogColor = new Color(0.78f, 0.84f, 0.9f); RenderSettings.fogDensity = 0.0035f;
+        var wood = new Color(0.3f, 0.18f, 0.1f);
+        var cream = new Color(0.9f, 0.84f, 0.7f);
+
+        // patio of old checkered tiles, cobbled street beyond the low wall
+        var floor = B("Cafe_Floor", new Vector3(0, -0.05f, 0), new Vector3(10.6f, 0.1f, 8.6f), Color.white, true, 0.3f);
+        GameKit.Surface(floor, "checker", 1.5f, 1f, 1f, Color.white);
+        var street = B("Street", new Vector3(-6.5f, -0.11f, 0), new Vector3(24f, 0.1f, 30f), Color.white, false, 0.3f);
+        GameKit.Surface(street, "cobble", 2.4f, 1f, 1f, new Color(0.9f, 0.88f, 0.85f));
+
+        // the café building along the east side: plastered front, door to the kitchen, windows, signboard
+        var front = B("CafeFront", new Vector3(5.2f, 2.5f, 0), new Vector3(0.4f, 5f, 11.5f), cream, true, 0.1f);
+        GameKit.SurfaceZY(front, "plaster", 2.2f, cream);
+        B("Cornice", new Vector3(5.05f, 5.05f, 0), new Vector3(0.7f, 0.18f, 11.7f), new Color(0.8f, 0.75f, 0.64f), false, 0.2f);
+        GameKit.Surface(B("FrontPlinth", new Vector3(4.98f, 0.3f, 0), new Vector3(0.1f, 0.6f, 11.5f), new Color(0.55f, 0.2f, 0.16f), false, 0.2f), "plaster", 2f, 1f, 1f, new Color(0.55f, 0.2f, 0.16f));
+        B("SignBoard", new Vector3(4.97f, 3.75f, -1f), new Vector3(0.05f, 0.8f, 5.6f), new Color(0.42f, 0.08f, 0.07f), false, 0.3f);
+        GameKit.Text(transform, "CAFÉ IRANI  -  SINCE 1932", new Vector3(4.93f, 3.75f, -1f), Quaternion.Euler(0, 90f, 0), 0.26f, new Color(0.95f, 0.88f, 0.7f));
+        foreach (float wz in new[] { -3.0f, 3.2f })
+        {
+            GameKit.Surface(B("WindowFrame", new Vector3(4.98f, 1.9f, wz), new Vector3(0.08f, 1.7f, 1.5f), wood, false, 0.4f), "wood", 0.9f, 1f, 1f, wood);
+            B("WindowGlass", new Vector3(4.95f, 1.9f, wz), new Vector3(0.04f, 1.5f, 1.3f), new Color(0.08f, 0.1f, 0.12f), false, 0.95f, 0.3f);
+            B("WindowBar", new Vector3(4.93f, 1.9f, wz), new Vector3(0.03f, 1.5f, 0.04f), wood);
+            B("WindowSill", new Vector3(4.9f, 1.02f, wz), new Vector3(0.22f, 0.06f, 1.7f), new Color(0.8f, 0.75f, 0.64f));
+        }
+        GameKit.Surface(B("BackDoor", new Vector3(4.97f, 1.05f, 0.5f), new Vector3(0.05f, 2.1f, 1f), wood), "wood", 0.9f, 1f, 1f, wood);
+        GameKit.Text(transform, "STAFF ONLY", new Vector3(4.93f, 2.3f, 0.5f), Quaternion.Euler(0, 90f, 0), 0.1f, new Color(0.9f, 0.85f, 0.7f));
+
+        // low garden wall round the other three sides, with planters
+        foreach (var w in new[] { new Vector4(-5.25f, 0, 0.3f, 8.9f), new Vector4(0, -4.25f, 10.8f, 0.3f), new Vector4(0, 4.25f, 10.8f, 0.3f) })
+        {
+            var lw = B("GardenWall", new Vector3(w.x, 0.4f, w.y), new Vector3(w.z, 0.8f, w.w), new Color(0.75f, 0.6f, 0.5f), true, 0.1f);
+            GameKit.Surface(lw, "brick", 1.6f, 1f, 1f, new Color(0.85f, 0.7f, 0.6f));
+            GameKit.Surface(B("Coping", new Vector3(w.x, 0.83f, w.y), new Vector3(w.z + 0.1f, 0.06f, w.w + 0.1f), new Color(0.7f, 0.68f, 0.64f), false, 0.2f), "concrete", 1.2f, 1f, 1f, new Color(0.75f, 0.73f, 0.7f));
+            Fence(new Vector3(w.x, 2f, w.y), new Vector3(w.z, 4f, w.w));
+        }
+        foreach (float px in new[] { -3.2f, -0.6f, 2.0f }) PropKit.Place(transform, "planter_box_02", new Vector3(px, 0, 3.8f), 0f);
+        PropKit.Place(transform, "planter_box_01", new Vector3(-4.8f, 0, 2.2f), 90f);
+        PropKit.Place(transform, "potted_plant_02", new Vector3(-4.6f, 0, -0.4f), 30f, 1.3f);
+        PropKit.Place(transform, "potted_plant_02", new Vector3(4.4f, 0, -0.6f), 200f, 1.2f);
+        PropKit.Place(transform, "potted_plant_01", new Vector3(4.45f, 0, 3.75f), 80f);
+        PropKit.Place(transform, "potted_plant_01", new Vector3(-0.8f, 0, -3.8f), 140f, 0.9f);
+        PropKit.Place(transform, "painted_wooden_bench", new Vector3(-4.75f, 0, 1.0f), 90f);
+
+        // a slatted wooden pergola: stripes of sun and shade across the tables, fans turning underneath
+        var beamCol = new Color(0.36f, 0.24f, 0.14f);
+        foreach (float bx in new[] { -4.0f, -1.0f, 2.0f, 4.6f }) foreach (float bz in new[] { -1.7f, 1.5f })      // clear of every table and chair
+                GameKit.Surface(B("PergolaPost", new Vector3(bx, 1.68f, bz), new Vector3(0.12f, 3.36f, 0.12f), beamCol, true, 0.3f), "wood", 0.9f, 1f, 1f, beamCol);
+        foreach (float bz in new[] { -1.7f, 1.5f })
+            GameKit.Surface(B("PergolaBeam", new Vector3(0.3f, 3.4f, bz), new Vector3(8.9f, 0.12f, 0.12f), beamCol, false, 0.3f), "wood", 0.9f, 1f, 1f, beamCol);
+        for (int i = 0; i < 20; i++)
+            B("PergolaSlat", new Vector3(-4.0f + i * 0.45f, 3.49f, -0.1f), new Vector3(0.07f, 0.05f, 3.7f), beamCol * (0.9f + (i % 3) * 0.08f), false, 0.3f);
+
+        // tables and chairs
         Vector3[] tables = { new Vector3(-2.5f, 0, -2f), new Vector3(0.5f, 0, -2f), new Vector3(-2.5f, 0, 1.5f), new Vector3(0.5f, 0, 1.5f), new Vector3(3.2f, 0, 2.6f) };
+        int ti = 0;
         foreach (var t in tables)
         {
-            var top = GameKit.Cyl(transform, "TableTop", t + new Vector3(0, 0.76f, 0), 0.45f, 0.04f, cloth);
-            Cy("TableLeg", t + new Vector3(0, 0.38f, 0), 0.04f, 0.76f, new Color(0.1f, 0.1f, 0.1f), 0.5f, 0.6f);
-            top.AddComponent<BoxCollider>();
+            if (PropKit.Place(transform, "round_wooden_table_01", t, ti * 37f, 0.74f) == null)
+            {
+                GameKit.Cyl(transform, "TableTop", t + new Vector3(0, 0.76f, 0), 0.45f, 0.04f, GameKit.Lit(wood, 0.4f));
+                Cy("TableLeg", t + new Vector3(0, 0.38f, 0), 0.04f, 0.76f, new Color(0.1f, 0.1f, 0.1f), 0.5f, 0.6f);
+            }
+            var tc = new GameObject("TableCollider").AddComponent<BoxCollider>();
+            tc.transform.SetParent(transform, false); tc.transform.position = t + new Vector3(0, 0.4f, 0); tc.size = new Vector3(0.8f, 0.8f, 0.8f);
             foreach (float a in new[] { 0f, 180f })
             {
-                Vector3 cpos = t + Quaternion.Euler(0, a, 0) * new Vector3(0, 0, 0.7f);
-                B("ChairSeat", cpos + new Vector3(0, 0.45f, 0), new Vector3(0.42f, 0.04f, 0.42f), wood, false, 0.5f);
-                var back = B("ChairBack", cpos + Quaternion.Euler(0, a, 0) * new Vector3(0, 0.75f, 0.2f), new Vector3(0.42f, 0.55f, 0.04f), wood, false, 0.5f);
-                back.transform.rotation = Quaternion.Euler(0, a, 0);
-                for (int l = 0; l < 4; l++) Cy("ChairLeg", cpos + new Vector3(l < 2 ? -0.17f : 0.17f, 0.22f, l % 2 == 0 ? -0.17f : 0.17f), 0.015f, 0.45f, wood);
+                if (ti == 4 && a == 0f) continue;                      // Raj is standing on that side of his table
+                Vector3 cpos = t + Quaternion.Euler(0, a, 0) * new Vector3(0, 0, 0.82f);
+                if (PropKit.Place(transform, "painted_wooden_chair_01", cpos, a + 180f + (ti * 53 % 30 - 15)) == null)
+                    B("ChairSeat", cpos + new Vector3(0, 0.45f, 0), new Vector3(0.42f, 0.04f, 0.42f), wood, false, 0.5f);
             }
-            B("ChaiGlass", t + new Vector3(0.1f, 0.83f, 0.05f), new Vector3(0.06f, 0.1f, 0.06f), new Color(0.6f, 0.38f, 0.2f), false, 0.8f);
+            if (ti == 1 || ti == 4) PropKit.Place(transform, "tea_set_01", t + new Vector3(0.05f, 0.75f, 0f), ti * 70f, 0.7f);
+            else B("ChaiGlass", t + new Vector3(0.1f, 0.80f, 0.05f), new Vector3(0.055f, 0.09f, 0.055f), new Color(0.6f, 0.38f, 0.2f), false, 0.85f);
+            ti++;
         }
-        // counter, glass display of Osmania biscuits, the dozing owner
-        B("Counter", new Vector3(3.3f, 0.5f, -2.8f), new Vector3(2.6f, 1f, 0.8f), wood, true, 0.4f);
-        Glow("DisplayCase", new Vector3(3.3f, 1.2f, -2.8f), new Vector3(2.2f, 0.4f, 0.6f), new Color(0.95f, 0.85f, 0.6f), 0.7f);
-        for (int i = 0; i < 14; i++) Cy("Biscuit", new Vector3(2.4f + (i % 7) * 0.28f, 1.06f + (i / 7) * 0.14f, -2.8f), 0.07f, 0.02f, new Color(0.85f, 0.65f, 0.35f));
+        // counter with the glass case of Osmania biscuits, kettle and brassware; the owner behind it
+        GameKit.Surface(B("Counter", new Vector3(3.3f, 0.5f, -2.8f), new Vector3(2.6f, 1f, 0.8f), wood, true, 0.4f), "wood", 0.9f, 1f, 1f, wood);
+        B("CounterTop", new Vector3(3.3f, 1.02f, -2.8f), new Vector3(2.7f, 0.04f, 0.9f), new Color(0.85f, 0.83f, 0.78f), false, 0.6f);
+        B("DisplayCase", new Vector3(3.0f, 1.24f, -2.8f), new Vector3(1.5f, 0.4f, 0.6f), new Color(0.75f, 0.85f, 0.88f), false, 0.95f, 0.1f);
+        for (int i = 0; i < 12; i++) Cy("Biscuit", new Vector3(2.45f + (i % 6) * 0.2f, 1.07f + (i / 6) * 0.03f, -2.62f - (i / 6) * 0.2f), 0.06f, 0.02f, new Color(0.85f, 0.65f, 0.35f));
+        PropKit.Place(transform, "vintage_electric_kettle", new Vector3(4.2f, 1.04f, -2.75f), 200f);
+        PropKit.Place(transform, "brass_goblets", new Vector3(4.15f, 1.04f, -3.05f), 20f, 0.6f);
+        PropKit.Place(transform, "metal_jug", new Vector3(3.95f, 1.04f, -2.55f), 90f);
         owner = Npc(new Vector3(3.3f, 0f, -3.6f), 0f, Cast.Owner(), "Owner", false);
-        GameKit.Text(transform, "CAFÉ IRANI  -  SINCE 1932", new Vector3(0, 3.0f, 3.95f), Quaternion.Euler(0, 180f, 0), 0.22f, new Color(0.45f, 0.1f, 0.08f));
-        // ceiling fans and warm pendant lights
+        // ceiling fans hang from the pergola
         foreach (var t in new[] { new Vector3(-1f, 0, -0.3f), new Vector3(2.5f, 0, -0.3f) })
         {
-            var hub = new GameObject("Fan").transform; hub.SetParent(transform, false); hub.position = t + new Vector3(0, 3.25f, 0);
+            B("FanRod", t + new Vector3(0, 3.33f, 0), new Vector3(0.03f, 0.2f, 0.03f), new Color(0.15f, 0.15f, 0.15f));
+            var hub = new GameObject("Fan").transform; hub.SetParent(transform, false); hub.position = t + new Vector3(0, 3.22f, 0);
             for (int b = 0; b < 3; b++)
             {
                 var blade = GameKit.Box(hub, "Blade", Quaternion.Euler(0, b * 120f, 0) * new Vector3(0.45f, 0, 0), new Vector3(0.8f, 0.02f, 0.14f), GameKit.Lit(wood, 0.3f));
                 blade.transform.localRotation = Quaternion.Euler(0, b * 120f, 0);
             }
             fans.Add(hub);
-            Glow("Pendant", t + new Vector3(0, 2.9f, 0.8f), new Vector3(0.22f, 0.22f, 0.22f), new Color(1f, 0.8f, 0.5f), 4f);
-            PL(t + new Vector3(0, 2.6f, 0.8f), new Color(1f, 0.8f, 0.55f), 2.6f, 7f);
         }
         // Raj at the corner table, the watcher with his newspaper
-        raj = Npc(new Vector3(3.2f, 0f, 3.3f), 180f, Cast.Raj(), "Raj Malhotra");
+        raj = Npc(new Vector3(3.2f, 0f, 3.4f), 180f, Cast.Raj(), "Raj Malhotra");
         rajSpot = raj.transform;
         watcher = Npc(new Vector3(-3.9f, 0f, 3.2f), 140f, NpcStyle.Thug(), "Watcher", false);
         B("Newspaper", new Vector3(-3.6f, 1.35f, 2.95f), new Vector3(0.55f, 0.4f, 0.02f), new Color(0.88f, 0.86f, 0.78f), false, 0.1f).transform.rotation = Quaternion.Euler(0, 140f, 0);
-        B("BackDoor", new Vector3(4.97f, 1.05f, 0.5f), new Vector3(0.05f, 2.1f, 1f), wood);
-        GameKit.Text(transform, "STAFF ONLY", new Vector3(4.93f, 2.3f, 0.5f), Quaternion.Euler(0, 90f, 0), 0.1f, new Color(0.9f, 0.85f, 0.7f));
 
-        // ---- the kitchen: pots on the floor everywhere
-        Room("Kitchen", K, new Vector3(8f, 3f, 6f), new Color(0.75f, 0.75f, 0.7f), new Color(0.4f, 0.4f, 0.38f), "stone", "plaster");
-        B("Stove", K + new Vector3(0, 0.45f, 2.6f), new Vector3(5f, 0.9f, 0.7f), new Color(0.25f, 0.25f, 0.26f), true, 0.5f, 0.6f);
-        Glow("Burner", K + new Vector3(-1.2f, 0.92f, 2.6f), new Vector3(0.4f, 0.02f, 0.4f), new Color(0.3f, 0.5f, 1f), 3f);
-        B("Shelves", K + new Vector3(0, 1.8f, -2.85f), new Vector3(6f, 0.05f, 0.4f), new Color(0.6f, 0.6f, 0.6f), false, 0.6f, 0.6f);
+        // ---- the kitchen: white-tiled, bright, with real brass and enamel vessels all over the floor
+        Room("Kitchen", K, new Vector3(8f, 3f, 6f), new Color(0.9f, 0.9f, 0.86f), Color.white, "terracotta", "plaster");
+        foreach (var side in new[] { "N", "S", "E", "W" })
+        {
+            var wl = transform.Find("Kitchen_Wall" + side);
+            if (wl != null) GameKit.Surface(wl.gameObject, "tiles_white", 1.3f, 1f, 1f, new Color(0.93f, 0.93f, 0.9f));
+        }
+        var steel = new Color(0.62f, 0.63f, 0.65f);
+        B("Stove", K + new Vector3(0, 0.45f, 2.6f), new Vector3(5f, 0.9f, 0.7f), steel, true, 0.75f, 0.9f);
+        foreach (float bx in new[] { -1.8f, -0.6f, 0.6f, 1.8f })
+        {
+            Cy("BurnerRing", K + new Vector3(bx, 0.915f, 2.6f), 0.16f, 0.03f, new Color(0.08f, 0.08f, 0.08f), 0.4f, 0.6f);
+            if (bx < 0) Glow("Burner", K + new Vector3(bx, 0.935f, 2.6f), new Vector3(0.2f, 0.01f, 0.2f), new Color(0.3f, 0.5f, 1f), 3f);
+        }
+        PropKit.Place(transform, "brass_pot_01", K + new Vector3(-1.8f, 0.93f, 2.6f), 0f, 1.2f);
+        PropKit.Place(transform, "pot_enamel_01", K + new Vector3(-0.6f, 0.93f, 2.6f), 60f, 1.3f);
+        PropKit.Place(transform, "brass_pan_01", K + new Vector3(0.6f, 0.93f, 2.7f), 160f, 1.2f);
+        PropKit.Place(transform, "vintage_electric_kettle", K + new Vector3(2.2f, 0.9f, 2.6f), 30f);
+        B("Shelves", K + new Vector3(0, 1.8f, -2.85f), new Vector3(6f, 0.05f, 0.4f), steel, false, 0.7f, 0.9f);
+        B("ShelvesLow", K + new Vector3(0, 1.2f, -2.85f), new Vector3(6f, 0.05f, 0.4f), steel, false, 0.7f, 0.9f);
+        string[] shelfThings = { "metal_jug", "jug_01", "wooden_bowl_01", "brass_goblets", "pot_enamel_01", "brass_vase_01", "wooden_bowl_01", "metal_jug", "brass_pot_02", "jug_01" };
+        for (int i = 0; i < shelfThings.Length; i++)
+            PropKit.Place(transform, shelfThings[i], K + new Vector3(-2.6f + i * 0.58f, i % 2 == 0 ? 1.83f : 1.23f, -2.85f), i * 77f, shelfThings[i] == "brass_goblets" ? 0.6f : shelfThings[i] == "brass_vase_01" ? 0.5f : 1f);
+        B("PrepTable", K + new Vector3(-3.3f, 0.86f, 2.0f), new Vector3(1.1f, 0.05f, 1.6f), steel, false, 0.7f, 0.9f);
+        PropKit.Place(transform, "wooden_cutting_board", K + new Vector3(-3.3f, 0.89f, 2.1f), 80f);
+        PropKit.Place(transform, "wooden_spoon", K + new Vector3(-3.2f, 0.93f, 1.6f), 20f);
+        PropKit.Place(transform, "wooden_bowl_01", K + new Vector3(-3.4f, 0.89f, 1.5f), 0f);
         var rnd = new System.Random(4);
+        string[] vessels = { "brass_pot_01", "ceramic_pot", "pot_enamel_01", "brass_pot_02", "metal_jug" };
+        float[] vscale = { 1.45f, 0.75f, 1.9f, 1.3f, 1.7f };
         for (int i = 0; i < 16; i++)
         {
             Vector3 p = K + new Vector3(-2.6f + (i % 4) * 1.6f + (float)rnd.NextDouble() * 0.5f, 0, -1.7f + (i / 4) * 1.0f + (float)rnd.NextDouble() * 0.3f);
+            float rr = 0.2f + (float)rnd.NextDouble() * 0.08f;
             if (i % 5 == 2) continue;           // leave a winding path
             pots.Add(p);
-            Cy("Pot", p + new Vector3(0, 0.16f, 0), 0.2f + (float)rnd.NextDouble() * 0.08f, 0.32f, new Color(0.7f, 0.7f, 0.72f), 0.8f, 0.9f);
+            int vi = i % vessels.Length;
+            if (PropKit.Place(transform, vessels[vi], p, i * 61f, vscale[vi]) == null)
+                Cy("Pot", p + new Vector3(0, 0.16f, 0), rr, 0.32f, new Color(0.7f, 0.7f, 0.72f), 0.8f, 0.9f);
+            else if (vi == 3) PropKit.Place(transform, "brass_pot_01", p + new Vector3(0, 0.14f, 0), i * 20f, 1.1f);     // a pot stacked in the wide pan
         }
-        PL(K + new Vector3(0, 2.6f, 0), new Color(0.9f, 0.95f, 1f), 2.4f, 8f);
+        PL(K + new Vector3(-1.5f, 2.7f, 0), new Color(0.95f, 0.97f, 1f), 2.6f, 9f);
+        PL(K + new Vector3(2f, 2.7f, 0.5f), new Color(0.95f, 0.97f, 1f), 2.4f, 9f);
+        Glow("KitchenTube", K + new Vector3(0, 2.95f, 0), new Vector3(1.4f, 0.05f, 0.12f), new Color(0.92f, 0.97f, 1f), 2.6f);
         B("KitchenExit", K + new Vector3(3.97f, 1.05f, 0), new Vector3(0.05f, 2.1f, 1f), new Color(0.3f, 0.3f, 0.32f));
 
         // ---- the alleys: corridor, fork (left = dead end, right = the way out), dumpster, dhaba
-        RenderSettings.fogDensity = 0.01f;
-        var ground = B("AlleyGround", A + new Vector3(0, -0.05f, 6f), new Vector3(30f, 0.1f, 40f), new Color(0.25f, 0.23f, 0.22f), true, 0.6f);
-        GameKit.Surface(ground, "asphalt", 2f, 1f, 1f, new Color(0.35f, 0.32f, 0.3f));
+        RenderSettings.fogDensity = 0.0035f;
+        var ground = B("AlleyGround", A + new Vector3(0, -0.05f, 6f), new Vector3(30f, 0.1f, 40f), Color.white, true, 0.3f);
+        GameKit.Surface(ground, "cobble", 2.4f, 1f, 1f, new Color(0.88f, 0.86f, 0.83f));
         Wall(A + new Vector3(-1.1f, 0, -9f), A + new Vector3(-1.1f, 0, 0f));
         Wall(A + new Vector3(1.1f, 0, -9f), A + new Vector3(1.1f, 0, 0f));
         Wall(A + new Vector3(-1.1f, 0, -9.2f), A + new Vector3(1.1f, 0, -9.2f));
@@ -239,7 +330,6 @@ public class Act4Story : ActStoryBase
         // ---- the alleys
         yield return FadeOut(2f);
         PriyaRoomPlayer.Surface = 1;
-        RenderSettings.fogColor = new Color(0.06f, 0.06f, 0.09f);
         Teleport(A + new Vector3(0, 0.1f, -8f), 0f);
         raj.transform.position = A + new Vector3(0.3f, 0f, -9f);
         yield return FadeIn(1.5f);

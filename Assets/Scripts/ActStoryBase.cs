@@ -147,9 +147,48 @@ public abstract class ActStoryBase : MonoBehaviour
         PriyaRoomPlayer.Locked = true;
         Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false;
         SetupAudio();
+        CinematicLook.NoSky(camComp, camComp.backgroundColor);      // an earlier act may have left a photographed sky on the shared camera
         BuildWorld();
+        TexturePass();
         CinematicLook.Apply(transform, camComp, Look);
         StartCoroutine(Run());
+    }
+
+    static readonly Dictionary<string, string> MaterialByName = new Dictionary<string, string>
+    {
+        // wood
+        { "Counter", "wood" }, { "Cabinet", "wood" }, { "KitchenTable", "wood" }, { "Table", "wood" }, { "Bench", "wood" }, { "StackedBench", "wood" },
+        { "WitnessBox", "wood" }, { "JudgeDesk", "wood" }, { "JudgePlatform", "wood" }, { "ShelfBoard", "wood" }, { "TowerShelf", "wood" }, { "StairFrame", "wood" },
+        { "FrontDoor", "wood" }, { "StationDoor", "wood" }, { "BrokenFrame", "wood" }, { "OverturnedShelf", "wood" }, { "PulledDrawer", "wood" }, { "CharpaiLeg", "wood" },
+        { "StallCounter", "wood" }, { "ReadingTable", "wood" }, { "Shelf", "wood" }, { "FrontDesk", "wood" }, { "LibrarianDesk", "wood" }, { "DeskTop", "wood" },
+        { "ChairSeat", "wood" }, { "ChairBack", "wood" }, { "LibChairSeat", "wood" }, { "LibChairBack", "wood" }, { "ClerkTable", "wood" }, { "Blackboard", "wood" },
+        { "BasementDoorFrame", "wood" }, { "SideDoor", "wood" }, { "KitchenExit", "metal" }, { "StairsUpFrame", "wood" },
+        // masonry
+        { "PoliceStation", "plaster" }, { "StationBand", "plaster" }, { "Parapet", "plaster" }, { "CityBlock", "facade" }, { "Column", "plaster" },
+        { "Pavement", "concrete" }, { "Rooftop", "concrete" }, { "Road", "asphalt" },
+        // metal
+        { "Dumpster", "metal" }, { "Truck", "metal" }, { "WaterTank", "metal" }, { "StallRoof", "corrugated" }, { "Upright", "metal" }, { "Pipe", "metal" },
+        // cloth
+        { "Charpai", "fabric" }, { "Mattress", "fabric" }, { "SleepingMat", "fabric" }, { "Cushion", "fabric" }, { "Sofa", "fabric" }, { "SofaBack", "fabric" },
+        { "Velvet", "fabric" }, { "Washing", "fabric" }, { "Bundle", "fabric" }, { "Trash", "fabric" }, { "FileBox", "fabric" },
+    };
+
+    /// <summary>
+    /// Gives a real scanned material to every part that an act built as a flat-coloured shape, keeping its colour.
+    /// Parts are matched by name; anything already textured, glowing or tiny is left alone.
+    /// </summary>
+    protected virtual void TexturePass()
+    {
+        foreach (var mr in GetComponentsInChildren<MeshRenderer>())
+        {
+            string key;
+            if (!MaterialByName.TryGetValue(mr.gameObject.name, out key)) continue;
+            var m = mr.sharedMaterial;
+            if (m == null || (m.HasProperty("_BaseMap") && m.GetTexture("_BaseMap") != null) || m.IsKeywordEnabled("_EMISSION")) continue;
+            Vector3 sc = mr.transform.lossyScale;
+            if (Mathf.Max(sc.x, Mathf.Max(sc.y, sc.z)) < 0.25f) continue;
+            GameKit.Surface(mr.gameObject, key, key == "fabric" ? 0.3f : key == "wood" ? 0.9f : 1.8f, 1f, 1f, m.color);
+        }
     }
 
     protected virtual void Update()

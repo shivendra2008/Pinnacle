@@ -13,10 +13,25 @@ public class RocketboxImport : AssetPostprocessor
 
     void OnPreprocessTexture()
     {
+        if (assetPath.StartsWith("Assets/Resources/Sky")) { ApplySky((TextureImporter)assetImporter); return; }
         if (assetPath.StartsWith(TexFolder)) { ApplySurface((TextureImporter)assetImporter, assetPath); return; }
         if (!assetPath.StartsWith(Folder)) return;
         var ti = (TextureImporter)assetImporter;
         Apply(ti, assetPath);
+    }
+
+    /// <summary>Sky panoramas: full resolution, no mipmaps (they would blur the horizon seam), wrap horizontally.</summary>
+    static bool ApplySky(TextureImporter ti)
+    {
+        bool changed = ti.maxTextureSize != 4096 || ti.mipmapEnabled || ti.textureShape != TextureImporterShape.Texture2D;
+        ti.textureType = TextureImporterType.Default;
+        ti.textureShape = TextureImporterShape.Texture2D;
+        ti.maxTextureSize = 4096;
+        ti.mipmapEnabled = false;
+        ti.wrapModeU = TextureWrapMode.Repeat;
+        ti.wrapModeV = TextureWrapMode.Clamp;
+        ti.npotScale = TextureImporterNPOTScale.None;
+        return changed;
     }
 
     static bool ApplySurface(TextureImporter ti, string path)
@@ -67,6 +82,12 @@ public class RocketboxImport : AssetPostprocessor
     {
         EditorApplication.delayCall += () =>
         {
+            if (AssetDatabase.IsValidFolder("Assets/Resources/Sky"))
+                foreach (var guid in AssetDatabase.FindAssets("t:Texture", new[] { "Assets/Resources/Sky" }))
+                {
+                    var ti = AssetImporter.GetAtPath(AssetDatabase.GUIDToAssetPath(guid)) as TextureImporter;
+                    if (ti != null && ApplySky(ti)) ti.SaveAndReimport();
+                }
             if (AssetDatabase.IsValidFolder(TexFolder))
                 foreach (var guid in AssetDatabase.FindAssets("t:Texture2D", new[] { TexFolder }))
                 {

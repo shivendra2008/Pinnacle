@@ -3,3 +3,6 @@ wood_floor = wood_floor_worn, wood = dark_wooden_planks, plaster = painted_plast
 asphalt = asphalt_04, stone = stone_tiles_02, brick = painted_brick, shutter = rusty_metal_shutter,
 corrugated = rusty_corrugated_iron, concrete = dirty_concrete, metal = rusty_painted_metal.
 Albedo maps were converted to near-neutral detail maps (the game tints them); roughness was packed into the mask alpha.
+Added: sandstone = red_sandstone_wall, sandstone_floor = red_sandstone_pavement, marble = marble_01,
+checker = checkered_pavement_tiles, terracotta = terracotta_floor_tiles, tiles_white = long_white_tiles,
+cobble = cobblestone_floor_04, blocks = large_sandstone_blocks (all Poly Haven, CC0, colours kept).

@@ -82,3 +82,16 @@ Backups of the originals were not committed; the old numbers are in the table ab
 - **Inspector Reddy's exit**: `MarketWorld.SpawnBike` builds a commuter motorbike; `CharacterNPC.Ride` seats a character
   with two-bone IK (hands on grips, feet on pegs); `MarketStory.ReddyFlees` runs her to it and rides out through the gate.
   A run clip (`*_RunForwards`) blends in above about 2 m/s.
+
+## Temple, cafe and Acts 4-5 pass (Nov 2026)
+- **Blur when looking down**: depth of field now only switches on during conversations (`AutoFocus`).
+- **Real skies**: `CinematicLook.Sky(cam, "name")` uses a Poly Haven HDRI from `Resources/Sky` as backdrop, ambient light
+  and reflections; `NoSky` goes back to a flat background. Used by the cafe (morning) and the Act V terrace (sunrise).
+- **Temple (Act III)**: stone sanctum you can look into, turned pillars, lathe-built shikhara with amalaka and brass
+  kalash, cast bells, Ganesha shrine, tulsi planter. The idol is loaded from `Resources/Idols` - see README.txt there
+  (put your own model in as `Kali`; a museum scan stands in until then).
+- **Cafe Irani (Act IV)**: open-air terrace in morning sun with a pergola, scanned tables, chairs, plants and tea sets.
+  The title card now reads 7:05 AM. Kitchen: white tiles, terracotta floor, scanned brass / enamel / ceramic vessels.
+- **`ActStoryBase.TexturePass`**: scanned materials on every flat-coloured part in Acts III-V, matched by object name.
+- New material keys: `sandstone`, `sandstone_floor`, `marble`, `checker`, `terracotta`, `tiles_white`, `cobble`, `blocks`
+  (these keep their own colours - pass a white tint).

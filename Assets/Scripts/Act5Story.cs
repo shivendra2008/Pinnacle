@@ -33,6 +33,7 @@ public class Act5Story : ActStoryBase
     readonly List<GameObject> candleFlames = new List<GameObject>();
     readonly List<Light> candleLights = new List<Light>();
     GameObject skyQuad, sun;
+    const float TerraceSkyRotation = 0f;      // turn the panorama (degrees) if the sunrise is not where the terrace faces
     Transform book; TextMesh bookLabel;
     int chosen = -1;
     float white;               // white-out overlay (the world dissolving)
@@ -297,6 +298,7 @@ public class Act5Story : ActStoryBase
         Teleport(G + new Vector3(0, 0.1f, -3.2f), 0f, -4f);
         ambience.clip = galleryBed; ambience.volume = 0.5f; ambience.Play();
         RenderSettings.fogColor = new Color(0.04f, 0.02f, 0.02f);
+        CinematicLook.NoSky(camComp, new Color(0.02f, 0.02f, 0.05f));
         CinematicLook.Ambient(new Color(0.12f, 0.08f, 0.06f), new Color(0.1f, 0.06f, 0.05f), new Color(0.04f, 0.03f, 0.02f));
         yield return new WaitForSeconds(1.5f);
         sfx.PlayOneShot(Tone(3000f, 0.15f, 25f, 0.3f), 0.6f);                   // a match strikes
@@ -430,6 +432,7 @@ public class Act5Story : ActStoryBase
     {
         ambience.clip = courtBed; ambience.volume = 0.6f; ambience.Play();
         RenderSettings.fogColor = new Color(0.12f, 0.1f, 0.08f);
+        CinematicLook.NoSky(camComp, new Color(0.02f, 0.02f, 0.05f));
         CinematicLook.Ambient(new Color(0.6f, 0.55f, 0.5f), new Color(0.45f, 0.38f, 0.32f), new Color(0.15f, 0.12f, 0.1f));
         Teleport(C + local, yaw);
         yield return null;
@@ -438,6 +441,12 @@ public class Act5Story : ActStoryBase
     IEnumerator ToTerrace(Color bottom, Color top, Color sunColor, float sunHeight, float yaw)
     {
         SetTerraceSky(bottom, top, sunColor, sunHeight);
+        // a real photographed sunrise replaces the painted backdrop (the painted one stays as the fallback)
+        if (CinematicLook.Sky(camComp, "the_sky_is_on_fire", 1.0f, TerraceSkyRotation, 1f))
+        {
+            if (skyQuad != null) Destroy(skyQuad);
+            if (sun != null) Destroy(sun);
+        }
         RenderSettings.fogColor = Color.Lerp(bottom, top, 0.4f);
         CinematicLook.Ambient(Color.Lerp(top, Color.white, 0.4f), Color.Lerp(bottom, Color.white, 0.3f), new Color(0.2f, 0.15f, 0.12f));
         SetSun(sunColor, 1.6f, new Vector3(8f, 180f, 0f));
@@ -461,6 +470,7 @@ public class Act5Story : ActStoryBase
         yield return FadeOut(0.8f);
         ambience.clip = galleryBed; ambience.volume = 0.5f; ambience.Play();
         RenderSettings.fogColor = new Color(0.04f, 0.02f, 0.02f);
+        CinematicLook.NoSky(camComp, new Color(0.02f, 0.02f, 0.05f));
         CinematicLook.Ambient(new Color(0.12f, 0.08f, 0.06f), new Color(0.1f, 0.06f, 0.05f), new Color(0.04f, 0.03f, 0.02f));
         SetSun(new Color(0.55f, 0.62f, 0.95f), 0.1f, new Vector3(45f, 30f, 0f));
         Teleport(G + new Vector3(-1.2f, 0.1f, -0.6f), 10f, 5f);
