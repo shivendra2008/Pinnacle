@@ -119,6 +119,40 @@ public static class CinematicLook
         RenderSettings.reflectionIntensity = reflection;
     }
 
+    /// <summary>
+    /// A real photographed sky (Poly Haven HDRI in Resources/Sky) as the backdrop AND the source of ambient light and
+    /// reflections - the single biggest step towards outdoor scenes that look photographed rather than drawn.
+    /// </summary>
+    public static bool Sky(Camera cam, string hdri, float exposure = 1f, float rotation = 0f, float ambient = 1f)
+    {
+        var tex = Resources.Load<Texture>("Sky/" + hdri);
+        var sh = Shader.Find("Skybox/Panoramic");
+        if (tex == null || sh == null) return false;
+        var m = new Material(sh);
+        m.SetTexture("_MainTex", tex);
+        m.SetFloat("_Exposure", exposure);
+        m.SetFloat("_Rotation", rotation);
+        m.SetColor("_Tint", new Color(0.5f, 0.5f, 0.5f, 0.5f));
+        RenderSettings.skybox = m;
+        cam.clearFlags = CameraClearFlags.Skybox;
+        RenderSettings.ambientMode = AmbientMode.Skybox;
+        RenderSettings.ambientIntensity = ambient;
+        RenderSettings.defaultReflectionMode = DefaultReflectionMode.Skybox;
+        RenderSettings.reflectionIntensity = 1f;
+        DynamicGI.UpdateEnvironment();
+        return true;
+    }
+
+    /// <summary>Back to a plain coloured background (interiors, night scenes).</summary>
+    public static void NoSky(Camera cam, Color background)
+    {
+        RenderSettings.skybox = null;
+        cam.clearFlags = CameraClearFlags.SolidColor;
+        cam.backgroundColor = background;
+        RenderSettings.ambientMode = AmbientMode.Trilight;
+        RenderSettings.ambientIntensity = 1f;
+    }
+
     public static ReflectionProbe Probe(Transform parent, Vector3 localPos, Vector3 size, Color background, int resolution = 128)
     {
         var go = new GameObject("ReflectionProbe");
@@ -151,6 +185,11 @@ public class AutoFocus : MonoBehaviour
     void Update()
     {
         if (dof == null) return;
+        // Depth of field only during conversations. In free play it focused on whatever the crosshair touched, so
+        // looking at the floor (or anything close) threw the rest of the screen out of focus.
+        bool want = FocusOn != null && LookController.DofAllowed;
+        if (dof.active != want) dof.active = want;
+        if (!want) return;
         float target = defaultDistance;
         if (FocusOn != null)
             target = Vector3.Distance(transform.position, FocusOn.position + Vector3.up * 1.5f);
@@ -169,6 +208,7 @@ public class LookController : MonoBehaviour
     public VolumeProfile profile;
     public ReflectionProbe probe;
     static int tier = 0;               // default: Cinematic (F2 to switch); survives restarts
+    public static bool DofAllowed { get { return tier == 0; } }
     float shownUntil;
     GUIStyle style;
 
@@ -195,7 +235,7 @@ public class LookController : MonoBehaviour
     void ApplyTier()
     {
         // 0 = Cinematic (everything), 1 = Balanced (no DOF / motion blur / aberration), 2 = Performance (also no grain, cheap bloom)
-        Set<DepthOfField>(tier == 0);
+        Set<DepthOfField>(tier == 0 && AutoFocus.FocusOn != null);
         Set<MotionBlur>(tier == 0);
         Set<ChromaticAberration>(tier == 0);
         Set<LensDistortion>(tier == 0);

@@ -322,82 +322,225 @@ public class Act3Story : ActStoryBase
         PL(new Vector3(Base.x, 2.2f, -5.8f), new Color(1f, 0.85f, 0.6f), 1.4f, 5f);      // landing at the foot of the stairs
     }
 
+    // If your own idol comes out facing the back wall, change this to 0.
+    const float IdolYaw = 180f;
+
+    static GameObject Tex(GameObject go, string key, float tile, Color tint)
+    {
+        GameKit.Surface(go, key, tile, 1f, 1f, tint);
+        return go;
+    }
+
+    /// <summary>A shape turned on a lathe, standing upright. Profile points are (height, radius).</summary>
+    GameObject Turned(string name, Vector3 basePos, Vector2[] profile, Material mat, int seg = 20)
+    {
+        var go = VehicleKit.Part(transform, name, VehicleKit.Lathe(profile, seg), mat, basePos);
+        go.transform.localRotation = Quaternion.Euler(0, 0, 90f);       // lathe axis X -> up
+        return go;
+    }
+
+    /// <summary>Loads a statue from Resources/Idols, scales it to the given height and stands it on basePos.</summary>
+    GameObject PlaceIdol(string[] names, Vector3 basePos, float height, float yaw, bool darkStone)
+    {
+        GameObject prefab = null; string used = null;
+        foreach (var n in names) { prefab = Resources.Load<GameObject>("Idols/" + n); if (prefab != null) { used = n; break; } }
+        if (prefab == null) return null;
+        var go = Instantiate(prefab, transform);
+        go.name = "Idol_" + used;
+        go.transform.position = basePos; go.transform.rotation = Quaternion.Euler(0, yaw, 0);
+        var rs = go.GetComponentsInChildren<Renderer>();
+        if (rs.Length == 0) return go;
+        Bounds b = rs[0].bounds; foreach (var r in rs) b.Encapsulate(r.bounds);
+        if (b.size.y > 0.001f) go.transform.localScale *= height / b.size.y;
+        b = rs[0].bounds; foreach (var r in rs) b.Encapsulate(r.bounds);
+        go.transform.position += new Vector3(basePos.x - b.center.x, basePos.y - b.min.y, basePos.z - b.center.z);
+        if (darkStone && used != "Kali")        // the museum scans have no colour of their own: polished black temple stone
+        {
+            var stoneMat = GameKit.Lit(new Color(0.085f, 0.08f, 0.075f), 0.46f);
+            foreach (var r in rs) { var ms = r.sharedMaterials; for (int k = 0; k < ms.Length; k++) ms[k] = stoneMat; r.sharedMaterials = ms; }
+        }
+        foreach (var r in rs) r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
+        return go;
+    }
+
+    void Diya(Vector3 pos, bool light)
+    {
+        if (PropKit.Place(transform, "brass_diya_lantern", pos, pos.x * 40f, 1.6f) == null)
+            Glow("Diya", pos + Vector3.up * 0.05f, new Vector3(0.1f, 0.08f, 0.1f), new Color(1f, 0.6f, 0.15f), 6f);
+        Glow("Flame", pos + new Vector3(0, 0.42f, 0), new Vector3(0.035f, 0.06f, 0.035f), new Color(1f, 0.62f, 0.18f), 9f);
+        if (light) PL(pos + new Vector3(0, 0.55f, 0), new Color(1f, 0.6f, 0.22f), 1.5f, 4.5f);
+    }
+
     void BuildTemple()
     {
-        var stone = new Color(0.55f, 0.5f, 0.45f);
-        var f = B("TempleCourtyard", Temple + new Vector3(0, -0.05f, 0), new Vector3(30f, 0.1f, 30f), stone, true, 0.4f);
-        GameKit.Surface(f, "stone", 1.4f, 1f, 1f, stone);
+        var grey = new Color(0.78f, 0.76f, 0.72f);
+        var warm = new Color(0.95f, 0.88f, 0.78f);
+        var brass = GameKit.Lit(new Color(0.83f, 0.62f, 0.22f), 0.82f, 1f);
+        var blockMat = ProcTex.Mat(ProcTex.Get("blocks"), warm, new Vector2(5f, 3f), 1f, 1.2f);
+
+        // ---- courtyard of worn stone slabs, a marble walk from the gate to the steps, stone compound wall
+        var f = B("TempleCourtyard", Temple + new Vector3(0, -0.05f, 0), new Vector3(30f, 0.1f, 30f), Color.white, true, 0.3f);
+        Tex(f, "sandstone_floor", 2.2f, new Color(0.95f, 0.92f, 0.88f));
+        Tex(B("MarbleWalk", Temple + new Vector3(0, 0.005f, -5f), new Vector3(3.2f, 0.02f, 17f), Color.white, false, 0.4f), "marble", 1.6f, Color.white);
         foreach (var w in new[] { new Vector4(0, 15, 30, 0.6f), new Vector4(0, -15, 30, 0.6f), new Vector4(15, 0, 0.6f, 30), new Vector4(-15, 0, 0.6f, 30) })
-            GameKit.Surface(B("CompoundWall", Temple + new Vector3(w.x, 1.25f, w.y), new Vector3(w.z, 2.5f, w.w), new Color(0.75f, 0.45f, 0.3f), true), "facade", 2.5f);
-        // the sanctum: plinth, steps, shrine, shikhara
-        var red = new Color(0.65f, 0.12f, 0.1f);
-        B("Plinth", Temple + new Vector3(0, 0.6f, 9f), new Vector3(9f, 1.2f, 8f), stone * 0.9f, true, 0.3f);
-        for (int i = 0; i < 5; i++) B("Step", Temple + new Vector3(0, 0.12f + i * 0.24f, 4.6f + i * 0.3f - 1.2f), new Vector3(4f, 0.24f, 0.4f), stone, true, 0.4f);
-        B("Sanctum", Temple + new Vector3(0, 3.0f, 10f), new Vector3(5f, 3.6f, 5f), new Color(0.85f, 0.55f, 0.3f), true, 0.2f);
-        GameKit.Cone(transform, "Shikhara", Temple + new Vector3(0, 4.8f, 10f), 3.4f, 7f, GameKit.Lit(new Color(0.9f, 0.5f, 0.2f), 0.2f), 8);
-        Sp("Kalash", Temple + new Vector3(0, 12f, 10f), 0.6f, new Color(0.95f, 0.75f, 0.2f), 0.8f);
-        Glow("SanctumDoor", Temple + new Vector3(0, 2.2f, 7.48f), new Vector3(1.6f, 2.0f, 0.05f), new Color(1f, 0.35f, 0.1f), 2.5f);
-        // Kali Ma inside the doorway: dark figure, red garland
-        GameKit.Cone(transform, "Kali", Temple + new Vector3(0, 1.2f, 8.2f), 0.35f, 1.4f, GameKit.Lit(new Color(0.08f, 0.1f, 0.22f), 0.6f));
-        Sp("KaliHead", Temple + new Vector3(0, 2.75f, 8.2f), 0.35f, new Color(0.08f, 0.1f, 0.22f), 0.6f);
-        for (int i = 0; i <= 10; i++) Sp("Garland", Temple + new Vector3(-0.3f + i * 0.06f, 2.3f - Mathf.Sin(i / 10f * Mathf.PI) * 0.25f, 7.95f), 0.08f, i % 2 == 0 ? red : new Color(1f, 0.6f, 0.1f));
-        PL(Temple + new Vector3(0, 2.5f, 7f), new Color(1f, 0.5f, 0.18f), 5f, 12f);
-        PL(Temple + new Vector3(0, 1.6f, 5.5f), new Color(1f, 0.6f, 0.3f), 2.5f, 8f);                   // steady glow on the steps
-        // warm uplight on the shikhara so the temple reads against the night sky
-        Spot(Temple + new Vector3(0, 0.3f, 2.5f), new Vector3(-48f, 0f, 0f), new Color(1f, 0.62f, 0.32f), 6f, 16f, 50f);
-        // carved pillars + marigold strings across the sanctum front
-        foreach (float px in new[] { -2.1f, 2.1f })
         {
-            B("SanctumPillar", Temple + new Vector3(px, 2.8f, 7.35f), new Vector3(0.4f, 3.2f, 0.4f), new Color(0.8f, 0.5f, 0.28f), true, 0.25f);
-            B("PillarCap", Temple + new Vector3(px, 4.45f, 7.35f), new Vector3(0.55f, 0.15f, 0.55f), new Color(0.7f, 0.4f, 0.2f), false, 0.25f);
+            Tex(B("CompoundWall", Temple + new Vector3(w.x, 1.4f, w.y), new Vector3(w.z, 2.8f, w.w), grey, true), "blocks", 2.6f, warm);
+            Tex(B("WallCoping", Temple + new Vector3(w.x, 2.88f, w.y), new Vector3(w.z + 0.25f, 0.16f, w.w + 0.25f), grey, false), "sandstone_floor", 1.5f, warm);
         }
-        for (int i = 0; i <= 16; i++)
-            Sp("Marigold", Temple + new Vector3(-2.1f + i * 0.2625f, 4.1f - Mathf.Sin(i / 16f * Mathf.PI) * 0.45f, 7.2f), 0.11f, i % 3 == 0 ? new Color(0.9f, 0.15f, 0.08f) : new Color(1f, 0.6f, 0.08f));
-        // bells at the entrance
+
+        // ---- the shrine: stone plinth with mouldings, marble steps
+        Tex(B("Plinth", Temple + new Vector3(0, 0.6f, 9f), new Vector3(9f, 1.2f, 8f), grey, true, 0.3f), "blocks", 2.4f, warm);
+        Tex(B("PlinthBase", Temple + new Vector3(0, 0.12f, 9f), new Vector3(9.4f, 0.24f, 8.4f), grey, false), "sandstone_floor", 1.6f, warm);
+        Tex(B("PlinthCap", Temple + new Vector3(0, 1.17f, 9f), new Vector3(9.3f, 0.1f, 8.3f), grey, false), "sandstone_floor", 1.6f, warm);
+        Tex(B("PlinthFloor", Temple + new Vector3(0, 1.205f, 6.3f), new Vector3(8.6f, 0.02f, 2.5f), Color.white, false, 0.4f), "marble", 1.6f, Color.white);
+        for (int i = 0; i < 5; i++) Tex(B("Step", Temple + new Vector3(0, 0.12f + i * 0.24f, 4.6f + i * 0.3f - 1.2f), new Vector3(4f, 0.24f, 0.4f), Color.white, true, 0.4f), "marble", 1.4f, Color.white);
+
+        // ---- garbhagriha (sanctum): a real stone chamber with a doorway, not a block
+        Vector3 sc = Temple + new Vector3(0, 3.0f, 10f);
+        Tex(B("SanctumBack", sc + new Vector3(0, 0, 2.3f), new Vector3(5f, 3.6f, 0.4f), grey, true), "blocks", 2.2f, warm);
+        foreach (float sx in new[] { -2.3f, 2.3f }) Tex(B("SanctumSide", sc + new Vector3(sx, 0, 0), new Vector3(0.4f, 3.6f, 5f), grey, true), "blocks", 2.2f, warm);
+        foreach (float sx in new[] { -1.65f, 1.65f }) Tex(B("SanctumFront", sc + new Vector3(sx, 0, -2.3f), new Vector3(1.7f, 3.6f, 0.4f), grey, true), "blocks", 2.2f, warm);
+        Tex(B("SanctumLintel", sc + new Vector3(0, 1.15f, -2.3f), new Vector3(1.6f, 1.3f, 0.4f), grey, true), "blocks", 2.2f, warm);
+        Tex(B("SanctumRoof", sc + new Vector3(0, 1.9f, 0), new Vector3(5.4f, 0.24f, 5.4f), grey, true), "sandstone_floor", 1.6f, warm);
+        var dark = new Color(0.3f, 0.28f, 0.26f);
+        Tex(B("InnerBack", sc + new Vector3(0, 0, 2.08f), new Vector3(4.2f, 3.6f, 0.04f), dark, false), "blocks", 1.8f, dark);
+        // carved door frame: jambs, lintel, threshold, brass-studded
+        foreach (float sx in new[] { -0.88f, 0.88f }) Tex(B("DoorJamb", sc + new Vector3(sx, -0.6f, -2.52f), new Vector3(0.18f, 2.4f, 0.14f), grey, false), "sandstone_floor", 0.9f, new Color(1f, 0.85f, 0.7f));
+        Tex(B("DoorHead", sc + new Vector3(0, 0.66f, -2.52f), new Vector3(2.1f, 0.2f, 0.16f), grey, false), "sandstone_floor", 0.9f, new Color(1f, 0.85f, 0.7f));
+        Tex(B("Threshold", sc + new Vector3(0, -1.76f, -2.4f), new Vector3(1.6f, 0.08f, 0.5f), Color.white, false), "marble", 1.2f, Color.white);
+
+        // ---- the idol on its pedestal, red cloth behind, lamps either side
+        Vector3 ped = Temple + new Vector3(0, 1.2f, 11.1f);
+        Tex(B("Pedestal", ped + new Vector3(0, 0.25f, 0), new Vector3(1.9f, 0.5f, 1.1f), Color.white, true, 0.4f), "marble", 1.2f, Color.white);
+        Tex(B("PedestalBase", ped + new Vector3(0, 0.05f, 0), new Vector3(2.2f, 0.1f, 1.4f), grey, false), "sandstone_floor", 1.2f, warm);
+        var cloth = B("BackCloth", Temple + new Vector3(0, 3.0f, 12.02f), new Vector3(3.2f, 2.9f, 0.02f), new Color(0.5f, 0.04f, 0.05f), false, 0.1f);
+        GameKit.Surface(cloth, "fabric", 0.35f, 0.5f, 1.2f, new Color(0.55f, 0.05f, 0.06f));
+        var idol = PlaceIdol(new[] { "Kali", "Uma" }, ped + new Vector3(0, 0.5f, 0.05f), 1.75f, IdolYaw, true);
+        if (idol == null) Tex(B("IdolNiche", ped + new Vector3(0, 1.3f, 0.2f), new Vector3(1.2f, 1.6f, 0.3f), dark, false), "blocks", 1.2f, dark);
+        // garland of marigolds over the idol, a second across the doorway
+        var red = new Color(0.75f, 0.1f, 0.06f); var saffron = new Color(1f, 0.55f, 0.06f);
+        for (int i = 0; i <= 22; i++)
+        {
+            float u = i / 22f;
+            Sp("Marigold", ped + new Vector3(-0.75f + u * 1.5f, 2.15f - Mathf.Sin(u * Mathf.PI) * 0.55f, -0.38f), 0.075f, i % 4 == 0 ? red : saffron, 0.15f);
+            Sp("Marigold", Temple + new Vector3(-0.8f + u * 1.6f, 3.52f - Mathf.Sin(u * Mathf.PI) * 0.3f, 7.42f), 0.07f, i % 3 == 0 ? red : saffron, 0.15f);
+        }
+        Diya(ped + new Vector3(-1.25f, 0f, -0.3f), true); Diya(ped + new Vector3(1.25f, 0f, -0.3f), true);
+        PropKit.Place(transform, "brass_vase_01", ped + new Vector3(-0.8f, 0.5f, -0.35f), 0f, 0.5f);
+        PropKit.Place(transform, "brass_vase_01", ped + new Vector3(0.8f, 0.5f, -0.35f), 90f, 0.5f);
+        PropKit.Place(transform, "brass_pot_01", ped + new Vector3(0f, 0f, -0.95f), 0f, 0.9f);
+        PL(Temple + new Vector3(0, 3.6f, 10.2f), new Color(1f, 0.56f, 0.22f), 4.2f, 6.5f);       // lamp-light inside the sanctum
+        PL(Temple + new Vector3(0, 2.2f, 9.2f), new Color(1f, 0.7f, 0.4f), 1.8f, 4f);           // on the idol's face
+
+        // ---- mandapa: turned stone pillars carrying a stone roof over the porch
+        var pillarMat = ProcTex.Mat(ProcTex.Get("sandstone_floor"), new Color(1f, 0.9f, 0.78f), new Vector2(2f, 2f), 1f, 1.2f);
+        var pillar = new[]
+        {
+            new Vector2(0f, 0.30f), new Vector2(0.25f, 0.30f), new Vector2(0.30f, 0.24f), new Vector2(0.45f, 0.26f), new Vector2(0.55f, 0.19f),
+            new Vector2(1.9f, 0.17f), new Vector2(2.0f, 0.22f), new Vector2(2.12f, 0.17f), new Vector2(2.6f, 0.16f), new Vector2(2.72f, 0.24f),
+            new Vector2(2.85f, 0.30f), new Vector2(3.0f, 0.30f),
+        };
+        foreach (float px in new[] { -3.6f, -1.5f, 1.5f, 3.6f })
+        {
+            Turned("Pillar", Temple + new Vector3(px, 1.2f, 5.5f), pillar, pillarMat);
+            var pc = new GameObject("PillarCollider").AddComponent<CapsuleCollider>();
+            pc.transform.SetParent(transform, false); pc.transform.position = Temple + new Vector3(px, 2.7f, 5.5f); pc.radius = 0.24f; pc.height = 3f;
+            Tex(B("Bracket", Temple + new Vector3(px, 4.28f, 5.5f), new Vector3(0.8f, 0.16f, 0.8f), grey, false), "sandstone_floor", 1f, warm);
+        }
+        Tex(B("PorchBeam", Temple + new Vector3(0, 4.5f, 5.5f), new Vector3(8.6f, 0.3f, 0.6f), grey, false), "blocks", 2f, warm);
+        Tex(B("PorchRoof", Temple + new Vector3(0, 4.78f, 6.4f), new Vector3(9.2f, 0.26f, 2.9f), grey, false), "sandstone_floor", 1.6f, warm);
+        Tex(B("PorchParapet", Temple + new Vector3(0, 5.06f, 5.1f), new Vector3(9.2f, 0.3f, 0.3f), grey, false), "blocks", 2f, warm);
+
+        // ---- shikhara: the curving tower over the sanctum, banded, crowned with amalaka and brass kalash
+        Vector3 tb = Temple + new Vector3(0, 5.02f, 10f);
+        var tower = new[]
+        {
+            new Vector2(0f, 2.75f), new Vector2(0.5f, 2.72f), new Vector2(1.6f, 2.5f), new Vector2(2.8f, 2.15f), new Vector2(4.0f, 1.7f),
+            new Vector2(5.0f, 1.25f), new Vector2(5.8f, 0.85f), new Vector2(6.4f, 0.55f), new Vector2(6.6f, 0.5f),
+        };
+        Turned("Shikhara", tb, tower, ProcTex.Mat(ProcTex.Get("blocks"), new Color(1f, 0.9f, 0.76f), new Vector2(2.5f, 3.5f), 1f, 1.3f), 12);
+        float[] bandH = { 0.5f, 1.6f, 2.8f, 4.0f, 5.0f, 5.8f }; float[] bandR = { 2.78f, 2.56f, 2.21f, 1.76f, 1.31f, 0.91f };
+        for (int i = 0; i < bandH.Length; i++)
+            Turned("TowerBand", tb + Vector3.up * bandH[i], new[] { new Vector2(-0.07f, bandR[i] - 0.06f), new Vector2(-0.05f, bandR[i] + 0.07f), new Vector2(0.05f, bandR[i] + 0.07f), new Vector2(0.07f, bandR[i] - 0.06f) }, pillarMat, 12);
+        Turned("Amalaka", tb + Vector3.up * 6.6f, new[] { new Vector2(0f, 0.45f), new Vector2(0.08f, 0.78f), new Vector2(0.25f, 0.9f), new Vector2(0.42f, 0.78f), new Vector2(0.5f, 0.4f) }, pillarMat, 24);
+        Turned("Kalash", tb + Vector3.up * 7.1f, new[] { new Vector2(0f, 0.12f), new Vector2(0.06f, 0.3f), new Vector2(0.28f, 0.38f), new Vector2(0.5f, 0.26f), new Vector2(0.58f, 0.1f), new Vector2(0.7f, 0.16f), new Vector2(0.86f, 0.05f), new Vector2(1.05f, 0.01f) }, brass, 20);
+        Spot(Temple + new Vector3(0, 0.3f, 1.5f), new Vector3(-50f, 0f, 0f), new Color(1f, 0.66f, 0.36f), 6f, 18f, 46f);          // warm uplight on the tower
+        // saffron flag on a mast beside the tower
+        Cy("FlagMast", tb + new Vector3(2.4f, 2.2f, -2.4f), 0.03f, 5.2f, new Color(0.6f, 0.5f, 0.3f), 0.6f, 0.8f);
+        B("Flag", tb + new Vector3(2.75f, 4.5f, -2.4f), new Vector3(0.7f, 0.42f, 0.01f), new Color(0.95f, 0.45f, 0.05f), false, 0.1f);
+
+        // ---- temple bells: cast brass, hung from the porch beam
+        var bell = new[] { new Vector2(0f, 0.19f), new Vector2(0.03f, 0.2f), new Vector2(0.1f, 0.15f), new Vector2(0.24f, 0.11f), new Vector2(0.3f, 0.06f), new Vector2(0.33f, 0.02f) };
         for (int i = 0; i < 3; i++)
         {
-            B("BellChain", Temple + new Vector3(-1.2f + i * 1.2f, 3.6f, 6.2f), new Vector3(0.02f, 0.8f, 0.02f), new Color(0.6f, 0.5f, 0.2f), false, 0.7f, 0.8f);
-            GameKit.Cone(transform, "Bell", Temple + new Vector3(-1.2f + i * 1.2f, 2.9f, 6.2f), 0.18f, 0.32f, GameKit.Lit(new Color(0.85f, 0.65f, 0.2f), 0.8f, 0.9f));
+            Vector3 bp = Temple + new Vector3(-1.2f + i * 1.2f, 0, 5.5f);
+            B("BellChain", bp + new Vector3(0, 3.82f, 0), new Vector3(0.015f, 1.05f, 0.015f), new Color(0.6f, 0.5f, 0.2f), false, 0.7f, 0.9f);
+            Turned("Bell", bp + new Vector3(0, 2.96f, 0), bell, brass, 20);
+            Sp("Clapper", bp + new Vector3(0, 2.95f, 0), 0.06f, new Color(0.5f, 0.4f, 0.15f), 0.6f);
         }
-        // oil lamps in wall niches
+        PL(Temple + new Vector3(0, 3.2f, 6.2f), new Color(1f, 0.62f, 0.32f), 2.6f, 9f);
+        // lamps up the steps and along the plinth edge
+        foreach (float lx in new[] { -2.3f, 2.3f })
+            for (int i = 0; i < 3; i++) Diya(Temple + new Vector3(lx, 0f + (i == 2 ? 1.2f : 0f), 3.2f + i * 1.0f), i != 1);
+        foreach (float lx in new[] { -4.1f, 4.1f }) Diya(Temple + new Vector3(lx, 1.2f, 5.2f), true);
+
+        // ---- oil lamps in the compound wall niches
         for (int i = 0; i < 10; i++)
         {
             float x = -13f + i * 2.9f;
             foreach (float z in new[] { -14.6f, 14.6f })
             {
                 if (z > 0 && Mathf.Abs(x) < 5f) continue;
-                Glow("Diya", Temple + new Vector3(x, 1.2f, z), new Vector3(0.1f, 0.08f, 0.1f), new Color(1f, 0.6f, 0.15f), 6f);
+                B("Niche", Temple + new Vector3(x, 1.25f, z), new Vector3(0.4f, 0.4f, 0.12f), new Color(0.12f, 0.1f, 0.09f));
+                Glow("Diya", Temple + new Vector3(x, 1.14f, z * 0.992f), new Vector3(0.08f, 0.05f, 0.08f), new Color(1f, 0.6f, 0.15f), 6f);
                 if (i % 2 == 0) PL(Temple + new Vector3(x, 1.4f, z * 0.96f), new Color(1f, 0.62f, 0.25f), 2.2f, 6.5f);
             }
         }
-        // banyan tree with red threads
-        Cy("BanyanTrunk", Temple + new Vector3(-9f, 2.5f, -6f), 0.8f, 5f, new Color(0.35f, 0.27f, 0.2f), 0.1f);
-        for (int i = 0; i < 6; i++) Sp("BanyanCanopy", Temple + new Vector3(-9f + Mathf.Sin(i) * 2.5f, 6f + (i % 2), -6f + Mathf.Cos(i) * 2.5f), 4f, new Color(0.12f, 0.3f, 0.12f), 0.1f);
-        for (int i = 0; i < 8; i++) B("SacredThread", Temple + new Vector3(-9f + Mathf.Sin(i * 0.8f) * 0.82f, 1.4f, -6f + Mathf.Cos(i * 0.8f) * 0.82f), new Vector3(0.05f, 0.05f, 0.05f), new Color(0.9f, 0.1f, 0.1f));
-        // entrance gate (south)
-        B("GateL", Temple + new Vector3(-2.2f, 2f, -14.7f), new Vector3(0.8f, 4f, 0.8f), new Color(0.8f, 0.5f, 0.3f), true);
-        B("GateR", Temple + new Vector3(2.2f, 2f, -14.7f), new Vector3(0.8f, 4f, 0.8f), new Color(0.8f, 0.5f, 0.3f), true);
-        B("GateTop", Temple + new Vector3(0, 4.2f, -14.7f), new Vector3(5.2f, 0.6f, 0.9f), new Color(0.75f, 0.2f, 0.12f));
-        gate = new GameObject("Gate").transform; gate.SetParent(transform, false); gate.position = Temple + new Vector3(0, 1.5f, -13.5f);
-        // the priest's alcove near the entrance, devotees
-        B("Alcove", Temple + new Vector3(5.5f, 1.2f, -13.6f), new Vector3(2.4f, 2.4f, 1.2f), new Color(0.7f, 0.45f, 0.3f), true);
-        B("AlcoveMat", Temple + new Vector3(5.5f, 0.02f, -12.6f), new Vector3(1.6f, 0.03f, 1.0f), new Color(0.6f, 0.15f, 0.12f));
-        Glow("AlcoveLamp", Temple + new Vector3(4.6f, 0.15f, -12.4f), new Vector3(0.1f, 0.08f, 0.1f), new Color(1f, 0.6f, 0.15f), 6f);
-        PL(Temple + new Vector3(5f, 1.8f, -11.8f), new Color(1f, 0.68f, 0.35f), 2.8f, 6f);
-        // lanterns on the gate posts and lamp posts around the courtyard
+
+        // ---- Ganesha in his own small shrine by the path, as at every temple gate
+        Vector3 gs = Temple + new Vector3(-4.4f, 0, -8.5f);
+        Tex(B("GaneshPlinth", gs + new Vector3(0, 0.45f, 0), new Vector3(1.5f, 0.9f, 1.5f), grey, true), "blocks", 1.6f, warm);
+        Tex(B("GaneshBack", gs + new Vector3(-0.62f, 1.65f, 0), new Vector3(0.2f, 1.5f, 1.5f), grey, true), "blocks", 1.6f, warm);
+        foreach (float gz in new[] { -0.62f, 0.62f }) Tex(B("GaneshPost", gs + new Vector3(0.5f, 1.65f, gz), new Vector3(0.16f, 1.5f, 0.16f), grey, false), "sandstone_floor", 1f, warm);
+        Tex(B("GaneshRoof", gs + new Vector3(0, 2.5f, 0), new Vector3(1.8f, 0.2f, 1.8f), grey, false), "sandstone_floor", 1.4f, warm);
+        Turned("GaneshDome", gs + new Vector3(0, 2.6f, 0), new[] { new Vector2(0f, 0.8f), new Vector2(0.3f, 0.7f), new Vector2(0.6f, 0.45f), new Vector2(0.8f, 0.2f), new Vector2(0.95f, 0.06f) }, pillarMat, 12);
+        PlaceIdol(new[] { "Ganesha" }, gs + new Vector3(-0.05f, 0.9f, 0), 1.0f, 90f, true);
+        Diya(gs + new Vector3(0.55f, 0.9f, 0.35f), true);
+        for (int i = 0; i <= 10; i++) Sp("Marigold", gs + new Vector3(0.45f, 2.3f - Mathf.Sin(i / 10f * Mathf.PI) * 0.22f, -0.5f + i * 0.1f), 0.06f, i % 3 == 0 ? red : saffron, 0.15f);
+
+        // ---- tulsi vrindavan (the sacred basil planter) in the courtyard
+        Vector3 tv = Temple + new Vector3(-9f, 0, -5f);
+        Tex(B("TulsiBase", tv + new Vector3(0, 0.15f, 0), new Vector3(1.4f, 0.3f, 1.4f), grey, true), "sandstone_floor", 1.2f, warm);
+        Tex(B("TulsiPlanter", tv + new Vector3(0, 0.75f, 0), new Vector3(0.9f, 0.9f, 0.9f), new Color(0.8f, 0.45f, 0.3f), true), "plaster", 1.2f, new Color(0.8f, 0.45f, 0.3f));
+        Tex(B("TulsiRim", tv + new Vector3(0, 1.23f, 0), new Vector3(1.05f, 0.08f, 1.05f), grey, false), "sandstone_floor", 1f, warm);
+        PropKit.Place(transform, "potted_plant_02", tv + new Vector3(0, 0.95f, 0), 0f, 1.1f);
+        Diya(tv + new Vector3(0.62f, 0.3f, 0), true);
+
+        // ---- entrance gate (south): stone piers, carved lintel, lanterns
         foreach (float gx in new[] { -2.2f, 2.2f })
         {
-            Glow("GateLantern", Temple + new Vector3(gx, 3.3f, -14.2f), new Vector3(0.25f, 0.35f, 0.25f), new Color(1f, 0.7f, 0.35f), 3.5f);
+            Tex(B("GatePier", Temple + new Vector3(gx, 2.1f, -14.7f), new Vector3(0.9f, 4.2f, 0.9f), grey, true), "blocks", 1.8f, warm);
+            Tex(B("PierCap", Temple + new Vector3(gx, 4.28f, -14.7f), new Vector3(1.1f, 0.16f, 1.1f), grey, false), "sandstone_floor", 1f, warm);
+            Turned("PierFinial", Temple + new Vector3(gx, 4.36f, -14.7f), new[] { new Vector2(0f, 0.3f), new Vector2(0.2f, 0.34f), new Vector2(0.45f, 0.18f), new Vector2(0.6f, 0.05f) }, pillarMat, 12);
+            Glow("GateLantern", Temple + new Vector3(gx, 3.3f, -14.15f), new Vector3(0.22f, 0.32f, 0.22f), new Color(1f, 0.7f, 0.35f), 3.5f);
             PL(Temple + new Vector3(gx, 3.1f, -13.6f), new Color(1f, 0.7f, 0.38f), 2.4f, 7f);
         }
-        foreach (var lp in new[] { new Vector2(-8f, -8f), new Vector2(8f, -8f), new Vector2(-8f, 4f), new Vector2(8f, 4f) })
+        Tex(B("GateLintel", Temple + new Vector3(0, 4.6f, -14.7f), new Vector3(5.6f, 0.5f, 1f), grey, false), "blocks", 1.8f, warm);
+        gate = new GameObject("Gate").transform; gate.SetParent(transform, false); gate.position = Temple + new Vector3(0, 1.5f, -13.5f);
+
+        // ---- the priest's alcove near the entrance, devotees before the shrine
+        Tex(B("Alcove", Temple + new Vector3(5.5f, 1.2f, -13.6f), new Vector3(2.4f, 2.4f, 1.2f), grey, true), "blocks", 1.8f, warm);
+        GameKit.Surface(B("AlcoveMat", Temple + new Vector3(5.5f, 0.02f, -12.6f), new Vector3(1.6f, 0.03f, 1.0f), new Color(0.6f, 0.15f, 0.12f)), "fabric", 0.3f, 0.3f, 1.2f, new Color(0.6f, 0.15f, 0.12f));
+        Diya(Temple + new Vector3(4.6f, 0f, -12.4f), false);
+        PL(Temple + new Vector3(5f, 1.8f, -11.8f), new Color(1f, 0.68f, 0.35f), 2.8f, 6f);
+        pandit = Npc(Temple + new Vector3(5.5f, 0f, -12.4f), 0f, Cast.Pandit(), "Pandit Harishankar");
+        for (int i = 0; i < 4; i++) Npc(Temple + new Vector3(-2.5f + i * 1.6f, 0f, 2.6f), (i - 1.5f) * 6f, Cast.Devotee(800 + i), "Devotee" + i, false);   // facing the shrine
+        foreach (var lp in new[] { new Vector2(-8f, -9f), new Vector2(8f, -8f), new Vector2(-8f, 4f), new Vector2(8f, 4f) })
         {
             Cy("LampPost", Temple + new Vector3(lp.x, 1.3f, lp.y), 0.06f, 2.6f, new Color(0.2f, 0.18f, 0.15f), 0.4f, 0.6f);
             Glow("LampHead", Temple + new Vector3(lp.x, 2.7f, lp.y), new Vector3(0.28f, 0.3f, 0.28f), new Color(1f, 0.75f, 0.42f), 3f);
             PL(Temple + new Vector3(lp.x, 2.6f, lp.y), new Color(1f, 0.74f, 0.42f), 2.2f, 8f);
         }
-        pandit = Npc(Temple + new Vector3(5.5f, 0f, -12.4f), 0f, Cast.Pandit(), "Pandit Harishankar");
-        for (int i = 0; i < 4; i++) Npc(Temple + new Vector3(-2.5f + i * 1.6f, 0f, 3.2f), (i - 1.5f) * 6f, Cast.Devotee(800 + i), "Devotee" + i, false);   // facing the shrine
         GameKit.Sphere(transform, "Moon", Temple + new Vector3(30f, 45f, 90f), 7f, GameKit.Unlit(new Color(0.9f, 0.93f, 1f)));
     }
 
