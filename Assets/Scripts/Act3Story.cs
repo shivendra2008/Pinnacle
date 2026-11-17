@@ -325,20 +325,6 @@ public class Act3Story : ActStoryBase
     // If your own idol comes out facing the back wall, change this to 0.
     const float IdolYaw = 180f;
 
-    static GameObject Tex(GameObject go, string key, float tile, Color tint)
-    {
-        GameKit.Surface(go, key, tile, 1f, 1f, tint);
-        return go;
-    }
-
-    /// <summary>A shape turned on a lathe, standing upright. Profile points are (height, radius).</summary>
-    GameObject Turned(string name, Vector3 basePos, Vector2[] profile, Material mat, int seg = 20)
-    {
-        var go = VehicleKit.Part(transform, name, VehicleKit.Lathe(profile, seg), mat, basePos);
-        go.transform.localRotation = Quaternion.Euler(0, 0, 90f);       // lathe axis X -> up
-        return go;
-    }
-
     /// <summary>Loads a statue from Resources/Idols, scales it to the given height and stands it on basePos.</summary>
     GameObject PlaceIdol(string[] names, Vector3 basePos, float height, float yaw, bool darkStone)
     {

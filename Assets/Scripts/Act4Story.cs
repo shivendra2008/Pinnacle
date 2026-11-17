@@ -80,6 +80,75 @@ public class Act4Story : ActStoryBase
         GameKit.Surface(w, "facade", 2.5f, 1f, 1f, c ?? new Color(0.62f, 0.5f, 0.42f));
     }
 
+    /// <summary>A white police jeep (Bolero class) with a blue band, roof beacon and real wheels. Faces +Z.</summary>
+    void BuildJeep(Vector3 pos)
+    {
+        var j = new GameObject("PoliceJeep").transform; j.SetParent(transform, false); j.position = pos;
+        var white = GameKit.Lit(new Color(0.9f, 0.9f, 0.88f), 0.8f, 0.2f);
+        var blue = GameKit.Lit(new Color(0.12f, 0.22f, 0.55f), 0.7f, 0.2f);
+        var black = GameKit.Lit(new Color(0.04f, 0.04f, 0.045f), 0.3f);
+        var glass = GameKit.Lit(new Color(0.03f, 0.04f, 0.05f), 0.95f, 0.3f);
+        VehicleKit.Body(j, "Body", new[] { new Sec(2.0f, 0.82f, 0.82f, 0.30f, 7f), new Sec(1.85f, 0.82f, 0.88f, 0.32f, 8f), new Sec(-1.85f, 0.82f, 0.88f, 0.32f, 8f), new Sec(-2.0f, 0.82f, 0.84f, 0.30f, 7f) }, white);
+        VehicleKit.Body(j, "Bonnet", new[] { new Sec(1.95f, 1.16f, 0.80f, 0.06f, 5f), new Sec(1.4f, 1.2f, 0.84f, 0.07f, 5f), new Sec(0.85f, 1.22f, 0.84f, 0.07f, 5f) }, white);
+        VehicleKit.Body(j, "Cabin", new[] { new Sec(0.75f, 1.5f, 0.80f, 0.34f, 6f), new Sec(0.4f, 1.56f, 0.84f, 0.40f, 6f), new Sec(-1.85f, 1.56f, 0.84f, 0.40f, 6f), new Sec(-1.98f, 1.52f, 0.80f, 0.36f, 6f) }, white);
+        VehicleKit.Body(j, "Band", new[] { new Sec(1.9f, 0.86f, 0.89f, 0.09f, 8f), new Sec(-1.9f, 0.86f, 0.89f, 0.09f, 8f) }, blue);
+        var ws = GameKit.Box(j, "Windscreen", new Vector3(0, 1.56f, 0.72f), new Vector3(1.5f, 0.52f, 0.05f), glass); ws.transform.localRotation = Quaternion.Euler(-18f, 0, 0);
+        GameKit.Box(j, "RearGlass", new Vector3(0, 1.6f, -1.985f), new Vector3(1.2f, 0.4f, 0.03f), glass);
+        foreach (float x in new[] { -0.845f, 0.845f })
+        {
+            GameKit.Box(j, "SideGlassF", new Vector3(x, 1.62f, 0.05f), new Vector3(0.02f, 0.4f, 0.85f), glass);
+            GameKit.Box(j, "SideGlassR", new Vector3(x, 1.62f, -1.1f), new Vector3(0.02f, 0.4f, 1.1f), glass);
+            GameKit.Box(j, "Sill", new Vector3(x * 1.05f, 0.5f, 0), new Vector3(0.1f, 0.14f, 2.4f), black);
+            GameKit.Box(j, "Mirror", new Vector3(x * 1.2f, 1.42f, 0.78f), new Vector3(0.12f, 0.16f, 0.06f), black);
+            foreach (float z in new[] { 1.3f, -1.25f }) VehicleKit.Wheel(j, new Vector3(x * 1.02f, 0.37f, z), 0.37f, 0.24f);
+            GameKit.Box(j, "Headlamp", new Vector3(x * 0.72f, 0.98f, 2.01f), new Vector3(0.26f, 0.18f, 0.04f), GameKit.Glow(Color.white, new Color(1f, 0.95f, 0.8f), 2f));
+            GameKit.Box(j, "TailLamp", new Vector3(x * 0.82f, 0.95f, -2.01f), new Vector3(0.14f, 0.3f, 0.04f), GameKit.Glow(new Color(0.5f, 0.02f, 0.02f), Color.red, 1.5f));
+        }
+        GameKit.Box(j, "Grille", new Vector3(0, 0.95f, 2.01f), new Vector3(0.8f, 0.3f, 0.04f), black);
+        GameKit.Box(j, "BumperF", new Vector3(0, 0.55f, 2.06f), new Vector3(1.8f, 0.16f, 0.14f), black);
+        GameKit.Box(j, "BumperR", new Vector3(0, 0.55f, -2.06f), new Vector3(1.8f, 0.16f, 0.14f), black);
+        GameKit.Box(j, "BeaconBar", new Vector3(0, 2.0f, 0.1f), new Vector3(1.1f, 0.06f, 0.24f), black);
+        GameKit.Box(j, "BeaconRed", new Vector3(-0.32f, 2.07f, 0.1f), new Vector3(0.4f, 0.1f, 0.2f), GameKit.Glow(new Color(1f, 0.1f, 0.08f), new Color(1f, 0.15f, 0.1f), 4f)).name = "JeepBeacon";
+        GameKit.Box(j, "BeaconBlue", new Vector3(0.32f, 2.07f, 0.1f), new Vector3(0.4f, 0.1f, 0.2f), GameKit.Glow(new Color(0.1f, 0.2f, 1f), new Color(0.2f, 0.4f, 1f), 4f));
+        GameKit.Text(j, "POLICE", new Vector3(0, 1.2f, 2.0f), Quaternion.Euler(-20f, 180f, 0), 0.16f, new Color(0.12f, 0.22f, 0.55f));
+        GameKit.Text(j, "POLICE", new Vector3(0, 1.15f, -2.03f), Quaternion.identity, 0.16f, new Color(0.12f, 0.22f, 0.55f));
+    }
+
+    /// <summary>An Indian goods truck seen from behind: painted wooden load body, steel chassis, twin rear wheels, cab. Faces +Z.</summary>
+    void BuildTruck(Vector3 pos)
+    {
+        var t = new GameObject("GoodsTruck").transform; t.SetParent(transform, false); t.position = pos;
+        var orange = new Color(0.85f, 0.42f, 0.1f);
+        var paint = GameKit.Lit(orange, 0.6f, 0.1f);
+        var black = GameKit.Lit(new Color(0.05f, 0.05f, 0.055f), 0.3f);
+        var steelC = new Color(0.2f, 0.2f, 0.22f);
+        GameKit.Box(t, "Chassis", new Vector3(0, 0.95f, -0.2f), new Vector3(1.1f, 0.25f, 5.6f), black);
+        // load body: planked sides painted in bands, as every such truck is
+        foreach (float x in new[] { -1.16f, 1.16f })
+        {
+            Tex(GameKit.Box(t, "BodySide", new Vector3(x, 2.1f, -0.9f), new Vector3(0.08f, 1.7f, 4.1f), GameKit.Lit(orange)), "wood", 0.5f, orange);
+            GameKit.Box(t, "SideBand", new Vector3(x * 1.01f, 1.42f, -0.9f), new Vector3(0.09f, 0.22f, 4.12f), GameKit.Lit(new Color(0.1f, 0.3f, 0.5f), 0.4f));
+            GameKit.Box(t, "SideBandTop", new Vector3(x * 1.01f, 2.82f, -0.9f), new Vector3(0.09f, 0.18f, 4.12f), GameKit.Lit(new Color(0.9f, 0.78f, 0.15f), 0.4f));
+            for (int k = 0; k < 4; k++) GameKit.Box(t, "SideRib", new Vector3(x * 1.04f, 2.1f, -2.7f + k * 1.2f), new Vector3(0.06f, 1.7f, 0.08f), black);
+            VehicleKit.Wheel(t, new Vector3(x * 0.88f, 0.5f, 2.15f), 0.5f, 0.28f);
+            VehicleKit.Wheel(t, new Vector3(x * 0.74f, 0.5f, -1.9f), 0.5f, 0.26f);
+            VehicleKit.Wheel(t, new Vector3(x * 0.98f, 0.5f, -1.9f), 0.5f, 0.26f);
+            GameKit.Box(t, "MudFlap", new Vector3(x * 0.86f, 0.55f, -2.5f), new Vector3(0.5f, 0.6f, 0.02f), black);
+            GameKit.Box(t, "TailLamp", new Vector3(x * 0.85f, 1.05f, -2.98f), new Vector3(0.2f, 0.12f, 0.04f), GameKit.Glow(new Color(0.5f, 0.02f, 0.02f), Color.red, 1.2f));
+        }
+        Tex(GameKit.Box(t, "TailGate", new Vector3(0, 1.75f, -2.96f), new Vector3(2.3f, 1.0f, 0.08f), GameKit.Lit(orange)), "wood", 0.5f, orange);
+        Tex(GameKit.Box(t, "BodyFront", new Vector3(0, 2.1f, 1.16f), new Vector3(2.3f, 1.7f, 0.08f), GameKit.Lit(orange)), "wood", 0.5f, orange);
+        Tex(GameKit.Box(t, "BodyFloor", new Vector3(0, 1.22f, -0.9f), new Vector3(2.3f, 0.1f, 4.1f), GameKit.Lit(steelC)), "wood", 0.6f, new Color(0.4f, 0.3f, 0.2f));
+        var tarp = ProcTex.Mat(ProcTex.Get("fabric"), new Color(0.25f, 0.3f, 0.22f), new Vector2(6f, 10f), 0.4f, 0.8f);
+        if (tarp.HasProperty("_Cull")) tarp.SetFloat("_Cull", 0f);
+        VehicleKit.Part(t, "LoadTarp", VehicleKit.Tarp(2.5f, 4.2f, -0.35f), tarp, new Vector3(0, 2.95f, -0.9f));          // a heaped load under canvas
+        GameKit.Box(t, "RearBumper", new Vector3(0, 0.8f, -3.02f), new Vector3(2.3f, 0.14f, 0.1f), GameKit.Lit(new Color(0.9f, 0.78f, 0.15f), 0.4f));
+        // cab
+        VehicleKit.Body(t, "Cab", new[] { new Sec(3.0f, 1.75f, 1.05f, 0.75f, 5f), new Sec(2.85f, 1.8f, 1.14f, 0.85f, 6f), new Sec(1.35f, 1.8f, 1.14f, 0.85f, 6f), new Sec(1.25f, 1.78f, 1.1f, 0.8f, 5f) }, paint);
+        GameKit.Box(t, "Windscreen", new Vector3(0, 2.15f, 3.01f), new Vector3(1.8f, 0.6f, 0.03f), GameKit.Lit(new Color(0.03f, 0.04f, 0.05f), 0.95f, 0.3f));
+        GameKit.Box(t, "CabBumper", new Vector3(0, 0.85f, 3.08f), new Vector3(2.3f, 0.2f, 0.14f), black);
+    }
+
     // ================================================================ A: CAFE IRANI
     CharacterNPC raj, watcher, owner;
     Transform rajSpot;
@@ -259,7 +328,7 @@ public class Act4Story : ActStoryBase
         Wall(A + new Vector3(-10.2f, 0, 0f), A + new Vector3(-10.2f, 0, 2.2f));        // the dead end
         Wall(A + new Vector3(10.2f, 0, 0f), A + new Vector3(10.2f, 0, 14f));           // east side of the north run
         Wall(A + new Vector3(7.8f, 0, 2.2f), A + new Vector3(7.8f, 0, 14f));           // west side of the north run
-        for (int i = 0; i < 4; i++) B("Trash", A + new Vector3(-9.4f, 0.3f, 0.5f + i * 0.4f), new Vector3(0.6f, 0.6f, 0.4f), new Color(0.15f, 0.2f, 0.15f), true);
+        for (int i = 0; i < 4; i++) Hide(B("Trash", A + new Vector3(-9.4f, 0.3f, 0.5f + i * 0.4f), new Vector3(0.6f, 0.6f, 0.4f), new Color(0.15f, 0.2f, 0.15f), true));
         B("Dumpster", A + new Vector3(8.35f, 0.65f, 7f), new Vector3(0.9f, 1.3f, 1.8f), new Color(0.12f, 0.3f, 0.2f), true, 0.3f, 0.3f);
         PL(A + new Vector3(0, 3f, -4f), new Color(1f, 0.7f, 0.4f), 1.6f, 7f);
         PL(A + new Vector3(-5f, 3f, 1.1f), new Color(1f, 0.6f, 0.3f), 1.0f, 6f);
@@ -273,9 +342,20 @@ public class Act4Story : ActStoryBase
             for (int l = 0; l < 4; l++) B("CharpaiLeg", c + new Vector3(l < 2 ? -0.45f : 0.45f, 0.22f, l % 2 == 0 ? -0.9f : 0.9f), new Vector3(0.08f, 0.45f, 0.08f), new Color(0.35f, 0.22f, 0.12f));
             Npc(c + new Vector3(0.8f, 0, 0.4f), -90f, NpcStyle.Crowd(900 + i), "TruckDriver" + i, false);
         }
-        B("Truck", yard + new Vector3(4.5f, 1.5f, 3.5f), new Vector3(2.4f, 3f, 6f), new Color(0.9f, 0.45f, 0.1f), true, 0.4f);
-        GameKit.Text(transform, "HORN OK PLEASE", yard + new Vector3(4.5f, 1.0f, 0.45f), Quaternion.identity, 0.18f, new Color(0.9f, 0.1f, 0.15f));
-        Glow("Tandoor", yard + new Vector3(-3.5f, 0.5f, 3.5f), new Vector3(0.9f, 1f, 0.9f), new Color(1f, 0.35f, 0.08f), 2.5f);
+        Hide(B("Truck", yard + new Vector3(4.5f, 1.5f, 3.5f), new Vector3(2.4f, 3f, 6f), new Color(0.9f, 0.45f, 0.1f), true, 0.4f));      // collider only
+        BuildTruck(yard + new Vector3(4.5f, 0f, 3.5f));
+        for (int i = 0; i < 3; i++)
+        {
+            var c2 = yard + new Vector3(-3f + i * 3f, 0, -1.2f);
+            Prop("plastic_monobloc_chair_01", c2 + new Vector3(0.9f, 0, 0), 200f + i * 40f);
+            Prop("metal_stool_01", c2 + new Vector3(-0.2f, 0, 0.3f), 0f, 0.55f);
+            Prop("brass_pot_02", c2 + new Vector3(-0.2f, 0.49f, 0.3f), i * 70f, 0.9f);
+        }
+        GameKit.Text(transform, "HORN OK PLEASE", yard + new Vector3(4.5f, 1.75f, 0.49f), Quaternion.identity, 0.18f, new Color(0.98f, 0.9f, 0.3f));
+        Turned("Tandoor", yard + new Vector3(-3.5f, 0f, 3.5f), new[] { new Vector2(0f, 0.5f), new Vector2(0.35f, 0.58f), new Vector2(0.75f, 0.5f), new Vector2(0.95f, 0.3f), new Vector2(1.0f, 0.24f) },
+            ProcTex.Mat(ProcTex.Get("plaster"), new Color(0.62f, 0.4f, 0.28f), new Vector2(3f, 2f), 1f, 1.3f), 18);
+        Glow("TandoorFire", yard + new Vector3(-3.5f, 0.97f, 3.5f), new Vector3(0.36f, 0.04f, 0.36f), new Color(1f, 0.35f, 0.08f), 5f);
+        for (int i = 0; i < 3; i++) Prop("trashbag", A + new Vector3(-9.4f, 0, 0.5f + i * 0.5f), i * 80f, 0.9f);
         PL(yard + new Vector3(-3.5f, 1.5f, 3.2f), new Color(1f, 0.5f, 0.2f), 2.5f, 7f);
         for (int i = 0; i < 12; i++) Glow("StringBulb", yard + new Vector3(-6f + i * 1.1f, 3.2f - Mathf.Sin(i / 11f * Mathf.PI) * 0.4f, -2f), new Vector3(0.1f, 0.1f, 0.1f), Color.HSVToRGB(i * 0.13f % 1f, 0.6f, 1f), 5f);
         PL(yard + new Vector3(0, 3f, 0), new Color(1f, 0.8f, 0.55f), 3f, 12f);
@@ -471,18 +551,32 @@ public class Act4Story : ActStoryBase
         RenderSettings.fogColor = new Color(0.1f, 0.09f, 0.08f); RenderSettings.fogDensity = 0.008f;
         CinematicLook.Ambient(new Color(0.6f, 0.55f, 0.5f), new Color(0.42f, 0.36f, 0.3f), new Color(0.15f, 0.12f, 0.1f));
         PriyaRoomPlayer.Surface = 0;
-        Room("House", Vector3.zero, new Vector3(9f, 3f, 8f), new Color(0.82f, 0.78f, 0.62f), new Color(0.75f, 0.7f, 0.62f), "stone", "plaster");
+        Room("House", Vector3.zero, new Vector3(9f, 3f, 8f), new Color(0.82f, 0.78f, 0.62f), Color.white, "marble", "plaster");
         var wood = new Color(0.4f, 0.26f, 0.15f);
-        // sofa with slashed cushions
-        B("Sofa", new Vector3(-2.5f, 0.35f, 2.8f), new Vector3(2.4f, 0.7f, 0.9f), new Color(0.45f, 0.18f, 0.2f), true, 0.15f);
-        B("SofaBack", new Vector3(-2.5f, 0.85f, 3.2f), new Vector3(2.4f, 0.6f, 0.2f), new Color(0.45f, 0.18f, 0.2f), false, 0.15f);
+        // a real family living room, turned over: sofa with slashed cushions
+        var sofa = B("Sofa", new Vector3(-2.5f, 0.35f, 2.8f), new Vector3(2.4f, 0.7f, 0.9f), new Color(0.45f, 0.18f, 0.2f), true, 0.15f);
+        var sofaBack = B("SofaBack", new Vector3(-2.5f, 0.85f, 3.2f), new Vector3(2.4f, 0.6f, 0.2f), new Color(0.45f, 0.18f, 0.2f), false, 0.15f);
+        bool realSofa = Prop("Sofa_01", new Vector3(-2.5f, 0, 2.95f), 180f, 1.4f) != null;
+        if (realSofa) { Hide(sofa); Hide(sofaBack); }
         var rnd = new System.Random(8);
-        for (int i = 0; i < 18; i++) Sp("Stuffing", new Vector3(-3.5f + (float)rnd.NextDouble() * 2.2f, 0.72f + (float)rnd.NextDouble() * 0.1f, 2.6f + (float)rnd.NextDouble() * 0.4f), 0.12f, new Color(0.95f, 0.95f, 0.92f), 0.05f);
+        for (int i = 0; i < 18; i++)
+        {
+            var st = Sp("Stuffing", new Vector3(-3.4f + (float)rnd.NextDouble() * 1.9f, (realSofa ? 0.6f : 0.72f) + (float)rnd.NextDouble() * 0.1f, 2.55f + (float)rnd.NextDouble() * 0.4f), 0.12f, new Color(0.95f, 0.95f, 0.92f), 0.05f);
+            st.transform.localScale = new Vector3(0.13f, 0.07f + (float)rnd.NextDouble() * 0.05f, 0.11f);
+        }
+        Prop("ArmChair_01", new Vector3(-3.9f, 0, 0.4f), 90f);
+        Prop("ceiling_fan", new Vector3(0.6f, 3.0f, 0.6f), 20f);
+        Prop("wall_clock", new Vector3(0f, 2.2f, 3.97f), 180f);
+        Prop("hanging_picture_frame_01", new Vector3(-2.5f, 1.95f, 3.97f), 180f, 1f, new Vector3(0, 0, 7f));      // knocked crooked
+        Prop("hanging_picture_frame_01", new Vector3(-1.6f, 1.9f, 3.97f), 180f, 0.8f, new Vector3(0, 0, -11f));
+        Prop("potted_plant_02", new Vector3(-0.4f, 0.28f, -3.3f), 40f, 1f, new Vector3(82f, 0, 0));                 // tipped over
+        Prop("brass_vase_01", new Vector3(0.9f, 0.1f, 3.1f), 60f, 0.6f, new Vector3(88f, 0, 0));
         var cushion = B("Cushion", new Vector3(-1.2f, 0.1f, 1.8f), new Vector3(0.5f, 0.15f, 0.5f), new Color(0.45f, 0.18f, 0.2f), false, 0.1f);
         cushion.transform.rotation = Quaternion.Euler(10f, 35f, 0f);
         // overturned bookshelf and books
         var shelf = B("OverturnedShelf", new Vector3(2.8f, 0.25f, 2.6f), new Vector3(2f, 0.5f, 0.45f), wood, true, 0.2f);
         shelf.transform.rotation = Quaternion.Euler(0, 15f, 0);
+        if (Prop("wooden_bookshelf_worn", new Vector3(1.8f, 0.3f, 2.87f), 105f, 1f, new Vector3(90f, 0, 0)) != null) Hide(shelf);    // pulled down on its face
         for (int i = 0; i < 14; i++)
         {
             var bk = B("Book", new Vector3(1.6f + (float)rnd.NextDouble() * 2.6f, 0.04f, 1.4f + (float)rnd.NextDouble() * 1.4f), new Vector3(0.22f, 0.05f, 0.3f), Color.HSVToRGB((float)rnd.NextDouble(), 0.5f, 0.6f), false, 0.1f);
@@ -494,7 +588,8 @@ public class Act4Story : ActStoryBase
             var pp = B("Paper", new Vector3(-4f + (float)rnd.NextDouble() * 8f, 0.006f + i * 0.0005f, -3.5f + (float)rnd.NextDouble() * 7f), new Vector3(0.21f, 0.004f, 0.3f), new Color(0.95f, 0.94f, 0.9f), false, 0.05f);
             pp.transform.rotation = Quaternion.Euler(0, (float)rnd.NextDouble() * 360f, 0);
         }
-        B("Cabinet", new Vector3(4.2f, 0.5f, -1f), new Vector3(0.5f, 1f, 1.4f), wood, true, 0.3f);
+        var cab = B("Cabinet", new Vector3(4.2f, 0.5f, -1f), new Vector3(0.5f, 1f, 1.4f), wood, true, 0.3f);
+        if (Prop("vintage_cabinet_01", new Vector3(4.18f, 0, -1f), -90f, 0.7f) != null) Hide(cab);
         for (int i = 0; i < 3; i++)
         {
             var dr = B("PulledDrawer", new Vector3(3.5f - i * 0.3f, 0.12f + i * 0.02f, -1.6f + i * 0.5f), new Vector3(0.5f, 0.2f, 0.45f), wood * 1.1f, false, 0.3f);
@@ -503,10 +598,15 @@ public class Act4Story : ActStoryBase
         // broken photo frame
         var frame = B("BrokenFrame", new Vector3(0.3f, 0.02f, 3.4f), new Vector3(0.35f, 0.03f, 0.45f), new Color(0.55f, 0.4f, 0.15f), false, 0.6f);
         frame.transform.rotation = Quaternion.Euler(0, 30f, 0);
+        if (Prop("hanging_picture_frame_01", new Vector3(0.3f, 0.03f, 3.4f), 30f, 0.7f, new Vector3(90f, 0, 0)) != null) Hide(frame);
         // kitchen table with Rohan's laptop
-        B("KitchenTable", new Vector3(2.4f, 0.75f, -2.4f), new Vector3(1.6f, 0.06f, 1f), wood, true, 0.4f);
-        foreach (float lx in new[] { -0.7f, 0.7f }) foreach (float lz in new[] { -0.4f, 0.4f })
-                B("TableLeg", new Vector3(2.4f + lx, 0.37f, -2.4f + lz), new Vector3(0.05f, 0.75f, 0.05f), wood);
+        var ktable = B("KitchenTable", new Vector3(2.4f, 0.75f, -2.4f), new Vector3(1.6f, 0.06f, 1f), wood, true, 0.4f);
+        if (Prop("round_wooden_table_01", new Vector3(2.4f, 0, -2.4f), 0f, 0.765f) != null) Hide(ktable);
+        else foreach (float lx in new[] { -0.7f, 0.7f }) foreach (float lz in new[] { -0.4f, 0.4f })
+                    B("TableLeg", new Vector3(2.4f + lx, 0.37f, -2.4f + lz), new Vector3(0.05f, 0.75f, 0.05f), wood);
+        Prop("painted_wooden_chair_01", new Vector3(2.4f, 0, -1.45f), 180f);
+        Prop("painted_wooden_chair_01", new Vector3(3.5f, 0.24f, -2.9f), 250f, 1f, new Vector3(0, 0, 88f));          // kicked over
+        Prop("tea_set_01", new Vector3(2.75f, 0.775f, -2.6f), 30f, 0.5f);
         B("LaptopBase", new Vector3(2.4f, 0.8f, -2.4f), new Vector3(0.36f, 0.02f, 0.25f), new Color(0.2f, 0.2f, 0.22f), false, 0.6f, 0.5f);
         var scr = Glow("LaptopScreen", new Vector3(2.4f, 0.94f, -2.28f), new Vector3(0.36f, 0.24f, 0.01f), new Color(0.5f, 0.7f, 1f), 1.8f);
         scr.transform.rotation = Quaternion.Euler(-12f, 0, 0);
@@ -520,6 +620,7 @@ public class Act4Story : ActStoryBase
         Glow("Bulb", new Vector3(0, 2.7f, 0), new Vector3(0.14f, 0.14f, 0.14f), new Color(1f, 0.85f, 0.6f), 5f);
         var lamp = Cy("FallenLamp", new Vector3(-0.6f, 0.15f, 2.3f), 0.12f, 0.5f, new Color(0.7f, 0.6f, 0.4f));
         lamp.transform.rotation = Quaternion.Euler(0, 0, 85f);
+        if (Prop("vintage_oil_lamp", new Vector3(-0.3f, 0.11f, 2.3f), 0f, 0.8f, new Vector3(0, 0, 86f)) != null) Hide(lamp);
         B("FrontDoor", new Vector3(-4.48f, 1.05f, -3f), new Vector3(0.05f, 2.1f, 1f), wood);
         kamala = Npc(new Vector3(-2.4f, 0f, 1.8f), 200f, Cast.Kamala(), "Kamala");
         rohan = Npc(new Vector3(1.5f, 0f, 0.5f), 90f, Cast.Rohan(), "Rohan");
@@ -622,19 +723,34 @@ public class Act4Story : ActStoryBase
         Glow("BlueLamp", new Vector3(0, 7.4f, 8.4f), new Vector3(0.4f, 0.4f, 0.4f), new Color(0.2f, 0.4f, 1f), 5f);
         PL(new Vector3(0, 6.5f, 7.5f), new Color(0.35f, 0.5f, 1f), 3f, 12f);
         // police jeep
-        B("Jeep", new Vector3(6f, 0.9f, 3.5f), new Vector3(1.8f, 1.2f, 4f), new Color(0.92f, 0.92f, 0.9f), true, 0.6f, 0.3f);
-        B("JeepStripe", new Vector3(6f, 0.9f, 3.5f), new Vector3(1.82f, 0.2f, 4.02f), new Color(0.15f, 0.25f, 0.6f));
-        Glow("JeepBeacon", new Vector3(6f, 1.6f, 3.0f), new Vector3(0.6f, 0.12f, 0.2f), new Color(1f, 0.15f, 0.1f), 4f);
+        Hide(B("Jeep", new Vector3(6f, 0.9f, 3.5f), new Vector3(1.8f, 1.2f, 4f), new Color(0.92f, 0.92f, 0.9f), true, 0.6f, 0.3f));      // collider only
+        BuildJeep(new Vector3(6f, 0f, 3.5f));
+        // steps, door frame and a notice board for the station; barricade drums on the road
+        Tex(B("StationSteps", new Vector3(0, 0.2f, 8.1f), new Vector3(3.4f, 0.1f, 0.9f), Color.white, true), "concrete", 1.4f, new Color(0.8f, 0.78f, 0.74f));
+        foreach (float dx in new[] { -1.25f, 1.25f }) Tex(B("StationPillar", new Vector3(dx, 1.5f, 8.35f), new Vector3(0.3f, 3f, 0.3f), Color.white, false), "plaster", 1.6f, new Color(0.88f, 0.86f, 0.8f));
+        Tex(B("NoticeBoard", new Vector3(-3.2f, 1.6f, 8.46f), new Vector3(1.4f, 1f, 0.05f), new Color(0.2f, 0.3f, 0.2f), false), "wood", 0.9f, new Color(0.25f, 0.35f, 0.25f));
+        for (int i = 0; i < 3; i++) Prop("barrel_03", new Vector3(9.5f + i * 0.9f, 0, 0.6f + (i % 2) * 0.3f), i * 50f);
+        Prop("trashbag", new Vector3(-9.5f, 0.16f, 6.6f), 30f);
+        Prop("old_tyre", new Vector3(-8.6f, 0.24f, 6.9f), 10f, 1f, new Vector3(90f, 0, 0));
         // the chai stall, plastic chairs, Reddy
         var stall = new Vector3(-6f, 0, 5.5f);
         B("StallCounter", stall + new Vector3(0, 0.5f, 0.6f), new Vector3(2.2f, 1f, 0.8f), new Color(0.45f, 0.3f, 0.18f), true, 0.2f);
-        B("StallRoof", stall + new Vector3(0, 2.5f, 0.3f), new Vector3(2.8f, 0.05f, 1.8f), new Color(0.1f, 0.35f, 0.65f), false, 0.1f).transform.rotation = Quaternion.Euler(-8f, 0, 0);
-        Cy("Kettle", stall + new Vector3(-0.5f, 1.2f, 0.6f), 0.2f, 0.4f, new Color(0.75f, 0.76f, 0.78f), 0.85f, 0.9f);
+        var tarpMat = ProcTex.Mat(ProcTex.Get("fabric"), new Color(0.14f, 0.34f, 0.6f), new Vector2(2.9f, 1.9f) / 0.35f, 0.45f, 0.6f);
+        if (tarpMat.HasProperty("_Cull")) tarpMat.SetFloat("_Cull", 0f);
+        VehicleKit.Part(transform, "StallRoof", VehicleKit.Tarp(2.9f, 1.9f, 0.14f), tarpMat, stall + new Vector3(0, 2.55f, 0.3f)).transform.rotation = Quaternion.Euler(8f, 0, 0);
+        foreach (float px in new[] { -1.35f, 1.35f }) foreach (float pz in new[] { -0.55f, 1.15f })
+                Cy("StallPole", stall + new Vector3(px, 1.3f, pz), 0.028f, 2.6f, new Color(0.6f, 0.5f, 0.28f), 0.35f);
+        if (Prop("metal_jug", stall + new Vector3(-0.5f, 1.0f, 0.6f), 40f, 1.5f) == null)
+            Cy("Kettle", stall + new Vector3(-0.5f, 1.2f, 0.6f), 0.2f, 0.4f, new Color(0.75f, 0.76f, 0.78f), 0.85f, 0.9f);
+        Prop("brass_pot_01", stall + new Vector3(0.2f, 1.0f, 0.65f), 0f, 0.9f);
+        Prop("pot_enamel_01", stall + new Vector3(0.75f, 1.0f, 0.5f), 70f, 1.2f);
+        Prop("small_lpg_tank", stall + new Vector3(1.35f, 0, 0.9f), 0f, 1.2f);
         Glow("StallBulb", stall + new Vector3(0, 2.2f, 0.2f), new Vector3(0.15f, 0.15f, 0.15f), new Color(1f, 0.8f, 0.45f), 5f);
         PL(stall + new Vector3(0, 2f, -0.4f), new Color(1f, 0.75f, 0.45f), 2.4f, 6f);
         for (int i = 0; i < 3; i++)
         {
             var cp = stall + new Vector3(-0.9f + i * 0.9f, 0, -1.2f);
+            if (Prop("plastic_monobloc_chair_01", cp + new Vector3(i == 1 ? 0.25f : 0f, 0, i == 1 ? -0.9f : 0f), 180f + (i - 1) * 25f) != null) continue;
             B("PlasticChair", cp + new Vector3(0, 0.45f, 0), new Vector3(0.45f, 0.05f, 0.45f), i == 1 ? new Color(0.85f, 0.15f, 0.12f) : new Color(0.15f, 0.4f, 0.8f), false, 0.4f);
             B("PlasticBack", cp + new Vector3(0, 0.72f, 0.2f), new Vector3(0.45f, 0.5f, 0.04f), i == 1 ? new Color(0.85f, 0.15f, 0.12f) : new Color(0.15f, 0.4f, 0.8f), false, 0.4f);
         }
@@ -647,8 +763,6 @@ public class Act4Story : ActStoryBase
             Glow("LampHead", new Vector3(x, 5f, 4.2f), new Vector3(0.5f, 0.12f, 0.25f), new Color(1f, 0.85f, 0.55f), 3f);
             PL(new Vector3(x, 4.7f, 3.8f), new Color(1f, 0.8f, 0.5f), 2.2f, 10f);
         }
-        B("DogBody", new Vector3(2f, 0.35f, 1.5f), new Vector3(0.25f, 0.28f, 0.6f), new Color(0.55f, 0.4f, 0.25f), false, 0.2f);
-        B("DogHead", new Vector3(2f, 0.45f, 1.92f), new Vector3(0.2f, 0.2f, 0.24f), new Color(0.55f, 0.4f, 0.25f), false, 0.2f);
         GameKit.Sphere(transform, "Moon", new Vector3(-30f, 40f, 90f), 7f, GameKit.Unlit(new Color(0.9f, 0.93f, 1f)));
         FenceArea(new Vector3(0, 0, -1f), 36f, 18f);
     }

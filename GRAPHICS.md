@@ -95,3 +95,15 @@ Backups of the originals were not committed; the old numbers are in the table ab
 - **`ActStoryBase.TexturePass`**: scanned materials on every flat-coloured part in Acts III-V, matched by object name.
 - New material keys: `sandstone`, `sandstone_floor`, `marble`, `checker`, `terracotta`, `tiles_white`, `cobble`, `blocks`
   (these keep their own colours - pass a white tint).
+
+## Remaining Act 4-5 rooms (Nov 2026)
+- `ActStoryBase` gained `Prop(id, pos, yaw, scale, tilt)`, `Hide(box)` (keep a box as collider under a real model),
+  `Tex(box, key, tile, tint)` and `Turned(name, pos, profile, material)` (lathe shapes).
+- **Kapoor house**: scanned sofa, armchair, cabinet, toppled bookshelf, round table, chairs, fan, clock, frames.
+- **Police street**: lofted police jeep (`BuildJeep`), tarp-roofed chai stall, plastic chairs, barricade drums.
+- **Dhaba yard**: goods truck (`BuildTruck`), clay tandoor, chairs and stools.
+- **Shelter / Priya's room**: school chairs, desk, fans, crates, boxes, water pots, oil lamps.
+- **Gallery**: scanned brass and ceramic vessels on the five lowest shelves; candle holders on the table.
+- **Courtroom**: real benches, counsel tables, bar rail, brass seal, fans, portraits, judge's chair.
+- **Terrace**: ribbed water tank on a brick stand, chairs, plants.
+- Wall signs in Act V that were mirrored now read correctly.
