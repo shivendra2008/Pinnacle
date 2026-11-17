@@ -231,6 +231,17 @@ public static class PropKit
 
     public static bool Has(string id) { return Load(id) != null; }
 
+    /// <summary>
+    /// Removes cameras, lights and audio listeners that came inside a model file. An exported editor camera would
+    /// otherwise render on top of the player's view for the whole act.
+    /// </summary>
+    public static void StripSceneParts(GameObject go)
+    {
+        foreach (var c in go.GetComponentsInChildren<Camera>(true)) { c.enabled = false; Object.Destroy(c.gameObject); }
+        foreach (var l in go.GetComponentsInChildren<Light>(true)) { l.enabled = false; Object.Destroy(l); }
+        foreach (var a in go.GetComponentsInChildren<AudioListener>(true)) { a.enabled = false; Object.Destroy(a); }
+    }
+
     static GameObject Load(string id)
     {
         GameObject p;
@@ -247,6 +258,7 @@ public static class PropKit
         if (prefab == null) return null;
         var go = Object.Instantiate(prefab, parent);
         go.name = id;
+        StripSceneParts(go);
         go.transform.localPosition = pos;
         go.transform.localRotation = Quaternion.Euler(0, yaw, 0) * Quaternion.Euler(tilt ?? Vector3.zero);
         go.transform.localScale = Vector3.one * scale;
