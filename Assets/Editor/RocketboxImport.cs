@@ -63,6 +63,13 @@ public class RocketboxImport : AssetPostprocessor
 
     void OnPreprocessModel()
     {
+        if (assetPath.StartsWith("Assets/Resources/Idols") || assetPath.StartsWith("Assets/Resources/Props"))
+        {
+            var pm = (ModelImporter)assetImporter;        // statues and props: geometry only, never the exporter's camera or lights
+            pm.importCameras = false;
+            pm.importLights = false;
+            return;
+        }
         if (!assetPath.StartsWith(Folder)) return;
         var mi = (ModelImporter)assetImporter;
         mi.animationType = ModelImporterAnimationType.Human;          // Humanoid: lets the mocap clips in Resources/Anim retarget onto it

@@ -333,6 +333,7 @@ public class Act3Story : ActStoryBase
         if (prefab == null) return null;
         var go = Instantiate(prefab, transform);
         go.name = "Idol_" + used;
+        PropKit.StripSceneParts(go);       // model files often carry the artist's camera and lights; a stray camera takes over the screen
         go.transform.position = basePos; go.transform.rotation = Quaternion.Euler(0, yaw, 0);
         var rs = go.GetComponentsInChildren<Renderer>();
         if (rs.Length == 0) return go;
