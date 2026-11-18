@@ -49,6 +49,8 @@ public class PriyaRoomBuilder : MonoBehaviour
     [ContextMenu("Rebuild Room")]
     public void Build()
     {
+        GameState.ResetForNewScene();             // back to the menu: never inherit a paused clock or muted audio
+        SaveSystem.Load();                        // and leave any chapter replay: the menu shows the real campaign
         if (root != null) Destroy(root.gameObject);
         if (ExtraRoot != null) { Destroy(ExtraRoot); ExtraRoot = null; }
         clueRenderers.Clear();
@@ -1174,11 +1176,21 @@ public class PriyaRoomPlayer : MonoBehaviour
             pitch = Mathf.Clamp(pitch - d.y, -80f, 80f);
         }
 
+        // Arduino right stick: look (added to the mouse, does not need the cursor lock). Up = look up.
+        Vector2 stickLook = GameInput.Look;
+        if (stickLook.sqrMagnitude > 0f)
+        {
+            float rate = GameInput.LookSpeed * Time.deltaTime;
+            transform.Rotate(0, stickLook.x * rate, 0);
+            pitch = Mathf.Clamp(pitch - stickLook.y * rate, -80f, 80f);
+        }
+
         Vector2 mv = Vector2.zero;
         if (kb.wKey.isPressed || kb.upArrowKey.isPressed) mv.y += 1;
         if (kb.sKey.isPressed || kb.downArrowKey.isPressed) mv.y -= 1;
         if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) mv.x += 1;
         if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) mv.x -= 1;
+        mv += GameInput.Move;                       // Arduino left stick, analog, on top of the keys
         mv = Vector2.ClampMagnitude(mv, 1f);
         bool sprint = kb.leftShiftKey.isPressed && mv.y > 0.1f;
         float s = speed * (sprint ? sprintMul : 1f) * (mv.y < -0.1f ? 0.65f : 1f);   // backing up is slower
@@ -1188,6 +1200,7 @@ public class PriyaRoomPlayer : MonoBehaviour
         vel = Vector3.MoveTowards(vel, targetVel, (mv.sqrMagnitude > 0.01f ? 13f : 18f) * Time.deltaTime);
 
         vy = cc.isGrounded ? -1f : vy - 9.81f * Time.deltaTime;
+        if (GameInput.JumpPressed && cc.isGrounded) vy = GameInput.JumpSpeed;      // Arduino left button, once per press
         Vector3 move = vel; move.y = vy;
         cc.Move(move * Time.deltaTime);
 

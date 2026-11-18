@@ -175,21 +175,7 @@ public class PriyaRoomStory : MonoBehaviour
     void SetPaused(bool p)
     {
         paused = p;
-        if (p)
-        {
-            savedLocked = PriyaRoomPlayer.Locked;
-            PriyaRoomPlayer.Locked = true;
-            Time.timeScale = 0f;
-            AudioListener.pause = true;
-            Cursor.lockState = CursorLockMode.None; Cursor.visible = true;
-        }
-        else
-        {
-            PriyaRoomPlayer.Locked = savedLocked;
-            Time.timeScale = 1f;
-            AudioListener.pause = false;
-            Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false;
-        }
+        GameState.SetPaused(p);
     }
 
     void OnDestroy()
@@ -523,8 +509,7 @@ public class PriyaRoomStory : MonoBehaviour
             }
         }
 
-        var kb = Keyboard.current;
-        if (act != null && kb != null && kb.eKey.wasPressedThisFrame)
+        if (act != null && GameInput.InteractPressed)
         {
             sfx.PlayOneShot(clickClip, 0.6f);
             act();
@@ -600,6 +585,7 @@ public class PriyaRoomStory : MonoBehaviour
             yield return null;
             while (choice < 0)
             {
+                if (GameState.Paused) { yield return null; continue; }
                 var kb = Keyboard.current;
                 if (kb != null)
                 {
@@ -628,8 +614,9 @@ public class PriyaRoomStory : MonoBehaviour
             // wait for the line to finish or for the player to press E / Space
             while (true)
             {
+                if (GameState.Paused) { yield return null; continue; }
                 var kb = Keyboard.current;
-                bool pressed = kb != null && (kb.eKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame);
+                bool pressed = GameInput.InteractPressed || (kb != null && kb.spaceKey.wasPressedThisFrame);
                 if (pressed || skipAll) { kamala.Silence(); break; }
                 if (!kamala.IsTalking) { yield return W(0.4f); break; }
                 yield return null;
@@ -693,6 +680,7 @@ public class PriyaRoomStory : MonoBehaviour
         yield return null;
         while (choice < 0)
         {
+            if (GameState.Paused) { yield return null; continue; }
             var kb = Keyboard.current;
             if (kb != null)
             {
@@ -842,9 +830,11 @@ public class PriyaRoomStory : MonoBehaviour
     {
         if (!resume) SaveSystem.ResetAct(2);
         var root = new GameObject("ActII_Market");
+        var old = builder.ExtraRoot;                          // e.g. the Curator's Gallery
         builder.ExtraRoot = root;
         player.transform.SetParent(root.transform, true);   // keep the player when the room is switched off
         builder.Root.gameObject.SetActive(false);
+        if (old != null) Destroy(old);
         var market = root.AddComponent<MarketStory>();
         market.builder = builder;
         market.player = player;
@@ -1187,7 +1177,7 @@ public class PriyaRoomStory : MonoBehaviour
         if (act == 1)
         {
             if (resume && SaveSystem.Act1InProgress) ResumeActOne();
-            else { SaveSystem.ResetAct(1); StartCoroutine(Intro()); }
+            else { SaveSystem.ResetAct(1); PlayPrologue(); }
         }
         else if (act == 2) StartActII(resume);
         else
@@ -1196,6 +1186,21 @@ public class PriyaRoomStory : MonoBehaviour
             ActLoader.Load(act, builder, player, resume);      // Acts III-V
             enabled = false;
         }
+    }
+
+    /// <summary>
+    /// A new game opens in the Curator's Gallery (his welcome, with the book). The flat is left standing while he
+    /// talks; when he blows his candle out, the game comes back here and Act I begins.
+    /// </summary>
+    void PlayPrologue()
+    {
+        if (ambience != null) ambience.volume = 0f;           // the title-screen bed would play under him; Intro brings it back
+        enabled = false;                                      // no Act I UI over the cutscene
+        CuratorInterlude.Play(0, builder, player, () =>
+        {
+            enabled = true;
+            StartCoroutine(Intro());
+        }, true);
     }
 
     /// <summary>Back into the apartment with the clues already found marked, Mrs. Kapoor's talk remembered.</summary>
@@ -1222,7 +1227,7 @@ public class PriyaRoomStory : MonoBehaviour
         PriyaRoomPlayer.Locked = false;
         startPos = player.transform.position;
         lastProgressTime = Time.time;
-        Toast("Welcome back, " + d.playerName + ".   Progress restored: " + foundCount + " of 9 clues.", 6f);
+        Toast("Welcome back, " + SaveSystem.Profile.playerName + ".   Progress restored: " + foundCount + " of 9 clues.", 6f);
     }
 
     void DrawTitleScreen(float W, float H)

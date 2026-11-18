@@ -16,6 +16,9 @@ public class NpcStyle
     /// <summary>Realistic avatar (Microsoft Rocketbox, MIT) in Resources/Characters/RB; null = use the low-poly model.</summary>
     public string rb;
     public Color bodyTint = Color.white;      // multiplies the clothing texture (white kurta x saffron = saffron kurta)
+    /// <summary>A custom Mixamo-rigged .glb in Resources (e.g. "Characters/Curator"); tried first, falls back to rb.</summary>
+    public string glb;
+    public NpcStyle Glb(string path) { glb = path; return this; }
     public NpcStyle Rb(string avatar) { rb = avatar; return this; }
     public NpcStyle Rb(string avatar, Color tint) { rb = avatar; bodyTint = tint; return this; }
     public NpcStyle Set(string key, Color c) { map.Add(new KeyValuePair<string, Color>(key, c)); return this; }
@@ -193,7 +196,7 @@ public class CharacterNPC : MonoBehaviour
         go.transform.localPosition = localPos;
         var k = go.AddComponent<CharacterNPC>();
         k.style = style ?? NpcStyle.Kamala();
-        if (!(Realistic && k.TryBuildRocketbox()) && !k.TryBuildModel()) k.BuildProcedural();
+        if (!(Realistic && (k.TryBuildMixamo() || k.TryBuildRocketbox())) && !k.TryBuildModel()) k.BuildProcedural();
         return k;
     }
 
@@ -663,6 +666,133 @@ public class CharacterNPC : MonoBehaviour
         return true;
     }
 
+    // ------------------------------------------------ custom Mixamo-rigged .glb characters
+    // Mixamo bone -> Unity humanoid bone. glTF models come in without Unity's humanoid set-up (that only exists for
+    // .fbx), so the avatar is built here at load time; after that the motion-capture clips play on it like on the
+    // Rocketbox avatars, and the same IK holds the candle and the book.
+    static readonly string[,] MixamoMap =
+    {
+        { "Hips", "Hips" }, { "Spine", "Spine" }, { "Spine1", "Chest" }, { "Spine2", "UpperChest" }, { "Neck", "Neck" }, { "Head", "Head" },
+        { "LeftShoulder", "LeftShoulder" }, { "LeftArm", "LeftUpperArm" }, { "LeftForeArm", "LeftLowerArm" }, { "LeftHand", "LeftHand" },
+        { "RightShoulder", "RightShoulder" }, { "RightArm", "RightUpperArm" }, { "RightForeArm", "RightLowerArm" }, { "RightHand", "RightHand" },
+        { "LeftUpLeg", "LeftUpperLeg" }, { "LeftLeg", "LeftLowerLeg" }, { "LeftFoot", "LeftFoot" }, { "LeftToeBase", "LeftToes" },
+        { "RightUpLeg", "RightUpperLeg" }, { "RightLeg", "RightLowerLeg" }, { "RightFoot", "RightFoot" }, { "RightToeBase", "RightToes" },
+    };
+    static readonly Dictionary<string, Avatar> mixamoAvatars = new Dictionary<string, Avatar>();
+
+    static string BoneKey(string n)
+    {
+        int c = n.LastIndexOf(':');
+        return c >= 0 ? n.Substring(c + 1) : n.StartsWith("mixamorig") ? n.Substring(9) : n;
+    }
+
+    bool TryBuildMixamo()
+    {
+        if (style == null || string.IsNullOrEmpty(style.glb)) return false;
+        var prefab = Resources.Load<GameObject>(style.glb);
+        if (prefab == null) return false;
+        var inst = Instantiate(prefab, transform);
+        inst.name = "Model";
+        inst.transform.localPosition = Vector3.zero;
+        inst.transform.localRotation = Quaternion.identity;
+        var renderers = inst.GetComponentsInChildren<Renderer>(true);
+        if (renderers.Length == 0) { Destroy(inst); return false; }
+        foreach (var a in inst.GetComponentsInChildren<Animation>(true)) a.enabled = false;
+
+        var bones = new Dictionary<string, Transform>();
+        foreach (var t in inst.GetComponentsInChildren<Transform>(true)) { string k = BoneKey(t.name); if (!bones.ContainsKey(k)) bones[k] = t; }
+        foreach (var need in new[] { "Hips", "Spine", "Head", "LeftArm", "LeftForeArm", "LeftHand", "RightArm", "RightForeArm", "RightHand", "LeftUpLeg", "LeftLeg", "LeftFoot", "RightUpLeg", "RightLeg", "RightFoot" })
+            if (!bones.ContainsKey(need)) { Debug.LogWarning(style.glb + ": no '" + need + "' bone, using another model"); Destroy(inst); return false; }
+
+        foreach (var r in renderers)
+        {
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
+            var smr = r as SkinnedMeshRenderer;
+            if (smr != null) { smr.quality = SkinQuality.Bone4; smr.updateWhenOffscreen = true; }
+        }
+
+        // the mocap clips expect a T-pose as the avatar's reference: straighten the arms out sideways first
+        // (auto-rigged models usually stand in an A-pose) and the legs straight down
+        Vector3 right = inst.transform.right, down = -inst.transform.up;
+        float sideOfLeft = Mathf.Sign(inst.transform.InverseTransformPoint(bones["LeftArm"].position).x);
+        if (sideOfLeft == 0f) sideOfLeft = -1f;
+        foreach (var side in new[] { "Left", "Right" })
+        {
+            Vector3 outward = right * (side == "Left" ? sideOfLeft : -sideOfLeft);
+            AimWorld(bones[side + "Arm"], bones[side + "ForeArm"], outward);
+            AimWorld(bones[side + "ForeArm"], bones[side + "Hand"], outward);
+            AimWorld(bones[side + "UpLeg"], bones[side + "Leg"], down);
+            AimWorld(bones[side + "Leg"], bones[side + "Foot"], down);
+        }
+
+        var an = inst.GetComponent<Animator>();
+        if (an == null) an = inst.AddComponent<Animator>();
+        Avatar avatar;
+        if (!mixamoAvatars.TryGetValue(style.glb, out avatar) || avatar == null)
+        {
+            var human = new List<HumanBone>();
+            for (int i = 0; i < MixamoMap.GetLength(0); i++)
+            {
+                Transform b;
+                if (!bones.TryGetValue(MixamoMap[i, 0], out b)) continue;
+                var hb = new HumanBone { boneName = b.name, humanName = MixamoMap[i, 1] };
+                hb.limit.useDefaultValues = true;
+                human.Add(hb);
+            }
+            var skel = new List<SkeletonBone>();
+            foreach (var t in inst.GetComponentsInChildren<Transform>(true))
+                skel.Add(new SkeletonBone { name = t.name, position = t.localPosition, rotation = t.localRotation, scale = t.localScale });
+            var desc = new HumanDescription
+            {
+                human = human.ToArray(), skeleton = skel.ToArray(),
+                upperArmTwist = 0.5f, lowerArmTwist = 0.5f, upperLegTwist = 0.5f, lowerLegTwist = 0.5f,
+                armStretch = 0.05f, legStretch = 0.05f, feetSpacing = 0f, hasTranslationDoF = false,
+            };
+            avatar = AvatarBuilder.BuildHumanAvatar(inst, desc);
+            avatar.name = style.glb + "_Avatar";
+            mixamoAvatars[style.glb] = avatar;
+        }
+        if (avatar == null || !avatar.isValid || !avatar.isHuman)
+        {
+            Debug.LogWarning(style.glb + ": could not build a humanoid avatar, using another model");
+            Destroy(inst); return false;
+        }
+        an.avatar = avatar;
+
+        // height, then stand on the ground centred on the NPC origin
+        Bounds bb = renderers[0].bounds;
+        foreach (var r in renderers) bb.Encapsulate(r.bounds);
+        if (bb.size.y > 0.2f) inst.transform.localScale *= style.height / bb.size.y;
+        Vector3 off = transform.position - bones["Hips"].position; off.y = 0;
+        inst.transform.position += off;
+        float minY = Mathf.Min(bones["LeftFoot"].position.y, bones["RightFoot"].position.y);
+        if (bones.ContainsKey("LeftToeBase")) minY = Mathf.Min(minY, bones["LeftToeBase"].position.y);
+        inst.transform.position += Vector3.up * (transform.position.y - minY + 0.03f * style.height / 1.7f);
+        rbBaseY = inst.transform.localPosition.y;
+
+        var all = new Dictionary<string, Transform>();
+        foreach (var kv in bones) all[kv.Key] = kv.Value;
+        rbRoot = inst.transform;
+        rPelvis = bones["Hips"];
+        rSpine = Bone(all, bones.ContainsKey("Spine1") ? "Spine1" : "Spine"); rNeck = Bone(all, "Neck"); rHead = Bone(all, "Head"); rJaw = null;
+        string[] sd = { "Left", "Right" };
+        for (int i = 0; i < 2; i++)
+        {
+            rArm[i] = Bone(all, sd[i] + "Arm"); rFore[i] = Bone(all, sd[i] + "ForeArm"); rHand[i] = Bone(all, sd[i] + "Hand");
+            rThigh[i] = Bone(all, sd[i] + "UpLeg"); rCalf[i] = Bone(all, sd[i] + "Leg"); rFoot[i] = Bone(all, sd[i] + "Foot");
+            rToe[i] = bones.ContainsKey(sd[i] + "ToeBase") ? bones[sd[i] + "ToeBase"] : null;
+        }
+        sideL = transform.InverseTransformPoint(rArm[0].position).x <= 0f ? -1f : 1f;
+        headBone = rHead;
+        walkCycle = Random.value * 6.28f;
+        usingModel = true; rbMode = true;
+        lastPos = transform.position; bornAt = Time.time;
+        if (SetupRbClips(an)) return true;
+        an.enabled = false;
+        RbAnimate();                 // no clips: the code-driven pose (arms down, breathing, walk cycle)
+        return true;
+    }
+
     /// <summary>Point a bone at its child along a direction given in the NPC's own space (x right, y up, z forward).</summary>
     void Aim(Transform bone, Transform child, Vector3 localDir)
     {
@@ -755,6 +885,54 @@ public class CharacterNPC : MonoBehaviour
         // jaw follows the loudness of the voice
         if (rJaw != null && talk > 0.01f)
             rJaw.rotation = Quaternion.AngleAxis(Mathf.Clamp01(talk * 1.6f) * 11f, Vector3.Cross(transform.up, HeadForward()).normalized) * rJaw.rotation;
+        ApplyHolds(dt);
+    }
+
+    // ------------------------------------------------ holding things (a candle, a book) and leaning
+    readonly Transform[] holdGoal = new Transform[2];
+    readonly bool[] holdOn = new bool[2];
+    readonly float[] holdW = new float[2], holdRate = { 2f, 2f };
+    float leanNow;
+
+    /// <summary>Forward bend of the upper body in degrees (reaching down to a table, leaning in to a candle).</summary>
+    public float lean;
+
+    /// <summary>
+    /// Puts a hand (0 = left, 1 = right) on a target every frame with two-bone IK, blended in over blendTime and layered
+    /// over the idle / walk clip. Parent the target to the character to carry something; leave it in the world to reach.
+    /// </summary>
+    public void Hold(int hand, Transform goal, float blendTime = 0.5f)
+    {
+        holdGoal[hand] = goal; holdOn[hand] = goal != null; holdRate[hand] = 1f / Mathf.Max(0.02f, blendTime);
+    }
+
+    public void Release(int hand, float blendTime = 0.5f) { holdOn[hand] = false; holdRate[hand] = 1f / Mathf.Max(0.02f, blendTime); }
+
+    /// <summary>World position of a wrist (0 = left, 1 = right), for starting a reach from where the hand is now.</summary>
+    public Vector3 HandPosition(int hand)
+    {
+        return rHand[hand] != null ? rHand[hand].position : transform.TransformPoint(new Vector3(hand == 0 ? -0.22f : 0.22f, 0.85f, 0.05f));
+    }
+
+    /// <summary>Plays the voice as a flat (non-positional) sound - for cutscenes, where the camera may be far away.</summary>
+    public void VoiceFlat(bool flat) { voice.spatialBlend = flat ? 0f : 0.55f; }
+
+    void ApplyHolds(float dt)
+    {
+        leanNow = Mathf.MoveTowards(leanNow, lean, dt * 35f);
+        if (rSpine != null && Mathf.Abs(leanNow) > 0.01f) rSpine.rotation = Quaternion.AngleAxis(leanNow, transform.right) * rSpine.rotation;
+        for (int i = 0; i < 2; i++)
+        {
+            holdW[i] = Mathf.MoveTowards(holdW[i], holdOn[i] && holdGoal[i] != null ? 1f : 0f, dt * holdRate[i]);
+            if (holdW[i] <= 0.001f || holdGoal[i] == null || rArm[i] == null || rFore[i] == null || rHand[i] == null) continue;
+            float s = i == 0 ? sideL : -sideL;
+            Quaternion u0 = rArm[i].rotation, f0 = rFore[i].rotation;
+            Reach(rArm[i], rFore[i], rHand[i], holdGoal[i].position, -transform.up + transform.right * s * 0.8f - transform.forward * 0.35f);
+            float w = Mathf.SmoothStep(0f, 1f, holdW[i]);
+            Quaternion u1 = rArm[i].rotation, f1 = rFore[i].rotation;
+            rArm[i].rotation = Quaternion.Slerp(u0, u1, w);
+            rFore[i].rotation = Quaternion.Slerp(f0, f1, w);
+        }
     }
 
     // ------------------------------------------------ motion-capture clips (the normal path)
@@ -836,7 +1014,7 @@ public class CharacterNPC : MonoBehaviour
     /// <summary>Plays real motion-capture idle + walk on the avatar (Humanoid retargeting), blended by how fast the NPC is actually moving.</summary>
     bool SetupRbClips(Animator an)
     {
-        bool fem = style.rb.Contains("Female");
+        bool fem = style.rb != null && style.rb.Contains("Female");
         cIdle = Clip(fem ? "f_Idle" : "m_Idle"); cWalk = Clip(fem ? "f_WalkForwards" : "m_WalkForwards");
         if (cIdle == null || cWalk == null) return false;
         an.enabled = true;
@@ -873,8 +1051,27 @@ public class CharacterNPC : MonoBehaviour
         bone.rotation = Quaternion.Slerp(Quaternion.identity, Quaternion.FromToRotation(cur, transform.TransformDirection(localDir)), w) * bone.rotation;
     }
 
+    // The animation graph is a native object. It does not survive a script reload while the game is running
+    // (editing a script during Play), and it is also gone if anything else destroys it. Without this check every
+    // NPC threw "The Playable is null" on every frame, thousands of times.
+    bool graphRecoveryTried;
+
+    void RecoverClips()
+    {
+        rbClips = false;                          // stop using the dead graph
+        if (graphRecoveryTried) return;           // try once; never retry every frame
+        graphRecoveryTried = true;
+        try
+        {
+            var an = GetComponentInChildren<Animator>(true);
+            if (style != null && an != null && an.avatar != null && an.avatar.isHuman) SetupRbClips(an);   // sets rbClips again on success
+        }
+        catch (System.Exception) { rbClips = false; }       // fall back to the code-driven pose
+    }
+
     void RbClips()
     {
+        if (!graph.IsValid() || !mixer.IsValid()) { RecoverClips(); return; }
         float dt = Time.deltaTime;
         if (dt <= 0f) return;                     // paused: the Animator has not rewritten the pose, so add nothing on top
 
@@ -942,6 +1139,7 @@ public class CharacterNPC : MonoBehaviour
             rJaw.localRotation = jawRest;
             if (talk > 0.01f) rJaw.rotation = Quaternion.AngleAxis(Mathf.Clamp01(talk * 1.6f) * 11f, rightAxis) * rJaw.rotation;
         }
+        ApplyHolds(dt);
     }
 
     Vector3 HeadForward()
@@ -1005,17 +1203,50 @@ public class CharacterNPC : MonoBehaviour
     /// Walks to a point like a person: turns on the spot first, eases into the stride, matches the walk clip's speed
     /// to the real ground speed (no foot-sliding), and eases out when arriving.
     /// </summary>
-    public IEnumerator WalkTo(Vector3 localTarget, float speed)
+    public IEnumerator WalkTo(Vector3 localTarget, float speed) { return WalkTo(localTarget, speed, -1f); }
+
+    /// <summary>How the last WalkTo ended: Arrived, TimedOut (blocked too long; the NPC is placed at the target so the
+    /// scene can carry on), or Cancelled (StopWalking was called).</summary>
+    public enum WalkResult { Arrived, TimedOut, Cancelled }
+    public WalkResult LastWalk { get; private set; }
+    int walkToken;
+
+    /// <summary>Stops any WalkTo in progress (it ends with WalkResult.Cancelled on its next frame).</summary>
+    public void StopWalking() { walkToken++; }
+
+    /// <summary>
+    /// WalkTo with a time limit. If the NPC has not arrived within `timeout` seconds (default: the time the walk
+    /// should take at half speed, plus 4 s) it is blocked: it is moved to the target so a scripted scene can never
+    /// wait forever, and LastWalk reports TimedOut.
+    /// </summary>
+    public IEnumerator WalkTo(Vector3 localTarget, float speed, float timeout)
     {
+        int token = ++walkToken;
         walking = true;
         curSpeed = 0f;
+        Vector3 start = transform.localPosition; start.y = localTarget.y;
+        if (timeout <= 0f) timeout = Vector3.Distance(start, localTarget) / Mathf.Max(0.2f, speed * 0.5f) + 4f;
+        float elapsed = 0f;
+        LastWalk = WalkResult.Arrived;
         while (true)
         {
+            if (this == null) yield break;             // the NPC was destroyed (act changed): end quietly
+            if (token != walkToken) { LastWalk = WalkResult.Cancelled; break; }
+            elapsed += Time.deltaTime;
             Vector3 p = transform.localPosition;
             Vector3 d = localTarget - p;
             d.y = 0;
             float dist = d.magnitude;
             if (dist < 0.06f) break;
+            if (elapsed > timeout)
+            {
+                LastWalk = WalkResult.TimedOut;
+                Debug.LogWarning(name + ": blocked on the way to " + localTarget + " for " + timeout.ToString("0") + " s; placed at the target.");
+                if (cc != null) cc.enabled = false;
+                transform.localPosition = new Vector3(localTarget.x, p.y, localTarget.z);
+                if (cc != null) cc.enabled = true;
+                break;
+            }
 
             var world = transform.parent != null ? transform.parent.TransformDirection(d) : d;
             var targetRot = Quaternion.LookRotation(world, Vector3.up);
