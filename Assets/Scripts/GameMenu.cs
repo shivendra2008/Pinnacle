@@ -20,7 +20,7 @@ public class GameMenu : IDisposable
     public GameMenu()
     {
         SaveSystem.Load();
-        screen = string.IsNullOrEmpty(SaveSystem.Data.playerName) ? Screen.Name : Screen.Main;
+        screen = string.IsNullOrEmpty(SaveSystem.Profile.playerName) ? Screen.Name : Screen.Main;
     }
 
     // ---------------------------------------------------------------- input
@@ -61,7 +61,7 @@ public class GameMenu : IDisposable
     {
         string n = nameBuf.Trim();
         if (n.Length == 0) return;
-        SaveSystem.Data.playerName = n;
+        SaveSystem.Profile.playerName = n;
         SaveSystem.Save();
         screen = Screen.Main;
         Unsubscribe();
@@ -71,27 +71,41 @@ public class GameMenu : IDisposable
     static readonly string[] ActNames = { "The Empty Room", "The Streets Know", "The File", "The Web", "Sunrise" };
     static readonly string[] Roman = { "I", "II", "III", "IV", "V" };
 
-    static bool InProgress(int act)
-    {
-        if (act == 1) return SaveSystem.Act1InProgress;
-        if (act == 2) return SaveSystem.Act2InProgress;
-        if (act == 3) return SaveSystem.Act3InProgress;
-        return false;
-    }
+    static bool InProgress(int act) { return SaveSystem.InProgress(act); }
 
+    /// <summary>
+    /// The big button. CONTINUE resumes the campaign at its last checkpoint (mid-act where the act has one,
+    /// otherwise the start of the current act). After the last act it is PLAY AGAIN: a new campaign, the profile kept.
+    /// </summary>
     void DoPrimary()
     {
         var d = SaveSystem.Data;
-        if (d.actsCompleted >= 5) { Play(1, false); return; }
+        if (d.actsCompleted >= 5) { SaveSystem.NewCampaign(); Play(1, false); return; }
         int next = d.actsCompleted + 1;
         Play(next, InProgress(next));
     }
 
+    /// <summary>
+    /// An act chosen from the list. The campaign's current act restarts in the campaign; any other unlocked act is a
+    /// chapter replay, played in a sandbox that never changes the campaign (endings found there still count).
+    /// </summary>
+    void PickAct(int act)
+    {
+        int current = Mathf.Min(SaveSystem.Data.actsCompleted + 1, 5);
+        if (act != current || SaveSystem.Data.actsCompleted >= 5) SaveSystem.BeginReplay(act);
+        Play(act, false);
+    }
+
     void Play(int act, bool resume)
     {
-        SaveSystem.Data.sessions++;
+        SaveSystem.Profile.sessions++;
         SaveSystem.Save();
         if (OnPlay != null) OnPlay(act, resume);
+    }
+
+    static bool Unlocked(int act)
+    {
+        return act == 1 || SaveSystem.Data.actsCompleted >= act - 1 || SaveSystem.Profile.highestActCompleted >= act - 1;
     }
 
     string PrimaryLabel()
@@ -100,7 +114,7 @@ public class GameMenu : IDisposable
         if (d.actsCompleted >= 5) return "PLAY AGAIN  -  from Act I";
         int next = d.actsCompleted + 1;
         if (next == 1 && SaveSystem.Act1InProgress) return "RESUME  -  Act I, " + d.clues.Count + " of 9 clues found";
-        if (next == 1) return "START GAME";
+        if (next == 1) return d.clues.Count == 0 && SaveSystem.Profile.highestActCompleted > 0 ? "NEW GAME" : "START GAME";
         return (InProgress(next) ? "RESUME  -  Act " : "CONTINUE  -  Act ") + Roman[next - 1] + ": " + ActNames[next - 1];
     }
 
@@ -161,19 +175,20 @@ public class GameMenu : IDisposable
         // ---- left: actions
         var m = new Rect(W / 2 - 480, top, 440, 560);
         UiKit.Card(m, 0.85f);
-        GUI.Label(new Rect(m.x + 24, m.y + 16, m.width - 48, 30), (d.actsCompleted > 0 || d.clues.Count > 0 ? "Welcome back, " : "Welcome, ") + d.playerName, new GUIStyle(sHead) { fontSize = 20 });
+        GUI.Label(new Rect(m.x + 24, m.y + 16, m.width - 48, 30), (d.actsCompleted > 0 || d.clues.Count > 0 || SaveSystem.Profile.highestActCompleted > 0 ? "Welcome back, " : "Welcome, ") + SaveSystem.Profile.playerName, new GUIStyle(sHead) { fontSize = 20 });
         if (GUI.Button(new Rect(m.x + 24, m.y + 54, m.width - 48, 60), PrimaryLabel(), UiKit.ButtonStyle())) DoPrimary();
 
         GUI.Label(new Rect(m.x + 24, m.y + 128, m.width - 48, 22), "CHOOSE AN ACT", sHead);
         for (int a = 1; a <= 5; a++)
         {
-            bool unlocked = a == 1 || d.actsCompleted >= a - 1;
+            bool unlocked = Unlocked(a);
+            bool current = a == Mathf.Min(d.actsCompleted + 1, 5) && d.actsCompleted < 5;
             GUI.enabled = unlocked;
-            string label = "ACT " + Roman[a - 1] + "  -  " + (unlocked ? ActNames[a - 1] : "locked");
-            if (GUI.Button(new Rect(m.x + 24, m.y + 156 + (a - 1) * 50, m.width - 48, 42), label, UiKit.ButtonStyle())) Play(a, false);
+            string label = "ACT " + Roman[a - 1] + "  -  " + (unlocked ? ActNames[a - 1] + (current ? "   (restart)" : "   (replay)") : "locked");
+            if (GUI.Button(new Rect(m.x + 24, m.y + 156 + (a - 1) * 50, m.width - 48, 42), label, UiKit.ButtonStyle())) PickAct(a);
         }
         GUI.enabled = true;
-        GUI.Label(new Rect(m.x + 24, m.y + 410, m.width - 48, 40), "Choosing an act replays it from the beginning. Completed acts stay saved.", sSmall);
+        GUI.Label(new Rect(m.x + 24, m.y + 410, m.width - 48, 40), "Replaying a chapter never changes your campaign. Restart begins your current act again.", sSmall);
         if (GUI.Button(new Rect(m.x + 24, m.y + 450, m.width - 48, 42), "RESET ALL DATA", sBtnRed)) screen = Screen.ConfirmReset;
         GUI.Label(new Rect(m.x + 24, m.y + 500, m.width - 48, 54),
             "W A S D move  |  Mouse look  |  E interact  |  1-4 answer  |  TAB detective vision  |  J notes  |  Esc pause  |  Enter skip", sSmall);
@@ -182,9 +197,9 @@ public class GameMenu : IDisposable
         var p = new Rect(W / 2 + 40, top, 440, 560);
         UiKit.Card(p, 0.85f);
         GUI.Label(new Rect(p.x + 24, p.y + 16, p.width - 48, 26), "YOUR PROGRESS", sHead);
-        GUI.Label(new Rect(p.x + 24, p.y + 44, p.width - 48, 26), "Detective " + d.playerName, new GUIStyle(sBody) { fontSize = 22, fontStyle = FontStyle.Bold });
+        GUI.Label(new Rect(p.x + 24, p.y + 44, p.width - 48, 26), "Detective " + SaveSystem.Profile.playerName, new GUIStyle(sBody) { fontSize = 22, fontStyle = FontStyle.Bold });
         GUI.Label(new Rect(p.x + 24, p.y + 78, p.width - 48, 22),
-            "Acts completed:  " + Mathf.Min(5, d.actsCompleted) + " of 5      Endings found:  " + d.endingsSeen.Count + " of 3", sBody);
+            "Acts completed:  " + Mathf.Min(5, d.actsCompleted) + " of 5      Endings found:  " + SaveSystem.Profile.endingsSeen.Count + " of 3", sBody);
         UiKit.Bar(new Rect(p.x + 24, p.y + 106, p.width - 48, 12), Mathf.Min(5, d.actsCompleted) / 5f, UiKit.Gold);
 
         float y = p.y + 134;
@@ -198,7 +213,7 @@ public class GameMenu : IDisposable
             else if (a == 2) detail = done ? "The black SUV has been dealt with" : prog ? d.evidence.Count + " evidence notes" : "Follow the lead into the market";
             else if (a == 3) detail = done ? "Priya's envelope is in your hands" : prog ? "Investigating the library" : "The library and the Kali temple";
             else if (a == 4) detail = done ? (d.allyRaj ? "Raj Malhotra is on your side" : d.allyRohan ? "Rohan is on your side" : d.allyReddy ? "Inspector Reddy is on your side" : "Midnight in the city") : "Three paths through the night";
-            else detail = done ? "Endings found: " + d.endingsSeen.Count + " of 3" : "Find Priya and choose the ending";
+            else detail = done ? "Endings found: " + SaveSystem.Profile.endingsSeen.Count + " of 3" : prog ? "In the Curator's Gallery" : "Find Priya and choose the ending";
             ActRow(p, ref y, "ACT " + Roman[a - 1] + "  -  " + ActNames[a - 1], state, col, detail, done ? 1f : a == 1 ? d.clues.Count / 9f : 0f);
         }
         if (!string.IsNullOrEmpty(d.lastSaved))

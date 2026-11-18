@@ -30,8 +30,8 @@ public class Act5Story : ActStoryBase
     readonly Transform[] caskets = new Transform[3];
     readonly Transform[] lids = new Transform[3];
     readonly Light[] casketLights = new Light[3];
-    readonly List<GameObject> candleFlames = new List<GameObject>();
-    readonly List<Light> candleLights = new List<Light>();
+    CuratorGallery gallery;          // the shared Gallery (the Curator's interludes happen in the same hall)
+    bool inGallery; float galleryLevel;
     GameObject skyQuad, sun;
     const float TerraceSkyRotation = 0f;      // turn the panorama (degrees) if the sunrise is not where the terrace faces
     Transform book; TextMesh bookLabel;
@@ -114,42 +114,12 @@ public class Act5Story : ActStoryBase
         priya = Npc(U + new Vector3(-1.2f, 0f, 0.1f), 180f, Cast.Priya(), "Priya Kapoor");
     }
 
-    static readonly string[] CurioProps = { "brass_pot_01", "ceramic_pot", "jug_01", "metal_jug", "brass_pot_02", "pot_enamel_01" };
-    static readonly float[] CurioScale = { 1f, 0.6f, 1.1f, 1f, 0.9f, 1.3f };
-
     void BuildGallery()
     {
-        Room("Gallery", G, new Vector3(24f, 12f, 30f), new Color(0.16f, 0.1f, 0.07f), new Color(0.12f, 0.08f, 0.06f), "wood_floor", "wood");
-        var rnd = new System.Random(21);
-        var shelfWood = new Color(0.2f, 0.12f, 0.07f);
-        foreach (float x in new[] { -11.4f, 11.4f })
-        {
-            B("TowerShelf", G + new Vector3(x, 5.5f, 0), new Vector3(0.8f, 11f, 28f), shelfWood, true, 0.2f);
-            for (int s = 0; s < 14; s++)
-            {
-                float y = 0.5f + s * 0.75f;
-                B("ShelfBoard", G + new Vector3(x + (x < 0 ? 0.45f : -0.45f), y, 0), new Vector3(0.12f, 0.04f, 28f), shelfWood * 1.2f, false, 0.2f);
-                for (int k = 0; k < 18; k++)
-                {
-                    if (rnd.NextDouble() < 0.35) continue;
-                    var p = G + new Vector3(x + (x < 0 ? 0.6f : -0.6f), y + 0.15f, -13f + k * 1.5f + (float)rnd.NextDouble() * 0.5f);
-                    Color c = rnd.NextDouble() < 0.15 ? new Color(0.85f, 0.65f, 0.25f) : Color.HSVToRGB((float)rnd.NextDouble(), 0.35f, 0.25f + (float)rnd.NextDouble() * 0.4f);
-                    int kind = rnd.Next(3);
-                    if (s < 5)
-                    {
-                        int pick = (s * 7 + k * 3 + kind) % CurioProps.Length;
-                        if (Prop(CurioProps[pick], p - Vector3.up * 0.13f, k * 47f, CurioScale[pick]) != null) continue;
-                    }
-                    if (kind == 0) Sp("Curio", p, 0.22f, c, 0.6f);
-                    else if (kind == 1) B("Curio", p, new Vector3(0.2f, 0.28f, 0.2f), c, false, 0.5f);
-                    else GameKit.Cone(transform, "Curio", p - Vector3.up * 0.12f, 0.12f, 0.32f, GameKit.Lit(c, 0.5f));
-                }
-            }
-        }
-        Prop("brass_candleholders", G + new Vector3(-0.2f, 0.95f, 1.5f), 0f, 0.8f);
-        // the long table with red velvet
-        B("Table", G + new Vector3(0, 0.45f, 2f), new Vector3(6f, 0.9f, 1.6f), shelfWood, true, 0.4f);
-        B("Velvet", G + new Vector3(0, 0.92f, 2f), new Vector3(6.2f, 0.05f, 1.8f), new Color(0.4f, 0.03f, 0.05f), false, 0.15f);
+        // the hall itself (shelves, bookcase, chandeliers, candles, moonlight): the same room as the interludes.
+        // The bookcase has a gap tonight: Shadows of Chandni is out on the table.
+        gallery = CuratorGallery.Build(transform, G, false, false);
+        gallery.SetLights(0f);
         // three caskets: bronze, bone, iron
         Color[] cc = { new Color(0.8f, 0.55f, 0.25f), new Color(0.88f, 0.84f, 0.7f), new Color(0.12f, 0.1f, 0.1f) };
         Color[] glow = { new Color(1f, 0.75f, 0.35f), new Color(0.85f, 0.9f, 1f), new Color(1f, 0.35f, 0.08f) };
@@ -167,27 +137,12 @@ public class Act5Story : ActStoryBase
             casketLights[i] = GameKit.PointLight(root, new Vector3(0, 0.6f, -0.4f), glow[i], 1.2f, 2.5f);
         }
         GameKit.Sphere(transform, "PriyaFigurine", G + new Vector3(2.7f, 1.05f, 1.8f), 0.12f, GameKit.Lit(new Color(0.75f, 0.55f, 0.4f), 0.4f));
-        // the book the Curator writes the ending in
-        book = B("StoryBook", G + new Vector3(-2.7f, 1.0f, 2f), new Vector3(0.4f, 0.08f, 0.55f), new Color(0.3f, 0.12f, 0.08f), false, 0.4f).transform;
-        bookLabel = GameKit.Text(transform, "", G + new Vector3(-2.7f, 1.06f, 1.9f), Quaternion.Euler(90f, 0, 0), 0.04f, new Color(0.95f, 0.8f, 0.4f));
-        // candles everywhere (lit one by one when the Gallery appears)
-        for (int i = 0; i < 46; i++)
-        {
-            Vector3 p;
-            if (i < 10) p = G + new Vector3(-2.8f + i * 0.62f, 0.95f, 2.6f);
-            else if (i < 30) p = G + new Vector3((i % 2 == 0 ? -1 : 1) * (4f + (float)rnd.NextDouble() * 5f), 0f, -12f + (i - 10) * 1.3f);
-            else p = G + new Vector3((i % 2 == 0 ? -10.8f : 10.8f), 0.6f + ((i - 30) / 2) * 1.5f, -10f + (i % 5) * 5f);
-            float h = i < 10 ? 0.25f : (i < 30 ? 1.1f : 0.25f);
-            Cy("Candle", p + new Vector3(0, h / 2f, 0), i < 10 ? 0.03f : 0.05f, h, new Color(0.92f, 0.88f, 0.78f), 0.2f);
-            var flame = GameKit.Sphere(transform, "Flame", p + new Vector3(0, h + 0.04f, 0), 0.05f, GameKit.Glow(new Color(1f, 0.8f, 0.4f), new Color(1f, 0.7f, 0.3f), 8f));
-            flame.SetActive(false);
-            candleFlames.Add(flame);
-            if (i % 5 == 0)
-            {
-                var l = PL(p + new Vector3(0, h + 0.3f, 0), new Color(1f, 0.68f, 0.35f), 0f, 7f);
-                candleLights.Add(l);
-            }
-        }
+        // the book the Curator writes the ending in: Shadows of Chandni, taken down from the bookcase
+        var sb = StoryBookModel.Make(transform, "");
+        sb.root.localPosition = G + new Vector3(-2.7f, 0.945f + StoryBookModel.T / 2f, 2.1f);
+        sb.root.localRotation = Quaternion.LookRotation(Vector3.right, Vector3.forward);    // lying flat, cover up, readable from the hall
+        book = sb.root;
+        bookLabel = GameKit.Solid(GameKit.Text(transform, "", G + new Vector3(-2.7f, 0.945f + StoryBookModel.T + 0.012f, 1.85f), Quaternion.Euler(90f, 0, 0), 0.03f, new Color(0.95f, 0.8f, 0.4f)));
         curator = Npc(G + new Vector3(0f, 0f, 3.5f), 180f, Cast.Curator(), "The Curator");
     }
 
@@ -320,8 +275,11 @@ public class Act5Story : ActStoryBase
             AddSpot(caskets[i], Vector3.up * 0.3f, n[i], () => phase == Phase.Free && chosen < 0, () => StartCoroutine(ExamineCasket(idx)), 3.5f, 0.45f);
         }
 
-        // ---- the shelter
+        // ---- the shelter (skipped when resuming at the Gallery checkpoint)
+        bool atGallery = resume && SaveSystem.Data.act5Stage >= 1;
         yield return OpenAct();
+        if (!atGallery)
+        {
         Teleport(new Vector3(-6f, 0.1f, -4f), 50f);
         yield return Narrate("a5_vo_intro");
         BeginFree("Find Priya - she is upstairs", stairs.position + Vector3.up * 0.5f, "Stairs");
@@ -350,6 +308,9 @@ public class Act5Story : ActStoryBase
         yield return Talk("a5_priya_4", priya);
         EndTalk();
         skipAll = false;
+        // checkpoint: Priya has asked her question; Continue from here goes straight to the Gallery
+        SaveSystem.Data.act5Stage = 1; SaveSystem.Save();
+        }
 
         // ---- the world stops
         voice.Stop();
@@ -363,18 +324,12 @@ public class Act5Story : ActStoryBase
         fade = 1f; fadeTarget = 1f; white = 0f;
         Teleport(G + new Vector3(0, 0.1f, -3.2f), 0f, -4f);
         ambience.clip = galleryBed; ambience.volume = 0.5f; ambience.Play();
-        RenderSettings.fogColor = new Color(0.04f, 0.02f, 0.02f);
-        CinematicLook.NoSky(camComp, new Color(0.02f, 0.02f, 0.05f));
-        CinematicLook.Ambient(new Color(0.12f, 0.08f, 0.06f), new Color(0.1f, 0.06f, 0.05f), new Color(0.04f, 0.03f, 0.02f));
+        inGallery = true; galleryLevel = 0f;
+        CuratorGallery.Mood(camComp, 0f);
         yield return new WaitForSeconds(1.5f);
         sfx.PlayOneShot(Tone(3000f, 0.15f, 25f, 0.3f), 0.6f);                   // a match strikes
         fadeSpeed = 0.35f; fadeTarget = 0f;
-        for (int i = 0; i < candleFlames.Count; i++)
-        {
-            candleFlames[i].SetActive(true);
-            if (i < candleLights.Count) StartCoroutine(LightUp(candleLights[i]));
-            yield return new WaitForSeconds(0.05f);
-        }
+        yield return LightGallery(2.4f);
         yield return new WaitForSeconds(0.8f);
         yield return Turn(curator.transform.position + Vector3.up * 1.7f, 1f);
         yield return Talk("gal_1", curator);
@@ -394,9 +349,9 @@ public class Act5Story : ActStoryBase
         for (int i = 0; i < 3; i++) if (i != chosen) StartCoroutine(Crumble(i));
         yield return new WaitForSeconds(2.2f);
         for (float t = 0; t < 1.5f; t += Time.deltaTime) { white = t / 1.5f; yield return null; }
-        if (!SaveSystem.Data.endingsSeen.Contains(chosen)) SaveSystem.Data.endingsSeen.Add(chosen);
-        SaveSystem.Save();
+        // the ending is recorded when its credits roll (RollCredits), so quitting half-way through it does not count it
 
+        inGallery = false;
         if (chosen == 0) yield return JusticeEnding();
         else if (chosen == 1) yield return SacrificeEnding();
         else yield return RevolutionEnding();
@@ -410,10 +365,28 @@ public class Act5Story : ActStoryBase
         yield break;
     }
 
-    IEnumerator LightUp(Light l)
+    /// <summary>The Gallery's candles and chandeliers light one after another, and the hall comes up out of the dark.</summary>
+    IEnumerator LightGallery(float dur)
     {
-        for (float t = 0; t < 0.6f; t += Time.deltaTime) { l.intensity = Mathf.Lerp(0f, 2.2f, t / 0.6f); yield return null; }
-        l.gameObject.AddComponent<FlickerLight>();
+        var flames = gallery.flames; var lights = gallery.lights;
+        foreach (var f in flames) f.SetActive(false);
+        int fi = 0;
+        for (float t = 0; t < dur; t += Time.deltaTime)
+        {
+            float k = t / dur;
+            for (int i = 0; i < lights.Count; i++) lights[i].level = Mathf.Clamp01(k * lights.Count - i * 0.8f);
+            while (fi < Mathf.RoundToInt(k * flames.Count)) flames[fi++].SetActive(true);
+            galleryLevel = k;
+            yield return null;
+        }
+        gallery.SetLights(1f);
+        galleryLevel = 1f;
+    }
+
+    // The Act I room writes its ambient light every frame; inside the Gallery the Gallery's own light wins.
+    void LateUpdate()
+    {
+        if (inGallery) CuratorGallery.Mood(null, galleryLevel);
     }
 
     bool Sealed(int i)
@@ -531,44 +504,48 @@ public class Act5Story : ActStoryBase
         white = 0f;
     }
 
-    IEnumerator BackToGallery(string bookTitle, string curatorLine, bool darken)
+    /// <summary>The Curator's verdict on the ending (Curator script 05-07). The last Gallery scene: he has no candle.</summary>
+    IEnumerator BackToGallery(string bookTitle, string[] curatorLines, bool darken)
     {
         yield return FadeOut(0.8f);
         ambience.clip = galleryBed; ambience.volume = 0.5f; ambience.Play();
-        RenderSettings.fogColor = new Color(0.04f, 0.02f, 0.02f);
-        CinematicLook.NoSky(camComp, new Color(0.02f, 0.02f, 0.05f));
-        CinematicLook.Ambient(new Color(0.12f, 0.08f, 0.06f), new Color(0.1f, 0.06f, 0.05f), new Color(0.04f, 0.03f, 0.02f));
+        inGallery = true; galleryLevel = 1f;
+        gallery.SetLights(1f);
+        CuratorGallery.Mood(camComp, 1f);
         SetSun(new Color(0.55f, 0.62f, 0.95f), 0.1f, new Vector3(45f, 30f, 0f));
         Teleport(G + new Vector3(-1.2f, 0.1f, -0.6f), 10f, 5f);
         bookLabel.text = bookTitle;
         yield return FadeIn(0.8f);
         yield return Turn(curator.transform.position + Vector3.up * 1.7f, 0.8f);
-        yield return Talk(curatorLine, curator);
-        EndTalk();
-        yield return Turn(book.position, 0.8f);
-        if (darken)
+        for (int i = 0; i < curatorLines.Length; i++)
         {
-            foreach (var l in candleLights) if (l != null) { var f = l.GetComponent<FlickerLight>(); if (f) Destroy(f); }
-            for (float t = 0; t < 1.5f; t += Time.deltaTime)
-            {
-                foreach (var l in candleLights) if (l != null) l.intensity = Mathf.Lerp(2.2f, 0f, t / 1.5f);
-                yield return null;
-            }
-            foreach (var fl in candleFlames) fl.SetActive(false);
+            if (i == curatorLines.Length - 1) StartCoroutine(Turn(book.position, 1.6f));     // "The book is closed."
+            yield return Talk(curatorLines[i], curator);
         }
-        yield return new WaitForSeconds(2f);
+        EndTalk();
+        // "The candle is out": the hall goes dark (slowly, for the quiet ending)
+        float dur = darken ? 2.5f : 1.4f;
+        for (float t = 0; t < dur; t += Time.deltaTime)
+        {
+            float k = 1f - t / dur;
+            gallery.SetLights(k); galleryLevel = k;
+            yield return null;
+        }
+        gallery.SetLights(0f); galleryLevel = 0f;
+        yield return new WaitForSeconds(1.5f);
     }
 
     void RollCredits(string ending, bool silent)
     {
         var d = SaveSystem.Data;
+        SaveSystem.RecordEnding(chosen);
         SaveSystem.CompleteAct(5);
         if (silent) ambience.Stop();
         creditLines = new[]
         {
             "#SHADOWS OF CHANDNI", "A non-violent mystery thriller", "", "",
-            "Ending reached:  " + ending, "Endings discovered:  " + d.endingsSeen.Count + " of 3", "Evidence gathered:  " + SaveSystem.EvidenceCount, "", "",
-            "#THANK YOU FOR PLAYING", "Detective " + d.playerName, "", "",
+            "Ending reached:  " + ending, "Endings discovered:  " + SaveSystem.Profile.endingsSeen.Count + " of 3", "Evidence gathered:  " + SaveSystem.EvidenceCount, "", "",
+            "#THANK YOU FOR PLAYING", "Detective " + SaveSystem.Profile.playerName, "", "",
             "#CAST", "Arjun Mehra  -  the detective", "Priya Kapoor  -  the advocate", "Kamala Kapoor  -  her mother", "Rohan Kapoor  -  her brother",
             "Vikram Sahu  -  the chai seller", "Bhaskar  -  the auto driver", "Inspector Sonal Reddy  -  Crime Branch", "Raj Malhotra  -  the builder",
             "Pandit Harishankar  -  the priest", "Councilor Meghna Deshpande", "and The Curator", "", "",
@@ -631,7 +608,8 @@ public class Act5Story : ActStoryBase
             (d.allyRohan ? "Rohan Kapoor went back to college, and never filed a document without reading it again.\n\n" : "") +
             "Priya Kapoor founded the Chandnipur Land Rights Foundation, which has since protected over 10,000 families.\n\n" +
             "Arjun Mehra never accepted payment for the case.");
-        yield return BackToGallery("CHANDNIPUR  -  JUSTICE", "end1_curator", false);
+        yield return BackToGallery("CHANDNIPUR  -  JUSTICE", new[] { "endJ_01", "endJ_02", "endJ_03", "endJ_04", "endJ_05" }, false);
+        inGallery = false;
         RollCredits("JUSTICE", false);
     }
 
@@ -673,7 +651,7 @@ public class Act5Story : ActStoryBase
             "The High Court upheld the residents' claims; the battle continues in the lower courts.\n\n" +
             "Priya came home after three months in hiding. She carries the guilt of not walking into that courtroom herself.\n\n" +
             "The fight for Basti Nagar is not over. But it has begun.");
-        yield return BackToGallery("CHANDNIPUR  -  SACRIFICE", "end2_curator", true);
+        yield return BackToGallery("CHANDNIPUR  -  SACRIFICE", new[] { "endS_01", "endS_02", "endS_03", "endS_04", "endS_05" }, true);
         RollCredits("SACRIFICE", true);
     }
 
@@ -722,7 +700,7 @@ public class Act5Story : ActStoryBase
             "The Basti Nagar families won a temporary stay from the Supreme Court. The Renewal Project is in limbo.\n\n" +
             "Priya Kapoor became a national symbol of resistance - and needed police protection for two years.\n\n" +
             "The truth is messy. Justice is messy. But silence is worse. The revolution is ongoing.");
-        yield return BackToGallery("CHANDNIPUR  -  REVOLUTION", "end3_curator", false);
+        yield return BackToGallery("CHANDNIPUR  -  REVOLUTION", new[] { "endR_01", "endR_02", "endR_03", "endR_04", "endR_05" }, false);
         RollCredits("REVOLUTION", false);
     }
 

@@ -18,7 +18,7 @@ public class Act4Story : ActStoryBase
     protected override string ActTitle { get { return "ACT IV  -  THE WEB"; } }
     protected override string ActSubtitle
     {
-        get { return variant == 0 ? "Café Irani   |   7:05 AM" : variant == 1 ? "The Kapoor house   |   11:10 PM" : "Chandnipur Police Station   |   11:15 PM"; }
+        get { return variant == 0 ? "Café Irani   |   11:05 PM" : variant == 1 ? "The Kapoor house   |   11:10 PM" : "Chandnipur Police Station   |   11:15 PM"; }
     }
     protected override LookPreset Look { get { return variant == 2 ? LookPreset.Market : LookPreset.Apartment; } }
 
@@ -29,14 +29,6 @@ public class Act4Story : ActStoryBase
     {
         variant = Mathf.Clamp(SaveSystem.Data.branch, 0, 2);
         base.Start();
-        if (variant == 0)        // daylight: the film look is tuned for dim interiors and would burn out in the sun
-            foreach (var v in GetComponentsInChildren<Volume>())
-            {
-                if (v.sharedProfile == null) continue;
-                if (v.sharedProfile.TryGet(out ColorAdjustments ca)) { ca.postExposure.value = 0.1f; ca.saturation.value = 2f; ca.contrast.value = 10f; }
-                if (v.sharedProfile.TryGet(out Vignette vg)) vg.intensity.value = 0.14f;
-                if (v.sharedProfile.TryGet(out Bloom bl)) bl.intensity.value = 0.25f;
-            }
     }
 
     protected override void BuildWorld()
@@ -160,14 +152,12 @@ public class Act4Story : ActStoryBase
     void BuildCafe()
     {
         PriyaRoomPlayer.Surface = 0;
-        // ---- Café Irani: an open-air terrace in the morning sun, under a real photographed sky
-        if (!CinematicLook.Sky(camComp, "palermo_sidewalk", 1.05f, 120f, 1.05f))
-        {
-            camComp.backgroundColor = new Color(0.62f, 0.74f, 0.9f);
-            CinematicLook.Ambient(new Color(0.75f, 0.82f, 0.95f), new Color(0.7f, 0.68f, 0.62f), new Color(0.4f, 0.36f, 0.3f));
-        }
-        SetSun(new Color(1f, 0.93f, 0.8f), 1.45f, new Vector3(38f, 125f, 0f));      // low morning sun from the street side, onto the café front
-        RenderSettings.fogColor = new Color(0.78f, 0.84f, 0.9f); RenderSettings.fogDensity = 0.0035f;
+        // ---- Café Irani at 11 PM: an open-air terrace after closing time, under a moonlit sky, lit by its own
+        // string lights and the glow from inside (the story needs night: the hearing is "tomorrow morning")
+        CinematicLook.NoSky(camComp, new Color(0.025f, 0.03f, 0.065f));
+        CinematicLook.Ambient(new Color(0.2f, 0.22f, 0.33f), new Color(0.15f, 0.14f, 0.19f), new Color(0.06f, 0.05f, 0.06f));
+        SetSun(new Color(0.52f, 0.6f, 0.95f), 0.32f, new Vector3(48f, 125f, 0f));      // moonlight from the street side
+        RenderSettings.fogColor = new Color(0.05f, 0.055f, 0.09f); RenderSettings.fogDensity = 0.012f;
         var wood = new Color(0.3f, 0.18f, 0.1f);
         var cream = new Color(0.9f, 0.84f, 0.7f);
 
@@ -187,7 +177,8 @@ public class Act4Story : ActStoryBase
         foreach (float wz in new[] { -3.0f, 3.2f })
         {
             GameKit.Surface(B("WindowFrame", new Vector3(4.98f, 1.9f, wz), new Vector3(0.08f, 1.7f, 1.5f), wood, false, 0.4f), "wood", 0.9f, 1f, 1f, wood);
-            B("WindowGlass", new Vector3(4.95f, 1.9f, wz), new Vector3(0.04f, 1.5f, 1.3f), new Color(0.08f, 0.1f, 0.12f), false, 0.95f, 0.3f);
+            Glow("WindowGlass", new Vector3(4.95f, 1.9f, wz), new Vector3(0.04f, 1.5f, 1.3f), new Color(1f, 0.72f, 0.42f), 1.1f);     // lamps still on inside
+            PL(new Vector3(4.2f, 1.9f, wz), new Color(1f, 0.7f, 0.42f), 1.4f, 5f);
             B("WindowBar", new Vector3(4.93f, 1.9f, wz), new Vector3(0.03f, 1.5f, 0.04f), wood);
             B("WindowSill", new Vector3(4.9f, 1.02f, wz), new Vector3(0.22f, 0.06f, 1.7f), new Color(0.8f, 0.75f, 0.64f));
         }
@@ -218,6 +209,20 @@ public class Act4Story : ActStoryBase
             GameKit.Surface(B("PergolaBeam", new Vector3(0.3f, 3.4f, bz), new Vector3(8.9f, 0.12f, 0.12f), beamCol, false, 0.3f), "wood", 0.9f, 1f, 1f, beamCol);
         for (int i = 0; i < 20; i++)
             B("PergolaSlat", new Vector3(-4.0f + i * 0.45f, 3.49f, -0.1f), new Vector3(0.07f, 0.05f, 3.7f), beamCol * (0.9f + (i % 3) * 0.08f), false, 0.3f);
+        // a string of bare bulbs along each beam, sagging between the posts, and the light they throw on the tables
+        foreach (float bz in new[] { -1.7f, 1.5f })
+        {
+            for (int i = 0; i < 16; i++)
+            {
+                float x = -4.0f + i * 0.57f, sag = Mathf.Sin((i % 5) / 5f * Mathf.PI) * 0.12f;
+                GameKit.Sphere(transform, "Bulb", new Vector3(x, 3.3f - sag, bz), 0.06f, GameKit.Glow(new Color(1f, 0.82f, 0.5f), new Color(1f, 0.74f, 0.4f), 6f));
+            }
+            for (int k = 0; k < 3; k++) PL(new Vector3(-2.8f + k * 3f, 3.0f, bz), new Color(1f, 0.72f, 0.42f), 1.6f, 6f);
+        }
+        // the street lamp across the road, sodium orange
+        Cy("LampPost", new Vector3(-7.4f, 2.6f, -2.5f), 0.06f, 5.2f, new Color(0.15f, 0.15f, 0.16f), 0.5f, 0.6f);
+        Glow("LampHead", new Vector3(-7.0f, 5.15f, -2.5f), new Vector3(0.6f, 0.12f, 0.25f), new Color(1f, 0.62f, 0.25f), 3f);
+        PL(new Vector3(-6.8f, 4.6f, -2.5f), new Color(1f, 0.6f, 0.28f), 3.2f, 13f);
 
         // tables and chairs
         Vector3[] tables = { new Vector3(-2.5f, 0, -2f), new Vector3(0.5f, 0, -2f), new Vector3(-2.5f, 0, 1.5f), new Vector3(0.5f, 0, 1.5f), new Vector3(3.2f, 0, 2.6f) };
@@ -414,6 +419,7 @@ public class Act4Story : ActStoryBase
         raj.transform.position = A + new Vector3(0.3f, 0f, -9f);
         yield return FadeIn(1.5f);
         BeginFree("Find the way to the main road", A + new Vector3(0, 1.5f, 1f), "The fork");
+        StartCoroutine(CuratorFlash("flash2_01", "flash2_02", "flash2_03"));
         bool deadEndSaid = false;
         while (true)
         {
@@ -685,7 +691,7 @@ public class Act4Story : ActStoryBase
         EndTalk();
         yield return ShowCard("MUNICIPAL OFFICE MAIL  -  rohan.kapoor (intern)",
             "From:  Deputy Commissioner, Land Records\nTo:  Councilor M. Deshpande\nSubject:  RE: Basti Nagar transfer\n\n" +
-            "\"The original deed has been located in the library. S. Reddy accessed it last week. We need to retrieve it before the hearing. " +
+            "\"The original deed is no longer in the library. S. Reddy signed it out two weeks ago. We need it back from her before the hearing. " +
             "Keep the 1965 order in the file - nobody will question a stamped government document.\"");
         SaveSystem.Data.hasEmails = true; SaveSystem.Save();
         AddEvidence("MUNICIPAL EMAILS: senior officials knew the 1965 order was forged and planned to seize the original deed.");

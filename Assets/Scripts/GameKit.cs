@@ -215,6 +215,28 @@ public static class GameKit
     static Font font;
 
     /// <summary>World-space text (signs). size = approximate letter height in metres. Faces -Z by default; pass the rotation you need.</summary>
+    static Material worldTextMat;
+
+    /// <summary>
+    /// Makes a TextMesh depth-tested like a normal surface (the default font material draws through anything in front
+    /// of it while the on-screen UI is up). Use it for text printed on objects: book covers, labels, documents.
+    /// </summary>
+    public static TextMesh Solid(TextMesh tm)
+    {
+        if (tm == null || tm.font == null) return tm;
+        if (worldTextMat == null)
+        {
+            var sh = Shader.Find("Pinnacle/WorldText");
+            if (sh == null) return tm;
+            worldTextMat = new Material(sh) { name = "WorldText" };
+            var f = tm.font;
+            worldTextMat.mainTexture = f.material.mainTexture;
+            Font.textureRebuilt += rebuilt => { if (rebuilt == f && worldTextMat != null) worldTextMat.mainTexture = rebuilt.material.mainTexture; };
+        }
+        tm.GetComponent<MeshRenderer>().sharedMaterial = worldTextMat;
+        return tm;
+    }
+
     public static TextMesh Text(Transform parent, string text, Vector3 pos, Quaternion rot, float size, Color c)
     {
         if (font == null) font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");

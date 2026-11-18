@@ -721,8 +721,10 @@ public class Act3Story : ActStoryBase
         {
             yield return Talk("a3_arjun_cage");
             EndTalk();
+            bool first = !cageSeen;
             cageSeen = true;
             BeginFree("Find the key - try the librarian's desk upstairs", stairsUp.position + Vector3.up * 0.5f, "Stairs up");
+            if (first) StartCoroutine(CuratorFlash("flash1_01", "flash1_02", "flash1_03"));
             yield break;
         }
         // open the cage

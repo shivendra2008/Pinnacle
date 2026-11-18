@@ -29,6 +29,7 @@ THUG = ("Rishi", 140, 0.80, "")
 JUDGE = ("Aman", 138, 0.82, "aecho=0.6:0.5:40:0.15")
 LAWYER = ("Rishi", 165, 0.95, "")
 CURATOR = ("Daniel", 138, 0.86, "aecho=0.8:0.8:70|140:0.3|0.18")
+CURATOR_SLOW = ("Daniel", 124, 0.85, "aecho=0.8:0.8:70|140:0.3|0.18")   # the interludes: low, measured, theatrical
 
 # id: (speaker label shown in subtitles, voice, text)
 LINES = [
@@ -96,7 +97,7 @@ LINES = [
  ("a4b_arjun_confront", "ARJUN", ARJUN, "Rohan. These emails. How do you have them?"),
  ("a4b_rohan_1", "ROHAN KAPOOR", ROHAN, "It's my fault. All of it. I found the forged documents. I was filing papers at the office and I saw the acquisition order. The dates didn't match, the signatures were different. The whole thing was fake."),
  ("a4b_arjun_told", "ARJUN", ARJUN, "And you told Priya."),
- ("a4b_rohan_2", "ROHAN KAPOOR", ROHAN, "She's my sister. I thought she'd file a complaint. I didn't think she'd take the original deed from the library herself. And now they're hunting her, because of me."),
+ ("a4b_rohan_2", "ROHAN KAPOOR", ROHAN, "She's my sister. I told her where the Municipal Office keeps the 1965 file. I thought she'd file a complaint. I didn't think she'd walk in and take the original herself. And now they're hunting her, because of me."),
  ("a4b_q_a", "ARJUN", ARJUN, "Can you take me to her?"),
  ("a4b_rohan_a", "ROHAN KAPOOR", ROHAN, "Yes. I've been in contact with her. She's at the old NGO shelter near the river. She made me promise not to tell anyone, but she needs help now. I'll take you."),
  ("a4b_q_b", "ARJUN", ARJUN, "We need to go to the police."),
@@ -133,7 +134,7 @@ LINES = [
  ("a5_arjun_mother", "ARJUN", ARJUN, "Your mother sent me. She's worried sick."),
  ("a5_priya_2", "PRIYA KAPOOR", PRIYA, "Maa... I called her. I told her I loved her. I thought it might be the last time I could say it."),
  ("a5_priya_3", "PRIYA KAPOOR", PRIYA, "Five hundred families, Arjun. Children, grandparents, people who've lived in Basti Nagar for generations. The courts, the police, the politicians. They're all part of the same machine. I had to do this myself."),
- ("a5_priya_4", "PRIYA KAPOOR", PRIYA, "I have the originals. The hearing is in four hours. But if I walk into that courtroom, Deshpande will have me arrested for stealing government property. So tell me, Mister Mehra. You've seen the evidence. What should I do?"),
+ ("a5_priya_4", "PRIYA KAPOOR", PRIYA, "I have the original 1965 file. The forged one, with their signatures on it. The hearing is in six hours. But if I walk into that courtroom, Deshpande will have me arrested for stealing government property. So tell me, Mister Mehra. You've seen the evidence. What should I do?"),
 
  # ---------------- THE CURATOR'S GALLERY
  ("gal_1", "THE CURATOR", CURATOR, "Ah. There you are. I was beginning to wonder if you'd lost your way in all those narrow lanes, and narrower consciences."),
@@ -148,10 +149,99 @@ LINES = [
  ("gal_sealed_iron", "THE CURATOR", CURATOR, "A fire needs fuel. Recordings, emails, something the city can read. You have none. The iron stays cold."),
  ("gal_chosen", "THE CURATOR", CURATOR, "So be it."),
 
+ # ---------------- CURATOR 00: WELCOME (after Act I)
+ ("cur0_01", "THE CURATOR", CURATOR_SLOW, 'There you are.'),
+ ("cur0_02", "THE CURATOR", CURATOR_SLOW, 'You may call me the Curator. Everyone does. It saves time.'),
+ ("cur0_03", "THE CURATOR", CURATOR_SLOW, 'This is not the room you left. This is where the room you left is kept.'),
+ ("cur0_04", "THE CURATOR", CURATOR_SLOW, 'A woman disappears, and the city files her under "left voluntarily." The city is a poor librarian.'),
+ ("cur0_05", "THE CURATOR", CURATOR_SLOW, 'But you did not believe the filing. You walked into a life interrupted mid-sentence. A chai gone cold. A suitcase half-packed. A window forced from the outside.'),
+ ("cur0_06", "THE CURATOR", CURATOR_SLOW, 'You noticed. In my experience, noticing is the rarest courage. It is also the cheapest. Consequently, everyone can afford it, and almost no one buys it.'),
+ ("cur0_07", "THE CURATOR", CURATOR_SLOW, "You moved through her things like a man reading someone else's diary. Guilty. Careful. Good. Guilt is a form of respect."),
+ ("cur0_08", "THE CURATOR", CURATOR_SLOW, 'The phone was behind the law books. The law is an excellent place to hide a thing. No one looks behind it.'),
+ ("cur0_09", "THE CURATOR", CURATOR_SLOW, 'The number was under the keyboard. She hid it from the laptop and kept it for a person. Try to be that person.'),
+ ("cur0_10", "THE CURATOR", CURATOR_SLOW, 'A note under the door, in the same hand as the number. Two messages, one author.'),
+ ("cur0_11", "THE CURATOR", CURATOR_SLOW, 'Ask yourself: why would a friend warn you away, and then leave you a thread to pull?'),
+ ("cur0_12", "THE CURATOR", CURATOR_SLOW, 'I will keep this key. You will not need the door again. You will need the name behind it.'),
+ ("cur0_13", "THE CURATOR", CURATOR_SLOW, 'Someone stood on that landing and listened to you breathe. They did not knock.'),
+ ("cur0_14", "THE CURATOR", CURATOR_SLOW, 'People who do not knock are waiting for something. Do not give it to them.'),
+ ("cur0_15", "THE CURATOR", CURATOR_SLOW, 'Dawn is a creditor, investigator. It always collects. Off you go.'),
+ # ---------------- CURATOR 01: after Act II
+ ("cur1_01", "THE CURATOR", CURATOR_SLOW, 'Chandnipur at night is a sentence written in neon and cooking oil. You read it better than most.'),
+ ("cur1_02", "THE CURATOR", CURATOR_SLOW, 'Someone broke this kettle. Not for the kettle. For the sound it makes when it breaks. Fear is a language, and they are fluent.'),
+ ("cur1_03", "THE CURATOR", CURATOR_SLOW, "The chai-wallah gave what he had left to give. A daughter's life in a plastic shell. Evidence is never only evidence."),
+ ("cur1_04", "THE CURATOR", CURATOR_SLOW, 'A watcher who drops her badge is either careless or inviting you to follow. She did not look careless.'),
+ ("cur1_05", "THE CURATOR", CURATOR_SLOW, 'Drivers are confessional. They hear the sentences people say to the air. If you have not asked the man who drove her what he heard, you have left a witness idling at the curb.'),
+ ("cur1_06", "THE CURATOR", CURATOR_SLOW, 'Black cars are like bad thoughts. They follow you home and never use their indicators.'),
+ ("cur1_07", "THE CURATOR", CURATOR_SLOW, 'You have been noticed. Somewhere in this city, your face is a file now. Files are patient. They wait in drawers and become warrants.'),
+ ("cur1_08", "THE CURATOR", CURATOR_SLOW, 'Go on. The night is young and the kettle is broken. Both are your problem now.'),
+ # ---------------- CURATOR 02: after Act III
+ ("cur2_01", "THE CURATOR", CURATOR_SLOW, "You have found the lie at the bottom of the city. It is small, isn't it? A date. A stamp. A signature that leans the wrong way."),
+ ("cur2_02", "THE CURATOR", CURATOR_SLOW, 'Empires fall on stationery.'),
+ ("cur2_03", "THE CURATOR", CURATOR_SLOW, "Nineteen forty-two. Nineteen sixty-five. Ten o'clock. History is a queue of paper, and someone has been jumping it."),
+ ("cur2_04", "THE CURATOR", CURATOR_SLOW, "A locked drawer, opened with a grandmother's name. Sentiment is an excellent password. No one brute-forces it."),
+ ("cur2_05", "THE CURATOR", CURATOR_SLOW, 'The inspector signed for the truth and locked it in a cage. The question is not whether she is a thief. The question is what she intends to do with the stolen thing.'),
+ ("cur2_06", "THE CURATOR", CURATOR_SLOW, 'Panditji asked you what matters more: the truth, or the people the truth protects. You answered. I heard you.'),
+ ("cur2_07", "THE CURATOR", CURATOR_SLOW, 'I have ten thousand stories on these shelves. I can tell you which answer is true. I cannot tell you which one is kind. That is your department.'),
+ ("cur2_08", "THE CURATOR", CURATOR_SLOW, 'Three doors. A cafe. A house. A woman in khaki. You cannot open all three. That is not cruelty. That is arithmetic.'),
+ ("cur2_09", "THE CURATOR", CURATOR_SLOW, 'The call that summons you and the call that frightens you came in the same hour. One is a trap. One is a test. They may be the same thing.'),
+ ("cur2_10", "THE CURATOR", CURATOR_SLOW, 'Choose the door that costs you something. The others are only corridors.'),
+ ("cur2_11", "THE CURATOR", CURATOR_SLOW, 'And investigator, the next time we meet, you will have chosen your company. Choose it for the right reason, not the loud one.'),
+ # ---------------- CURATOR 03: after Act IV
+ ("cur3_01", "THE CURATOR", CURATOR_SLOW, 'There you are. Still breathing. Still meddling. I am beginning to enjoy you.'),
+ ("cur3_02", "THE CURATOR", CURATOR_SLOW, 'It is nearly four. The hour when cities confess.'),
+ ("cur3_03", "THE CURATOR", CURATOR_SLOW, 'You have chosen your company. A builder who wanted to be good. A boy who wanted to be brave. A woman who wanted to be right. Whichever door you opened, you did not choose a saviour. You chose a witness. That is rarer.'),
+ ("cur3_04", "THE CURATOR", CURATOR_SLOW, 'Every ally is a receipt. You will pay for them at dawn.'),
+ ("cur3_05", "THE CURATOR", CURATOR_SLOW, 'You have collected them the way a drowning man collects driftwood. Good. Driftwood does not steer.'),
+ ("cur3_06", "THE CURATOR", CURATOR_SLOW, 'At ten, a judge will ask what you can prove. Not what you feel. Not what you suspect. What you can put on a table and make him look at.'),
+ ("cur3_07", "THE CURATOR", CURATOR_SLOW, 'Count your evidence, investigator. Then count it again. The difference between a rescue and a massacre is usually paperwork.'),
+ ("cur3_08", "THE CURATOR", CURATOR_SLOW, 'And you have made a witness of a woman who has been running for her life. A witness is not a thing you carry. It is a person you spend.'),
+ ("cur3_09", "THE CURATOR", CURATOR_SLOW, 'The next room is mine. There are three boxes on a table and a question in each. You will pretend to choose. We both know you have been choosing all night.'),
+ ("cur3_10", "THE CURATOR", CURATOR_SLOW, 'After you.'),
+ # ---------------- CURATOR: optional swap lines (priest's answer / Act IV ally)
+ ("cur2_truth", "THE CURATOR", CURATOR_SLOW, 'You chose the truth. Clean. Cold. A sword is also clean.'),
+ ("cur2_people", "THE CURATOR", CURATOR_SLOW, 'You chose the people. Warm. Necessary. A blanket can also smother.'),
+ ("cur2_both", "THE CURATOR", CURATOR_SLOW, 'You chose both. Ambitious. The truest answers are the ones that cost the most to hold at once.'),
+ ("cur3_raj", "THE CURATOR", CURATOR_SLOW, 'The builder wanted to be good and settled for useful. There is a difference, and he knows it now. He handed you six months of his own voice. Do you know what that costs a man? More than money.'),
+ ("cur3_rohan", "THE CURATOR", CURATOR_SLOW, 'The boy lit the fuse and then tried to carry the bomb. Guilt makes soldiers of children. It also makes liars. He is not brave, your Rohan. He is sorry. Sometimes sorry is enough.'),
+ ("cur3_reddy", "THE CURATOR", CURATOR_SLOW, 'The inspector lied to you for your own good. The rarest kind of lie. Treasure it. Also, check it. She built a case for six months while the city built a coffin.'),
+ # ---------------- CURATOR: ending, generic
+ ("endG_01", "THE CURATOR", CURATOR_SLOW, 'Ah. There you are. On the other side.'),
+ ("endG_02", "THE CURATOR", CURATOR_SLOW, 'You chose. The city will do the rest. It always does.'),
+ ("endG_03", "THE CURATOR", CURATOR_SLOW, 'I have seen a thousand endings to this story. Justice. Sacrifice. Revolution. The names change. The bill does not.'),
+ ("endG_04", "THE CURATOR", CURATOR_SLOW, 'Someone was saved. Something was spent. You learned the difference between the truth and the people it protects. That is more than most of my visitors manage.'),
+ ("endG_05", "THE CURATOR", CURATOR_SLOW, 'The book is closed. The candle is out. The shelf has a new story on it.'),
+ ("endG_06", "THE CURATOR", CURATOR_SLOW, 'And you, you have a new one to live.'),
+ ("endG_07", "THE CURATOR", CURATOR_SLOW, 'I will see you in the next one.'),
+ # ---------------- CURATOR: ending, Justice
+ ("endJ_01", "THE CURATOR", CURATOR_SLOW, 'So. The courtroom. The deed. The gavel. You chose the clean ending.'),
+ ("endJ_02", "THE CURATOR", CURATOR_SLOW, 'I must confess, I do not get many of these. Most of my stories end in blood or silence. This one ends in sunlight. How unusual.'),
+ ("endJ_03", "THE CURATOR", CURATOR_SLOW, 'You proved that the courage of one can shelter the many. A textbook victory for righteousness. The sort of ending that makes children believe the world is fair.'),
+ ("endJ_04", "THE CURATOR", CURATOR_SLOW, 'Enjoy it, investigator. Endings like this are rare, and rarer still are the people who deserve them.'),
+ ("endJ_05", "THE CURATOR", CURATOR_SLOW, 'The candle is out. The book is closed. I will see you in the next one.'),
+ # ---------------- CURATOR: ending, Sacrifice
+ ("endS_01", "THE CURATOR", CURATOR_SLOW, 'So. The girl lives. The evidence goes in alone. You chose the quiet ending.'),
+ ("endS_02", "THE CURATOR", CURATOR_SLOW, 'You saved her. Congratulations. Was she worth five hundred families? I am not judging. Actually, I am. That is rather my job.'),
+ ("endS_03", "THE CURATOR", CURATOR_SLOW, "You built a sanctuary on graves and called it mercy. It will hold. For a while. Sanctuaries always hold until they don't."),
+ ("endS_04", "THE CURATOR", CURATOR_SLOW, 'She will spend the rest of her life wondering what would have happened if she had been brave enough to walk through those doors. You gave her that, too.'),
+ ("endS_05", "THE CURATOR", CURATOR_SLOW, 'The candle is out. The book is closed. I will see you in the next one.'),
+ # ---------------- CURATOR: ending, Revolution
+ ("endR_01", "THE CURATOR", CURATOR_SLOW, 'So. The press. The streets. The fire. You chose the loud ending.'),
+ ("endR_02", "THE CURATOR", CURATOR_SLOW, 'I have many stories of revolution. They all end the same way. The people cheer. The hero weeps. The crowd goes home. The hero stays in the fire.'),
+ ("endR_03", "THE CURATOR", CURATOR_SLOW, 'You gave them the truth. You took her peace. Freedom is a marvellous thing, and its price is always paid in a currency the crowd never sees.'),
+ ("endR_04", "THE CURATOR", CURATOR_SLOW, 'Perhaps they will remember her name. Perhaps they will remember the noise. The city is fickle. The fire is not.'),
+ ("endR_05", "THE CURATOR", CURATOR_SLOW, 'The candle is out. The book is closed. I will see you in the next one.'),
+ # ---------------- CURATOR: in-act flash, the locked cage (Act III)
+ ("flash1_01", "THE CURATOR", CURATOR_SLOW, "Don't mind me. I am only here for the draft."),
+ ("flash1_02", "THE CURATOR", CURATOR_SLOW, 'You are looking for a page that has already been read. The question is not where the deed is. The question is who signed for it.'),
+ ("flash1_03", "THE CURATOR", CURATOR_SLOW, 'Also, the desk upstairs is a poor lock with a good memory. Ask the calendar what it remembers.'),
+ # ---------------- CURATOR: in-act flash, the back door (Act IV)
+ ("flash2_01", "THE CURATOR", CURATOR_SLOW, 'Left is a dead end. Right is a road. I know which one you want. It has better scenery.'),
+ ("flash2_02", "THE CURATOR", CURATOR_SLOW, 'Tonight, be boring. Boring people live to testify.'),
+ ("flash2_03", "THE CURATOR", CURATOR_SLOW, 'Mind the dumpster. It has opinions.'),
  # ---------------- ENDING 1: JUSTICE
  ("end1_vo_dawn", "ARJUN (V.O.)", ARJUN, "Dawn. Shutters rising, temple bells, chai stoves. And outside the Municipal Court, Basti Nagar had come to watch."),
  ("end1_lawyer", "DESHPANDE'S LAWYER", LAWYER, "Your Honour, the Renewal Project is a vision for a modern Chandnipur. The acquisition order of 1965 is entirely in order."),
- ("end1_priya", "PRIYA KAPOOR", PRIYA, "Your Honour, I am Priya Kapoor, advocate for the residents of Basti Nagar. The acquisition order of 1965 is a forgery. The original deed of 1942 proves the land belongs to its residents, in perpetuity. I have it here."),
+ ("end1_priya", "PRIYA KAPOOR", PRIYA, "Your Honour, I am Priya Kapoor, advocate for the residents of Basti Nagar. The acquisition order of 1965 is a forgery. This is the original file, with the forgers' signatures on it. And the original deed of 1942, now in Crime Branch custody, proves the land belongs to its residents, in perpetuity."),
  ("end1_reddy", "INSPECTOR REDDY", REDDY, "Inspector Sonal Reddy, Crime Branch. I have a warrant for the arrest of Councilor Meghna Deshpande, for fraud, forgery and criminal conspiracy."),
  ("end1_raj", "RAJ MALHOTRA", RAJ, "I am Raj Malhotra. I signed the Renewal contracts. And I have six months of recordings of the councilor planning this fraud. I will play them for the court."),
  ("end1_rohan", "ROHAN KAPOOR", ROHAN, "I'm Rohan Kapoor. I was an intern at the Municipal Office. These internal emails prove the forgery was known, and approved, at the highest level."),

@@ -234,19 +234,7 @@ public class MarketStory : MonoBehaviour
     void SetPaused(bool p)
     {
         paused = p;
-        if (p)
-        {
-            savedLocked = PriyaRoomPlayer.Locked;
-            PriyaRoomPlayer.Locked = true;
-            Time.timeScale = 0f; AudioListener.pause = true;
-            Cursor.lockState = CursorLockMode.None; Cursor.visible = true;
-        }
-        else
-        {
-            PriyaRoomPlayer.Locked = savedLocked;
-            Time.timeScale = 1f; AudioListener.pause = false;
-            Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false;
-        }
+        GameState.SetPaused(p);
     }
 
     void OnDestroy()
@@ -316,8 +304,7 @@ public class MarketStory : MonoBehaviour
         if (idCard != null && Aim(idCard.transform.position, 3.5f, out a) && a < best)
         { best = a; prompt = "[E]  Pick up the ID card"; act = () => StartCoroutine(PickUpId()); }
 
-        var kb = Keyboard.current;
-        if (act != null && kb != null && kb.eKey.wasPressedThisFrame)
+        if (act != null && GameInput.InteractPressed)
         {
             sfx.PlayOneShot(clickClip, 0.6f);
             act();
@@ -376,8 +363,9 @@ public class MarketStory : MonoBehaviour
         float t = 0;
         while (t < dur)
         {
+            if (GameState.Paused) { yield return null; continue; }
             var kb = Keyboard.current;
-            if (skipAll || (kb != null && (kb.eKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame)))
+            if (skipAll || GameInput.InteractPressed || (kb != null && kb.spaceKey.wasPressedThisFrame))
             {
                 voice.Stop(); if (npc != null) npc.Silence();
                 break;
@@ -396,6 +384,7 @@ public class MarketStory : MonoBehaviour
         yield return null;
         while (menuResult < 0)
         {
+            if (GameState.Paused) { yield return null; continue; }
             var kb = Keyboard.current;
             if (kb != null)
             {
@@ -451,7 +440,7 @@ public class MarketStory : MonoBehaviour
             fade = 1f; fadeTarget = 0f; fadeSpeed = 1.2f;
             StartCoroutine(RampAmbience(0f, 0.9f, 2f));
             PriyaRoomPlayer.Locked = false;
-            Toast("Welcome back, " + SaveSystem.Data.playerName + ".   Progress restored.", 6f);
+            Toast("Welcome back, " + SaveSystem.Profile.playerName + ".   Progress restored.", 6f);
             yield break;
         }
         phase = Phase.Intro;
@@ -846,7 +835,8 @@ public class MarketStory : MonoBehaviour
         sub = null;
         phase = Phase.Ending;
         SaveSystem.CompleteAct(2);
-        ActLoader.Load(3, builder, player, false);          // on to Act III
+        var b = builder; var p = player;
+        CuratorInterlude.Play(1, b, p, () => ActLoader.Load(3, b, p, false));     // the Curator, then Act III
     }
 
     IEnumerator MoveSuv(float targetZ, float speed, float easeOut)
@@ -1448,7 +1438,7 @@ public class MarketStory : MonoBehaviour
         if (showEnd)
         {
             Shadowed(new Rect(0, H * 0.34f, W, 70), "END OF DEMO", sTitle);
-            Shadowed(new Rect(0, H * 0.34f + 76, W, 36), "Thanks for playing, " + SaveSystem.Data.playerName + ".   Acts I and II complete.   Press R for the main menu", sTitle2);
+            Shadowed(new Rect(0, H * 0.34f + 76, W, 36), "Thanks for playing, " + SaveSystem.Profile.playerName + ".   Acts I and II complete.   Press R for the main menu", sTitle2);
         }
 
         if (journalOpen && !paused && phase != Phase.Ending) DrawJournal(W, H);

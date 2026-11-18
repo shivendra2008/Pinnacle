@@ -15,8 +15,7 @@ public static class ActLoader
         builder.ExtraRoot = root;
         builder.Root.gameObject.SetActive(false);
         if (old != null) UnityEngine.Object.Destroy(old);
-        Time.timeScale = 1f;
-        AudioListener.pause = false;
+        GameState.ResetForNewScene();
 
         if (act == 2)
         {
@@ -109,7 +108,8 @@ public abstract class ActStoryBase : MonoBehaviour
     protected string objective = "";
     protected Vector3? objectiveTarget; protected string objectiveName = "";
     string prompt = "";
-    string sub; float subUntil;
+    protected string sub; protected float subUntil;
+    float flashStart = -10f, flashEnd = -10f;
     string toast; float toastUntil; bool toastBig;
     string titleA, titleB; float titleStart, titleEnd;
     protected string dlgSpeaker, dlgText; string[] dlgOptions; bool[] dlgDisabled; protected int menuResult;
@@ -207,23 +207,12 @@ public abstract class ActStoryBase : MonoBehaviour
     void SetPaused(bool p)
     {
         paused = p;
-        if (p)
-        {
-            savedLocked = PriyaRoomPlayer.Locked; PriyaRoomPlayer.Locked = true;
-            Time.timeScale = 0f; AudioListener.pause = true;
-            Cursor.lockState = CursorLockMode.None; Cursor.visible = true;
-        }
-        else
-        {
-            PriyaRoomPlayer.Locked = savedLocked;
-            Time.timeScale = 1f; AudioListener.pause = false;
-            Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false;
-        }
+        GameState.SetPaused(p);
     }
 
     protected virtual void OnDestroy()
     {
-        Time.timeScale = 1f; AudioListener.pause = false;
+        GameState.ResetForNewScene();
         if (Keyboard.current != null) Keyboard.current.onTextInput -= OnCodeChar;
     }
 
@@ -324,7 +313,27 @@ public abstract class ActStoryBase : MonoBehaviour
         yield return FadeOut(0.6f);
         StartCoroutine(RampAmbience(ambience.volume, 0f, 1.5f));
         yield return new WaitForSeconds(1.5f);
-        ActLoader.Load(ActNumber + 1, builder, player, false);
+        int next = ActNumber + 1;
+        var b = builder; var p = player;
+        if (ActNumber >= 1 && ActNumber <= 4)          // the Curator has something to say between the acts
+            CuratorInterlude.Play(ActNumber - 1, b, p, () => ActLoader.Load(next, b, p, false));
+        else ActLoader.Load(next, b, p, false);
+    }
+
+    /// <summary>
+    /// The Curator, briefly, in the middle of an act: the picture sinks into a red-black haze, a low note, and his
+    /// voice over whatever the player is doing. Start it with StartCoroutine to let the player keep moving.
+    /// </summary>
+    protected IEnumerator CuratorFlash(params string[] ids)
+    {
+        flashStart = Time.time; flashEnd = float.MaxValue;
+        sfx.PlayOneShot(Tone(41f, 2.2f, 1.1f, 0.9f), 0.55f);
+        float pitch = ambience.pitch;
+        ambience.pitch = pitch * 0.82f;
+        yield return Wait(0.6f);
+        foreach (var id in ids) { yield return Narrate(id); yield return Wait(0.35f); }
+        ambience.pitch = pitch;
+        flashEnd = Time.time;
     }
 
     protected IEnumerator RampAmbience(float from, float to, float dur)
@@ -352,8 +361,9 @@ public abstract class ActStoryBase : MonoBehaviour
         float t = 0;
         while (t < dur)
         {
+            if (GameState.Paused) { yield return null; continue; }
             var kb = Keyboard.current;
-            if (skipAll || (kb != null && (kb.eKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame)))
+            if (skipAll || GameInput.InteractPressed || (kb != null && kb.spaceKey.wasPressedThisFrame))
             {
                 voice.Stop(); if (npc != null) npc.Silence();
                 break;
@@ -376,6 +386,7 @@ public abstract class ActStoryBase : MonoBehaviour
         float t = 0;
         while (t < dur)
         {
+            if (GameState.Paused) { yield return null; continue; }
             var kb = Keyboard.current;
             if (skipAll || (kb != null && kb.spaceKey.wasPressedThisFrame)) { voice.Stop(); break; }
             t += Time.deltaTime;
@@ -394,6 +405,7 @@ public abstract class ActStoryBase : MonoBehaviour
         yield return null;
         while (menuResult < 0)
         {
+            if (GameState.Paused) { yield return null; continue; }
             var kb = Keyboard.current;
             if (kb != null)
             {
@@ -420,8 +432,9 @@ public abstract class ActStoryBase : MonoBehaviour
         yield return null; yield return null;
         while (true)
         {
+            if (GameState.Paused) { yield return null; continue; }
             var kb = Keyboard.current;
-            if (kb != null && (kb.eKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame || kb.escapeKey.wasPressedThisFrame)) break;
+            if (GameInput.InteractPressed || (kb != null && (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame || kb.escapeKey.wasPressedThisFrame))) break;
             yield return null;
         }
         cardOpen = false;
@@ -465,6 +478,7 @@ public abstract class ActStoryBase : MonoBehaviour
 
     void OnCodeChar(char c)
     {
+        if (GameState.Paused) return;
         if (!codeOpen || char.IsControl(c) || codeBuf.Length >= codeMax) return;
         if (codeDigits ? char.IsDigit(c) : char.IsLetterOrDigit(c)) codeBuf += char.ToUpperInvariant(c);
     }
@@ -492,8 +506,7 @@ public abstract class ActStoryBase : MonoBehaviour
         }
         if (best == null) return;
         prompt = "[E]  " + best.label;
-        var kb = Keyboard.current;
-        if (kb != null && kb.eKey.wasPressedThisFrame)
+        if (GameInput.InteractPressed)
         {
             sfx.PlayOneShot(clickClip, 0.6f);
             best.act();
@@ -743,6 +756,15 @@ public abstract class ActStoryBase : MonoBehaviour
         float W = Screen.width / s, H = Screen.height / s;
 
         UiKit.Letterbox(W, H, !paused && creditsStart <= 0 && (phase == Phase.Intro || !string.IsNullOrEmpty(dlgText) || cardOpen));
+        float fl = Mathf.Min(Mathf.Clamp01((Time.time - flashStart) / 0.5f), Mathf.Clamp01((flashEnd - Time.time) / 0.8f + 1f));
+        if (fl > 0.001f && !paused)
+        {
+            var o = GUI.color;
+            float flick = Mathf.PerlinNoise(Time.time * 6f, 0.3f) > 0.82f ? 0.12f : 0f;
+            GUI.color = new Color(0.22f, 0f, 0.01f, fl * (0.34f + flick));
+            GUI.DrawTexture(new Rect(0, 0, W, H), Texture2D.whiteTexture);
+            GUI.color = o;
+        }
 
         if (phase == Phase.Free && !paused)
         {
@@ -881,7 +903,7 @@ public abstract class ActStoryBase : MonoBehaviour
         var notes = new List<UiKit.Note>();
         for (int i = d.evidence.Count - 1; i >= 0; i--)          // newest first
             notes.Add(new UiKit.Note("Evidence " + (i + 1).ToString("00"), d.evidence[i]));
-        UiKit.CaseFile(W, H, "Detective " + d.playerName,
+        UiKit.CaseFile(W, H, "Detective " + SaveSystem.Profile.playerName,
             "Apartment clues  " + d.clues.Count + " / 9\nEvidence notes  " + d.evidence.Count,
             notes, "Nothing recorded yet. Talk to people and examine what you find.");
     }

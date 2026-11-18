@@ -25,3 +25,8 @@ sysinfo.txt
 .vs/
 .DS_Store
 *.swp
+
+# test harness build output
+Tools/tests/**/bin/
+Tools/tests/**/obj/
+!Tools/tests/**/*.csproj
