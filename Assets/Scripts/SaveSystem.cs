@@ -21,7 +21,8 @@ public static class SaveSystem
     static ProfileData profile;
     static bool replay;
 
-    static string Dir => Application.persistentDataPath;
+    // PINNACLE_SAVE_DIR redirects the saves (the automated play-test uses it so it never touches a real save)
+    static string Dir => string.IsNullOrEmpty(Environment.GetEnvironmentVariable("PINNACLE_SAVE_DIR")) ? Application.persistentDataPath : Environment.GetEnvironmentVariable("PINNACLE_SAVE_DIR");
     static string CampaignPath => System.IO.Path.Combine(Dir, "shadows_of_chandni_save.json");
     static string ProfilePath => System.IO.Path.Combine(Dir, "shadows_of_chandni_profile.json");
 

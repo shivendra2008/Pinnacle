@@ -59,7 +59,7 @@ public static class Cast
     }
 
     public static NpcStyle Sharma() { return Casual(1.62f, C(0.55f, 0.5f, 0.35f), C(0.35f, 0.32f, 0.25f), C(0.5f, 0.33f, 0.22f), C(0.75f, 0.75f, 0.75f)).Rb("Security_Male_01"); }
-    public static NpcStyle Pandit() { return Casual(1.6f, C(0.95f, 0.5f, 0.1f), C(0.95f, 0.92f, 0.85f), C(0.55f, 0.36f, 0.24f), C(0.85f, 0.85f, 0.85f)).Rb("Male_Adult_15", C(1f, 0.62f, 0.26f)); }
+    public static NpcStyle Pandit() { return Casual(1.6f, C(0.95f, 0.5f, 0.1f), C(0.95f, 0.92f, 0.85f), C(0.55f, 0.36f, 0.24f), C(0.85f, 0.85f, 0.85f)).Rb("Male_Adult_15", C(1f, 0.62f, 0.26f)).Head("m204_head_shaved"); }   // saffron, shaved head, tilak
     public static NpcStyle Devotee(int seed) { return seed % 2 == 0 ? NpcStyle.CrowdWoman(seed) : NpcStyle.Crowd(seed); }
     public static NpcStyle Raj() { return Suit(1.76f, C(0.32f, 0.33f, 0.36f), C(0.85f, 0.85f, 0.82f), C(0.62f, 0.44f, 0.3f), C(0.15f, 0.12f, 0.1f)).Rb("Business_Male_05"); }
     public static NpcStyle Rohan() { return Casual(1.72f, C(0.2f, 0.4f, 0.7f), C(0.15f, 0.15f, 0.2f), C(0.6f, 0.42f, 0.29f), C(0.05f, 0.04f, 0.04f)).Rb("Male_Adult_17"); }

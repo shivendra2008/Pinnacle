@@ -180,7 +180,7 @@ public class MarketStory : MonoBehaviour
         float zTarget = Mathf.Clamp(zStart + dz, lo, hi);
         while (n != null)
         {
-            yield return n.WalkTo(new Vector3(x, 0, zTarget), speed);
+            yield return n.WalkTo(new Vector3(x, 0, zTarget), speed, -1f, false);     // stuck in the crowd: just turn back
             zTarget = zTarget > zStart ? Mathf.Clamp(zStart - Mathf.Abs(dz), lo, hi) : Mathf.Clamp(zStart + Mathf.Abs(dz), lo, hi);
             yield return new WaitForSeconds(UnityEngine.Random.Range(0.5f, 2.5f));
         }
@@ -1049,6 +1049,8 @@ public class MarketStory : MonoBehaviour
     }
 
     /// <summary>People walking near a moving or parked vehicle step out of its way, like real pedestrians do.</summary>
+    Transform cartT;
+
     void AvoidVehicles()
     {
         foreach (var n in crowd)
@@ -1056,6 +1058,7 @@ public class MarketStory : MonoBehaviour
             if (n == null || !n.IsPhysical || !n.IsWalking) continue;
             Vector3 np = n.transform.position;
             foreach (var v in vehicles) AvoidOne(n, np, v);
+            if (cartT != null && n.name != "CartMan") AvoidOne(n, np, cartT);     // the hand cart is dragged, not driven: walk round it
             AvoidOne(n, np, world.Suv);
             AvoidOne(n, np, world.Auto);
         }
@@ -1078,11 +1081,15 @@ public class MarketStory : MonoBehaviour
     {
         var puller = AddCrowd(new Vector3(-1.7f, 0, 10f), 0f, NpcStyle.Crowd(777), "CartMan", false);
         var cart = world.SpawnHandCart(new Vector3(-1.7f, 0, 8.3f));
+        cartT = cart;
+        // the cart is moved by hand every frame; it must not shove its own puller sideways when he turns
+        var pullerCol = puller.GetComponent<Collider>();
+        if (pullerCol != null) foreach (var cc in cart.GetComponentsInChildren<Collider>()) Physics.IgnoreCollision(cc, pullerCol);
         StartCoroutine(CartFollow(puller, cart));
         bool up = true;
         while (puller != null)
         {
-            yield return puller.WalkTo(new Vector3(-1.7f, 0, up ? 66f : 10f), 0.85f);
+            yield return puller.WalkTo(new Vector3(-1.7f, 0, up ? 66f : 10f), 0.85f, -1f, false);
             up = !up;
             yield return new WaitForSeconds(2.5f);
         }

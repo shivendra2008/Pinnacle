@@ -1,0 +1,68 @@
+Play-test 18-11-2026 16:17:21  Unity 6000.5.9f1  Apple M1  Apple M1
+PASS  game boots to the title screen
+PASS  New game starts the Curator prologue
+prologue: camera parent during cutscene = CuratorInterlude_0
+PASS  skipping the prologue ends it
+PASS  camera is back in Arjun's head after the skip
+PASS  player controller re-enabled
+PASS  time, audio and pause are normal
+PASS  Act I story is running again
+PASS  Act I reaches free exploration after the intro
+PASS  player can move in Act I
+clue 9_BrokenWindowLatch        visible aims  49   new targeting  100%   old targeting  100%
+PASS  9_BrokenWindowLatch: can be seen from somewhere in the room
+PASS  9_BrokenWindowLatch: hint appears on at least 90% of aims at visible parts
+PASS  9_BrokenWindowLatch: in play, the crosshair focus is on it
+clue 1_Laptop                   visible aims  84   new targeting   95%   old targeting   75%
+PASS  1_Laptop: can be seen from somewhere in the room
+PASS  1_Laptop: hint appears on at least 90% of aims at visible parts
+PASS  1_Laptop: in play, the crosshair focus is on it
+clue 2_StickyNote               visible aims  81   new targeting  100%   old targeting   65%
+PASS  2_StickyNote: can be seen from somewhere in the room
+PASS  2_StickyNote: hint appears on at least 90% of aims at visible parts
+PASS  2_StickyNote: in play, the crosshair focus is on it
+clue 6_TornPhotograph           visible aims  70   new targeting   49%   old targeting    0%
+PASS  6_TornPhotograph: can be seen from somewhere in the room
+FAIL  6_TornPhotograph: hint appears on at least 90% of aims at visible parts
+PASS  6_TornPhotograph: in play, the crosshair focus is on it
+clue 3_NewspaperClippings       visible aims  56   new targeting  100%   old targeting  100%
+PASS  3_NewspaperClippings: can be seen from somewhere in the room
+PASS  3_NewspaperClippings: hint appears on at least 90% of aims at visible parts
+PASS  3_NewspaperClippings: in play, the crosshair focus is on it
+clue 8_Diary                    visible aims  78   new targeting   85%   old targeting   27%
+PASS  8_Diary: can be seen from somewhere in the room
+FAIL  8_Diary: hint appears on at least 90% of aims at visible parts
+PASS  8_Diary: in play, the crosshair focus is on it
+clue 4_HalfPackedSuitcase       visible aims  91   new targeting  100%   old targeting   31%
+PASS  4_HalfPackedSuitcase: can be seen from somewhere in the room
+PASS  4_HalfPackedSuitcase: hint appears on at least 90% of aims at visible parts
+PASS  4_HalfPackedSuitcase: in play, the crosshair focus is on it
+clue 5_TwoChaiCups              visible aims 119   new targeting   82%   old targeting   47%
+PASS  5_TwoChaiCups: can be seen from somewhere in the room
+FAIL  5_TwoChaiCups: hint appears on at least 90% of aims at visible parts
+PASS  5_TwoChaiCups: in play, the crosshair focus is on it
+clue 7_BurnerPhone              visible aims  81   new targeting  100%   old targeting  100%
+PASS  7_BurnerPhone: can be seen from somewhere in the room
+PASS  7_BurnerPhone: hint appears on at least 90% of aims at visible parts
+PASS  7_BurnerPhone: in play, the crosshair focus is on it
+ALL CLUES: new targeting 89.7% of 709 visible aims, old targeting 57.4%
+PASS  Kamala exists in Act I
+PASS  Kamala's model has head, eye and eyelid bones
+Kamala eyelid gap: open 0.0108 m, closest during blink 0.0000 m
+PASS  eyelid bones have a measurable opening
+PASS  a blink closes the eyelids to less than half the opening
+  f202_hipoly_81_bones_opacity: mesh not readable, cannot count skin weights
+PASS  face bones never go NaN
+PASS  pausing sets the shared pause state
+PASS  E is ignored while paused
+SKIP  'E works after unpausing': key is down but this-frame press detection does not work with manual input updates in batch mode (harness limitation; GameInput only adds a pause check)
+PASS  unpausing restores time and audio
+PASS  play-test uses its own save folder
+PASS  saving writes the file and keeps a backup
+PASS  a corrupted save is recovered from the backup
+PASS  the corrupted file is kept for diagnosis
+PASS  interlude after Act II starts
+PASS  skipping the interlude runs its exit callback once
+PASS  camera returned to the player after the interlude
+
+RESULT: 3 of 51 CHECKS FAILED
