@@ -73,6 +73,7 @@ public class PriyaRoomBuilder : MonoBehaviour
         BuildKitchenAlcove();
         BuildBookshelf();
         BuildDecor();
+        DressFurniture();
         BuildFan();
         BuildLighting();
         Texturize();
@@ -401,11 +402,11 @@ public class PriyaRoomBuilder : MonoBehaviour
             if (i == 2) l.gameObject.AddComponent<FlickerLight>();
         }
 
-        // ---- the four flats: 301 Kapoor (open), 302 Verma, 303 D'Souza, 304 Khan (closed, iron grille gates)
+        // ---- the four flats: 301 Kapoor (open), 302 Verma, 303 Joshi, 304 Iyer (closed, iron grille gates)
         DoorDecor(doorX, true, "KAPOOR", "301", new Color(0.35f, 0.28f, 0.2f));
         FlatDoor(2.2f, true, "VERMA", "302", new Color(0.18f, 0.35f, 0.5f), true, false);
-        FlatDoor(-2.3f, false, "D'SOUZA", "303", new Color(0.45f, 0.2f, 0.16f), true, false);
-        FlatDoor(2.5f, false, "KHAN", "304", new Color(0.2f, 0.4f, 0.28f), true, true);
+        FlatDoor(-2.3f, false, "JOSHI", "303", new Color(0.45f, 0.2f, 0.16f), true, false);
+        FlatDoor(2.5f, false, "IYER", "304", new Color(0.2f, 0.4f, 0.28f), true, true);
 
         BuildStairwell(zc, depth);
         BuildLift();
@@ -862,6 +863,68 @@ public class PriyaRoomBuilder : MonoBehaviour
         MakeClue(phone, "7_BurnerPhone");
     }
 
+    // ------------------------------------------------------------ REAL FURNITURE
+    /// <summary>
+    /// Replaces the look of the primitive furniture with photo-scanned CC0 models (Resources/Props) without moving
+    /// anything the story depends on: the primitive pieces stay as invisible colliders (so walking, clue hit-boxes and
+    /// clue positions are unchanged) and each model is fitted to exactly the same box, so surfaces that hold clues
+    /// stay at the same height. A model that would have to be stretched visibly to fit is not used.
+    /// </summary>
+    void DressFurniture()
+    {
+        Dress(root.Find("Bed"), new[] { "Frame", "Headboard" }, "old_bed_frame");
+        Dress(root.Find("Desk"), new[] { "DeskTop", "Leg", "DeskDrawers", "DrawerHandle" }, "WoodenTable_01");
+        Dress(root.Find("Chair"), new[] { "Seat", "Back", "ChairLeg" }, "painted_wooden_chair_01");
+        Dress(root.Find("BedsideTable"), new[] { "Body", "Handle" }, "vintage_cabinet_01");
+    }
+
+    /// <summary>Fit prop `id` to the combined box of the named parts of `group`, hide those parts. Returns false if skipped.</summary>
+    bool Dress(Transform group, string[] parts, string id, float maxStretch = 1.35f)
+    {
+        if (group == null || !PropKit.Has(id)) return false;
+        var hide = new List<Renderer>();
+        foreach (Transform c in group)
+            foreach (var n in parts)
+                if (c.name == n && c.GetComponent<Renderer>() != null && c.GetComponent<ClueTag>() == null) hide.Add(c.GetComponent<Renderer>());
+        if (hide.Count == 0) return false;
+        Quaternion keep = group.localRotation;
+        group.localRotation = Quaternion.identity;                      // measure in the group's own axes
+        Bounds target = hide[0].bounds; foreach (var r in hide) target.Encapsulate(r.bounds);
+        var prop = PropKit.Place(group, id, Vector3.zero);
+        float bestStretch = float.MaxValue, bestYaw = 0f; Vector3 bestRatio = Vector3.one;
+        foreach (float yaw in new[] { 0f, 90f })
+        {
+            prop.transform.localRotation = Quaternion.Euler(0, yaw, 0); prop.transform.localScale = Vector3.one;
+            Bounds pb = PropBounds(prop);
+            if (pb.size.x < 1e-3f || pb.size.y < 1e-3f || pb.size.z < 1e-3f) continue;
+            Vector3 ratio = new Vector3(target.size.x / pb.size.x, target.size.y / pb.size.y, target.size.z / pb.size.z);
+            float stretch = Mathf.Max(ratio.x, Mathf.Max(ratio.y, ratio.z)) / Mathf.Min(ratio.x, Mathf.Min(ratio.y, ratio.z));
+            if (stretch < bestStretch) { bestStretch = stretch; bestYaw = yaw; bestRatio = ratio; }
+        }
+        if (bestStretch > maxStretch)
+        {
+            Debug.Log("Furniture: kept the simple " + group.name + " (" + id + " would be stretched x" + bestStretch.ToString("0.00") + ")");
+            Destroy(prop); group.localRotation = keep; return false;
+        }
+        prop.transform.localRotation = Quaternion.Euler(0, bestYaw, 0);
+        // the ratio is in group axes; at 90 degrees the model's own x and z are swapped
+        prop.transform.localScale = bestYaw == 0f ? bestRatio : new Vector3(bestRatio.z, bestRatio.y, bestRatio.x);
+        Bounds fb = PropBounds(prop);
+        prop.transform.position += new Vector3(target.center.x - fb.center.x, target.min.y - fb.min.y, target.center.z - fb.center.z);
+        foreach (var c in prop.GetComponentsInChildren<Collider>()) Destroy(c);       // the hidden primitives are the colliders
+        foreach (var r in hide) r.enabled = false;
+        group.localRotation = keep;
+        return true;
+    }
+
+    static Bounds PropBounds(GameObject go)
+    {
+        var rs = go.GetComponentsInChildren<Renderer>();
+        if (rs.Length == 0) return new Bounds(go.transform.position, Vector3.zero);
+        Bounds b = rs[0].bounds; foreach (var r in rs) b.Encapsulate(r.bounds);
+        return b;
+    }
+
     // ------------------------------------------------------------------ DECOR
     void BuildDecor()
     {
@@ -1104,7 +1167,9 @@ public class PriyaRoomBuilder : MonoBehaviour
             if (r == null) continue;
             var m = r.material;
             var tint = rendererTags[i] != null && rendererTags[i].found ? new Color(0.3f, 0.8f, 0.5f) * 0.5f : gold;
-            float focus = (rendererTags[i] != null && rendererTags[i] == Focused && !rendererTags[i].found) ? 1.2f : 0f;
+            // the clue under the crosshair gets only a faint warm sheen: at full strength it washed dark objects
+            // out to flat white (seen in the play-test captures); the ring and the hover light carry the hint
+            float focus = (rendererTags[i] != null && rendererTags[i] == Focused && !rendererTags[i].found) ? 0.05f : 0f;      // barely there: even 0.22 tinted the maroon suitcase cream
             Color em = tint * (Mathf.Max(visionBlend, focus) * pulse * 2.5f);
             if (m.HasProperty("_EmissionColor")) m.SetColor("_EmissionColor", em);
         }

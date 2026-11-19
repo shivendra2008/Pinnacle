@@ -82,6 +82,9 @@ public class RocketboxImport : AssetPostprocessor
         mi.importLights = false;
         mi.importNormals = ModelImporterNormals.Import;
         mi.importTangents = ModelImporterTangents.CalculateMikk;
+        // Male_Adult_15 is modelled with a skullcap; CharacterNPC sinks the cap into the head at load time, which
+        // needs the mesh data (the cast is Indian and Hindu: see CharacterNPC.Looks)
+        mi.isReadable = assetPath.Contains("Male_Adult_15");
     }
 
     [InitializeOnLoadMethod]

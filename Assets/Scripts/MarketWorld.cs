@@ -381,6 +381,67 @@ public class MarketWorld : MonoBehaviour
         for (int i = 0; i < 3; i++) B(transform, "Crate", new Vector3(9.5f, 0.2f + i * 0.4f, zc - 2f), new Vector3(0.6f, 0.38f, 0.45f), Rgb(0.2f, 0.4f, 0.8f), true);
     }
 
+    static readonly string[] Utensils = { "brass_pot_01", "brass_pot_02", "pot_enamel_01", "brass_goblets", "brass_vase_01", "brass_pan_01", "jug_01", "wooden_bowl_01" };
+    static readonly string[] Produce = { "yellow_onion", "food_lime_01", "food_apple_01", "food_pomegranate_01", "bananas" };
+    static readonly string[] General = { "tea_set_01", "ceramic_pot", "wooden_bowl_01", "jug_01", "cardboard_box_01" };
+
+    /// <summary>
+    /// Fills one shelf with scanned props: each is measured after it is placed, scaled down to fit the shelf
+    /// (at most 0.5 m tall and 0.42 m wide) and stood on the shelf. Gaps get small packets in muted colours.
+    /// </summary>
+    void StockShelf(System.Func<float, float, float, Vector3> P, float top, int kind, int shelf)
+    {
+        float z = -2.05f;
+        while (z < 2.05f)
+        {
+            float gap = 0.32f + R() * 0.22f;
+            bool prop = R() < (kind == 2 ? 0.45f : 0.7f);
+            GameObject go = null;
+            if (prop)
+            {
+                string id = kind == 0 ? Utensils[rnd.Next(Utensils.Length)] : kind == 1 ? (R() < 0.45f ? "wicker_basket_01" : Produce[rnd.Next(Produce.Length)]) : General[rnd.Next(General.Length)];
+                go = PropKit.Place(transform, id, P(0.12f, top, z), R() * 360f);
+                if (go != null && !FitOnShelf(go, top, 0.5f, 0.42f)) { Destroy(go); go = null; }
+                if (go != null && id == "wicker_basket_01")      // a basket of onions or limes
+                {
+                    string fill = Produce[rnd.Next(3)];
+                    for (int f = 0; f < 3; f++)
+                    {
+                        var fr = PropKit.Place(transform, fill, P(0.12f + (R() - 0.5f) * 0.08f, top + 0.08f, z + (f - 1) * 0.06f), R() * 360f);
+                        if (fr != null && !FitOnShelf(fr, top + 0.07f, 0.12f, 0.12f)) Destroy(fr);
+                    }
+                }
+            }
+            if (go == null)        // a packet: muted card, varied size, the odd one lying flat
+            {
+                float h = 0.1f + R() * 0.16f, w = 0.08f + R() * 0.12f;
+                var c = Color.HSVToRGB(R(), 0.18f + R() * 0.25f, 0.35f + R() * 0.35f);
+                var pk = B(transform, "Packet", P(0.12f, top + h / 2f, z), new Vector3(0.16f, h, w), c, false, 0.25f);
+                pk.transform.localRotation = Quaternion.Euler(0, (R() - 0.5f) * 14f, 0);
+            }
+            z += gap;
+        }
+    }
+
+    /// <summary>Scale a placed prop down to fit (never up), then stand it on the surface at `top`. False if it has no renderers.</summary>
+    static bool FitOnShelf(GameObject go, float top, float maxH, float maxW)
+    {
+        var rs = go.GetComponentsInChildren<Renderer>();
+        if (rs.Length == 0) return false;
+        Bounds b = rs[0].bounds; foreach (var r in rs) b.Encapsulate(r.bounds);
+        float k = Mathf.Min(1f, maxH / Mathf.Max(0.001f, b.size.y), maxW / Mathf.Max(0.001f, Mathf.Max(b.size.x, b.size.z)));
+        if (k < 0.999f)
+        {
+            Vector3 pivot = go.transform.position;
+            go.transform.localScale *= k;
+            go.transform.position = pivot;
+            b = rs[0].bounds; foreach (var r in rs) b.Encapsulate(r.bounds);
+        }
+        go.transform.position += Vector3.up * (top - b.min.y);
+        foreach (var c in go.GetComponentsInChildren<Collider>()) Destroy(c);      // shelf dressing never blocks anyone
+        return true;
+    }
+
     void BuildFacade(int side, float zc, float h, int floors, Color paint, int k)
     {
         Quaternion face = Quaternion.Euler(0, side < 0 ? -90f : 90f, 0);   // text / panels face the lane
@@ -392,12 +453,16 @@ public class MarketWorld : MonoBehaviour
         if (open)
         {
             bool tube = R() < 0.5f;
-            Gl(transform, "ShopInterior", P(-0.02f, 1.35f, 0), new Vector3(0.05f, 2.6f, 4.6f), tube ? Tube : Tungsten, 1.6f);
-            for (int i = 0; i < 3; i++)   // shelves with goods
+            // the shop's back wall, lit by its own lamp: a dim warm (or cool) interior, not a glowing light box
+            // (at full emission it blew out to flat white with bloom - seen in the play-test captures)
+            var back = GameKit.Box(transform, "ShopInterior", P(-0.02f, 1.35f, 0), new Vector3(0.05f, 2.6f, 4.6f), GameKit.Lit(Rgb(0.3f, 0.26f, 0.21f), 0.2f));
+            GameKit.SurfaceZY(back, "plaster", 1.8f, Rgb(0.3f, 0.26f, 0.21f));      // aged plaster, lit only by the shop lamp
+            int kind = rnd.Next(3);                     // 0 utensils (bartan), 1 produce, 2 general store
+            for (int i = 0; i < 3; i++)   // shelves with real goods
             {
-                B(transform, "Shelf", P(0.12f, 0.7f + i * 0.65f, 0), new Vector3(0.28f, 0.04f, 4.4f), Rgb(0.3f, 0.2f, 0.12f));
-                for (int j = 0; j < 9; j++)
-                    B(transform, "Goods", P(0.12f, 0.82f + i * 0.65f, -2f + j * 0.5f), new Vector3(0.18f, 0.18f, 0.3f), Color.HSVToRGB(R(), 0.55f, 0.85f), false, 0.4f);
+                float shelfY = 0.7f + i * 0.65f;
+                B(transform, "Shelf", P(0.12f, shelfY, 0), new Vector3(0.28f, 0.04f, 4.4f), Rgb(0.3f, 0.2f, 0.12f));
+                StockShelf(P, shelfY + 0.02f, kind, i);
             }
             AddLight(P(0.6f, 2.5f, 0), tube ? Tube : Tungsten, 1.8f, 5.5f);
         }

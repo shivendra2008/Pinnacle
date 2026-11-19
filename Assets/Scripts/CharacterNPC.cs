@@ -20,6 +20,9 @@ public class NpcStyle
     public string glb;
     public NpcStyle Glb(string path) { glb = path; return this; }
     public NpcStyle Rb(string avatar) { rb = avatar; return this; }
+    /// <summary>Use a specific head texture variant (e.g. "m204_head_shaved" for the priest).</summary>
+    public string headTex;
+    public NpcStyle Head(string tex) { headTex = tex; return this; }
     public NpcStyle Rb(string avatar, Color tint) { rb = avatar; bodyTint = tint; return this; }
     public NpcStyle Set(string key, Color c) { map.Add(new KeyValuePair<string, Color>(key, c)); return this; }
 
@@ -29,7 +32,7 @@ public class NpcStyle
     {
         return new NpcStyle { model = "Characters/Kamala", height = 1.58f }
             .Set("skin", C(0.60f, 0.40f, 0.27f)).Set("red", C(0.20f, 0.18f, 0.18f)).Set("green", C(0.50f, 0.12f, 0.16f))
-            .Set("gold", C(0.92f, 0.74f, 0.28f)).Set("brown", C(0.08f, 0.05f, 0.04f)).Rb("Female_Adult_06");
+            .Set("gold", C(0.92f, 0.74f, 0.28f)).Set("brown", C(0.08f, 0.05f, 0.04f)).Rb("Female_Adult_09");   // a mother in her fifties, bindi
     }
 
     public static NpcStyle Reddy()   // Inspector Sonal Reddy, plainclothes: simple salwar kameez
@@ -65,7 +68,7 @@ public class NpcStyle
             .Set("tie", C(0.03f, 0.03f, 0.03f)).Set("black", C(0.02f, 0.02f, 0.02f)).Rb("Business_Male_03", C(0.7f, 0.7f, 0.72f));
     }
 
-    static readonly string[] WomenRb = { "Female_Adult_06", "Female_Adult_06", "Female_Adult_09", "Female_Adult_03", "Business_Female_03" };
+    static readonly string[] WomenRb = { "Female_Adult_09", "Female_Adult_09", "Female_Adult_03", "Business_Female_03", "Business_Female_01" };
     static readonly string[] MenRb = { "Male_Adult_15", "Male_Adult_15", "Wood_Male_01", "Male_Adult_17", "Male_Adult_05", "Male_Adult_03", "Business_Male_05" };
 
     /// <summary>Women in bright sari / salwar colours (the dress model, recoloured).</summary>
@@ -167,23 +170,27 @@ public class CharacterNPC : MonoBehaviour
     }
 
     /// <summary>Step sideways (colliding properly) towards a world X, e.g. to get out of a vehicle's way.</summary>
+    // Steering: nothing ever slides a walker sideways or backwards. Getting out of a vehicle's way and getting round
+    // someone who blocks the path both become a direction the walker turns towards and walks along, so the body,
+    // the legs and the motion always agree. (They used to be raw sideways shoves at up to 2.4 m/s with the walk
+    // cycle still playing forwards: the play-test measured walkers moving at 90-180 degrees to their facing for up
+    // to a fifth of the time - the "twisting zombie" look in the market.)
+    Vector3 avoidW; float avoidUntil, avoidSpeed;
+
+    /// <summary>Step aside towards a world X (out of a vehicle's way). Takes effect inside WalkTo, as steering.</summary>
     public void NudgeX(float targetX, float speed)
     {
-        if (cc == null) return;
         float dx = targetX - transform.position.x;
         if (Mathf.Abs(dx) < 0.05f) return;
-        cc.Move(new Vector3(Mathf.Sign(dx) * Mathf.Min(Mathf.Abs(dx), speed * Time.deltaTime), -2f * Time.deltaTime, 0));
+        SteerAway(new Vector3(Mathf.Sign(dx) * Mathf.Clamp01(Mathf.Abs(dx) / 0.6f), 0, 0), 0.2f, Mathf.Min(speed, 1.9f));
     }
 
-    IEnumerator Sidestep(Vector3 dirW)
+    /// <summary>Bias the walker's heading towards a world direction for a moment (avoidance).</summary>
+    public void SteerAway(Vector3 dirW, float seconds, float hurry)
     {
-        Vector3 side = Vector3.Cross(Vector3.up, dirW).normalized * (Random.value < 0.5f ? 1f : -1f);
-        moving = true;
-        for (float t = 0; t < 0.8f; t += Time.deltaTime)
-        {
-            cc.Move(side * 1.1f * Time.deltaTime + Vector3.down * 2f * Time.deltaTime);
-            yield return null;
-        }
+        dirW.y = 0;
+        if (dirW.sqrMagnitude < 1e-4f) return;
+        avoidW = dirW; avoidUntil = Time.time + seconds; avoidSpeed = hurry;
     }
 
     // ------------------------------------------------------------------ build
@@ -551,14 +558,80 @@ public class CharacterNPC : MonoBehaviour
     readonly List<Quaternion> rRest = new List<Quaternion>();
     static readonly Dictionary<string, Material> rbMats = new Dictionary<string, Material>();
 
-    static Material RbMaterial(string matName, Color tint, Material fallback)
+    // ---- the cast is Indian and Hindu (the story has no other communities). The stock Rocketbox models are not:
+    // their faces are retextured by Tools/make_cast_textures.py (complexion, bindi, the Male_Adult_15 skullcap
+    // repainted as hair) and the body texture (hands, neck) gets the matching skin warmth here.
+    // Female_Adult_06 (head covering) is no longer used anywhere.
+    struct AvatarLook { public string head; public Color skin; }
+    static readonly Dictionary<string, AvatarLook> Looks = new Dictionary<string, AvatarLook>
+    {
+        { "Female_Adult_09",    new AvatarLook { head = "f009_head_in", skin = new Color(0.72f, 0.60f, 0.50f) } },
+        { "Female_Adult_03",    new AvatarLook { head = "f003_head_in", skin = new Color(0.84f, 0.72f, 0.60f) } },
+        { "Business_Female_03", new AvatarLook { head = "f016_head_in", skin = new Color(0.78f, 0.66f, 0.55f) } },
+        { "Business_Female_01", new AvatarLook { head = "f014_head_in", skin = Color.white } },
+        { "Male_Adult_03",      new AvatarLook { head = "m004_head_in", skin = new Color(0.76f, 0.64f, 0.53f) } },
+        { "Male_Adult_05",      new AvatarLook { head = "m009_head_in", skin = new Color(0.76f, 0.64f, 0.53f) } },
+        { "Business_Male_03",   new AvatarLook { head = "m020_head_in", skin = new Color(0.78f, 0.66f, 0.55f) } },
+        { "Wood_Male_01",       new AvatarLook { head = "m110_head_in", skin = new Color(0.82f, 0.70f, 0.58f) } },
+        { "Security_Male_01",   new AvatarLook { head = "m171_head_in", skin = new Color(0.76f, 0.64f, 0.53f) } },
+        { "Male_Adult_15",      new AvatarLook { head = "m204_head_hair", skin = Color.white } },
+    };
+
+    static readonly Dictionary<Mesh, Mesh> capless = new Dictionary<Mesh, Mesh>();
+
+    /// <summary>
+    /// Male_Adult_15 wears a skullcap that is part of its head mesh. Its vertices are the ones textured from the cap's
+    /// two islands (the band and the crown, see Tools/make_cast_textures.py); they are pulled in towards the centre of
+    /// the head so the cap sits under the scalp and the hair shows. Needs the mesh to be readable (RocketboxImport).
+    /// </summary>
+    static void SinkSkullcap(SkinnedMeshRenderer smr)
+    {
+        if (smr == null || smr.sharedMesh == null) return;
+        var src = smr.sharedMesh;
+        Mesh done;
+        if (capless.TryGetValue(src, out done)) { if (done != null) smr.sharedMesh = done; return; }
+        capless[src] = null;
+        if (!src.isReadable) { Debug.LogWarning("Male_Adult_15: mesh not readable, the skullcap stays"); return; }
+        int headSub = -1;
+        var mats = smr.sharedMaterials;
+        for (int i = 0; i < mats.Length && i < src.subMeshCount; i++) if (mats[i] != null && mats[i].name.Contains("_head")) headSub = i;
+        if (headSub < 0) return;
+        var mesh = Object.Instantiate(src); mesh.name = src.name + "_nocap";
+        var v = mesh.vertices; var uv = mesh.uv;
+        if (uv == null || uv.Length != v.Length) return;
+        var headIdx = new HashSet<int>(mesh.GetTriangles(headSub));
+        Vector3 c = Vector3.zero; int n = 0;
+        foreach (int i in headIdx) { c += v[i]; n++; }
+        if (n == 0) return;
+        c /= n;                                                      // centre of the head
+        int moved = 0;
+        foreach (int i in headIdx)
+        {
+            float x = uv[i].x, y = 1f - uv[i].y;                     // texture coordinates as the image is drawn (top = 0)
+            bool band = x > 0.10f && x < 0.88f && y > 0.632f && y < 0.778f;
+            bool crown = (new Vector2(x - 0.846f, y - 0.853f)).magnitude < 0.135f;
+            if (!band && !crown) continue;
+            v[i] = c + (v[i] - c) * 0.86f;
+            moved++;
+        }
+        if (moved == 0) return;
+        mesh.vertices = v;
+        mesh.RecalculateBounds();
+        capless[src] = mesh;
+        smr.sharedMesh = mesh;
+    }
+
+    static Material RbMaterial(string matName, Color tint, Material fallback, string headOverride = null)
     {
         string baseName = matName.Replace(" (Instance)", "").Trim();
         if (baseName.EndsWith("_color")) baseName = baseName.Substring(0, baseName.Length - 6);   // importer may name materials after the texture
-        string key = baseName + "#" + ColorUtility.ToHtmlStringRGB(tint);
+        bool isHead = baseName.EndsWith("_head");
+        string colorName = isHead && !string.IsNullOrEmpty(headOverride) ? headOverride : baseName;
+        string key = colorName + "#" + ColorUtility.ToHtmlStringRGB(tint);
         Material m;
         if (rbMats.TryGetValue(key, out m) && m != null) return m;
-        var col = Resources.Load<Texture2D>("Characters/RB/" + baseName + "_color");
+        var col = Resources.Load<Texture2D>("Characters/RB/" + colorName + "_color");
+        if (col == null && colorName != baseName) col = Resources.Load<Texture2D>("Characters/RB/" + baseName + "_color");
         if (col == null) return fallback;
         var nrm = Resources.Load<Texture2D>("Characters/RB/" + baseName + "_normal");
         bool head = baseName.EndsWith("_head"), cut = baseName.EndsWith("_opacity"), body = baseName.EndsWith("_body");
@@ -600,11 +673,18 @@ public class CharacterNPC : MonoBehaviour
         foreach (var t in inst.GetComponentsInChildren<Transform>(true)) if (!all.ContainsKey(t.name)) all[t.name] = t;
         if (!all.ContainsKey("Bip01 Head") || !all.ContainsKey("Bip01 L UpperArm")) { Destroy(inst); return false; }
 
+        if (style.rb == "Male_Adult_15") foreach (var r in renderers) SinkSkullcap(r as SkinnedMeshRenderer);
         foreach (var r in renderers)
         {
             var mats = r.sharedMaterials;
             for (int i = 0; i < mats.Length; i++)
-                if (mats[i] != null) mats[i] = RbMaterial(mats[i].name, style.bodyTint, mats[i]);
+                if (mats[i] != null)
+                {
+                    AvatarLook look; bool has = Looks.TryGetValue(style.rb, out look);
+                    string head = !string.IsNullOrEmpty(style.headTex) ? style.headTex : has ? look.head : null;
+                    Color body = style.bodyTint * (has ? look.skin : Color.white);
+                    mats[i] = RbMaterial(mats[i].name, body, mats[i], head);
+                }
             r.sharedMaterials = mats;
             r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
             var smr = r as SkinnedMeshRenderer;
@@ -648,6 +728,7 @@ public class CharacterNPC : MonoBehaviour
         rbRoot = inst.transform;
         rPelvis = pel;
         rSpine = Bone(all, "Bip01 Spine1"); rNeck = Bone(all, "Bip01 Neck"); rHead = Bone(all, "Bip01 Head"); rJaw = Bone(all, "Bip01 MJaw");
+        SetupFace(all);
         string[] side = { "L", "R" };
         for (int i = 0; i < 2; i++)
         {
@@ -873,7 +954,7 @@ public class CharacterNPC : MonoBehaviour
         float wantYaw = 0f, wantPitch = 0f;
         if (lookTarget != null && rHead != null && !walking)
         {
-            Vector3 l = transform.InverseTransformPoint(lookTarget.position) - transform.InverseTransformPoint(rHead.position);
+            Vector3 l = transform.InverseTransformPoint(GazePoint()) - transform.InverseTransformPoint(rHead.position);
             wantYaw = Mathf.Clamp(Mathf.Atan2(l.x, l.z) * Mathf.Rad2Deg, -55f, 55f);
             wantPitch = Mathf.Clamp(-Mathf.Atan2(l.y, new Vector2(l.x, l.z).magnitude) * Mathf.Rad2Deg, -22f, 25f);
         }
@@ -886,6 +967,138 @@ public class CharacterNPC : MonoBehaviour
         if (rJaw != null && talk > 0.01f)
             rJaw.rotation = Quaternion.AngleAxis(Mathf.Clamp01(talk * 1.6f) * 11f, Vector3.Cross(transform.up, HeadForward()).normalized) * rJaw.rotation;
         ApplyHolds(dt);
+        ApplyFace(dt);
+    }
+
+    // ------------------------------------------------ the face: gaze, blinks, brows, lips (Rocketbox facial bones)
+    // The Rocketbox avatars have no blendshapes, but they do have facial bones: eyes, upper and lower eyelids,
+    // brows and lips. The mocap clips never touch them, so they are posed here every frame from their rest pose.
+    // This is procedural: blinks, eye contact with small saccades, glances away, brows and upper lip moving with
+    // the loudness of the voice. It is NOT phoneme lip sync - that needs visemes the models do not have.
+
+    /// <summary>Switch the procedural face off for every character (if a model's eyelid bones turn out to move the wrong way).</summary>
+    public static bool FaceLayer = true;
+
+    Transform[] fEye = new Transform[2], fLidTop = new Transform[2], fLidBot = new Transform[2], fBrowIn = new Transform[2], fBrowOut = new Transform[2];
+    Transform fBrowMid, fLipUp, fLipLow;
+    readonly List<Transform> fBones = new List<Transform>();
+    readonly List<Vector3> fRestPos = new List<Vector3>();
+    readonly List<Quaternion> fRestRot = new List<Quaternion>();
+    Vector3 headUpLocal;
+    bool hasFace;
+    float nextBlink, blinkStart = -10f, nextSaccade, nextGlance, glanceUntil, browEmph;
+    Vector3 saccade, glanceOffset;
+
+    Transform FaceBone(Dictionary<string, Transform> all, string n)
+    {
+        Transform t;
+        if (!all.TryGetValue(n, out t) || t == null) return null;
+        fBones.Add(t); fRestPos.Add(t.localPosition); fRestRot.Add(t.localRotation);
+        return t;
+    }
+
+    void SetupFace(Dictionary<string, Transform> all)
+    {
+        string[] sd = { "L", "R" };
+        for (int i = 0; i < 2; i++)
+        {
+            fEye[i] = FaceBone(all, "Bip01 " + sd[i] + "Eye");
+            fLidTop[i] = FaceBone(all, "Bip01 " + sd[i] + "EyeBlinkTop");
+            fLidBot[i] = FaceBone(all, "Bip01 " + sd[i] + "EyeBlinkBottom");
+            fBrowIn[i] = FaceBone(all, "Bip01 " + sd[i] + "InnerEyebrow");
+            fBrowOut[i] = FaceBone(all, "Bip01 " + sd[i] + "OuterEyebrow");
+        }
+        fBrowMid = FaceBone(all, "Bip01 MMiddleEyebrow");
+        fLipUp = FaceBone(all, "Bip01 MUpperLip");
+        fLipLow = FaceBone(all, "Bip01 MBottomLip");
+        hasFace = rHead != null && (fEye[0] != null || fLidTop[0] != null);
+        if (rHead != null)
+        {
+            headUpLocal = Quaternion.Inverse(rHead.rotation) * transform.up;
+        }
+        nextBlink = Time.time + Random.Range(0.5f, 4f);
+        nextSaccade = Time.time + Random.Range(0.3f, 1.5f);
+        nextGlance = Time.time + Random.Range(3f, 7f);
+    }
+
+    /// <summary>
+    /// Where this character is looking: its look target, but it glances away now and then instead of staring.
+    /// While it is speaking, or being spoken to, it holds eye contact much more.
+    /// </summary>
+    Vector3 GazePoint()
+    {
+        if (lookTarget == null) return transform.position + transform.forward * 3f + Vector3.up * 1.6f;
+        float t = Time.time;
+        bool engaged = talk > 0.05f || (AutoFocus.FocusOn == transform);
+        if (t > nextGlance)
+        {
+            float away = engaged ? Random.Range(0.4f, 0.9f) : Random.Range(0.9f, 2.4f);
+            glanceUntil = t + away;
+            nextGlance = glanceUntil + (engaged ? Random.Range(4f, 9f) : Random.Range(2.5f, 6f));
+            Vector3 side = Vector3.Cross(Vector3.up, (lookTarget.position - transform.position).normalized);
+            glanceOffset = side * Random.Range(-1.3f, 1.3f) + Vector3.up * Random.Range(-0.7f, 0.15f);
+        }
+        return lookTarget.position + (t < glanceUntil ? glanceOffset : Vector3.zero);
+    }
+
+    void ApplyFace(float dt)
+    {
+        if (!hasFace || dt <= 0f) return;
+        for (int i = 0; i < fBones.Count; i++) if (fBones[i] != null) { fBones[i].localPosition = fRestPos[i]; fBones[i].localRotation = fRestRot[i]; }
+        if (!FaceLayer) return;
+        float t = Time.time;
+        Vector3 hUp = rHead.rotation * headUpLocal;
+        // which way the face points, from where the eyes sit on the head (robust to the model being turned round after load)
+        Vector3 hFwd = transform.forward;
+        if (fEye[0] != null && fEye[1] != null)
+        {
+            Vector3 m = Vector3.ProjectOnPlane((fEye[0].position + fEye[1].position) * 0.5f - rHead.position, hUp);
+            if (m.sqrMagnitude > 1e-6f) hFwd = m.normalized;
+        }
+
+        // eyes: on the gaze point (limited to what eyes can do without the head), with tiny saccades
+        if (t > nextSaccade)
+        {
+            nextSaccade = t + Random.Range(0.35f, 1.8f);
+            saccade = Random.insideUnitSphere * 0.035f;
+        }
+        Vector3 eyeTarget = GazePoint() + saccade * Vector3.Distance(rHead.position, GazePoint());
+        for (int i = 0; i < 2; i++)
+        {
+            if (fEye[i] == null) continue;
+            Vector3 dir = (eyeTarget - fEye[i].position).normalized;
+            dir = Vector3.RotateTowards(hFwd, dir, 24f * Mathf.Deg2Rad, 0f);          // eyes turn ~24 degrees at most
+            fEye[i].rotation = Quaternion.FromToRotation(hFwd, dir) * fEye[i].rotation;
+        }
+
+        // blinks: every 2-6 s, ~140 ms, and sometimes a double blink
+        if (t > nextBlink)
+        {
+            blinkStart = t;
+            nextBlink = t + (Random.value < 0.15f ? 0.35f : Random.Range(2f, 6f));
+        }
+        float bt = (t - blinkStart) / 0.14f;
+        float close = bt < 0f || bt > 1f ? 0f : Mathf.Sin(bt * Mathf.PI);
+        close = Mathf.Max(close, 0.12f + 0.1f * Mathf.Clamp01(-Vector3.Dot(hUp, (eyeTarget - rHead.position).normalized) * 2f));   // lids follow a downward look
+        for (int i = 0; i < 2; i++)
+        {
+            if (fLidTop[i] == null || fLidBot[i] == null) continue;
+            Vector3 pt = fLidTop[i].position, pb = fLidBot[i].position;
+            fLidTop[i].position = pt + (pb - pt) * 0.82f * close;
+            fLidBot[i].position = pb + (pt - pb) * 0.18f * close;
+        }
+
+        // brows lift on the stressed words; the upper lip moves a little with the voice
+        browEmph = Mathf.Lerp(browEmph, Mathf.Clamp01((talk - 0.35f) * 2.5f), dt * 8f);
+        float browMm = 0.0028f * browEmph;
+        for (int i = 0; i < 2; i++)
+        {
+            if (fBrowIn[i] != null) fBrowIn[i].position += hUp * browMm;
+            if (fBrowOut[i] != null) fBrowOut[i].position += hUp * browMm * 0.6f;
+        }
+        if (fBrowMid != null) fBrowMid.position += hUp * browMm * 0.8f;
+        if (fLipUp != null) fLipUp.position += hUp * 0.0018f * Mathf.Clamp01(talk * 1.4f);
+        if (fLipLow != null) fLipLow.position -= hUp * 0.0012f * Mathf.Clamp01(talk * 1.4f);
     }
 
     // ------------------------------------------------ holding things (a candle, a book) and leaning
@@ -1125,7 +1338,7 @@ public class CharacterNPC : MonoBehaviour
         float wantYaw = 0f, wantPitch = 0f;
         if (lookTarget != null && rHead != null && walkBlend < 0.3f)
         {
-            Vector3 l = transform.InverseTransformPoint(lookTarget.position) - transform.InverseTransformPoint(rHead.position);
+            Vector3 l = transform.InverseTransformPoint(GazePoint()) - transform.InverseTransformPoint(rHead.position);
             wantYaw = Mathf.Clamp(Mathf.Atan2(l.x, l.z) * Mathf.Rad2Deg, -55f, 55f);
             wantPitch = Mathf.Clamp(-Mathf.Atan2(l.y, new Vector2(l.x, l.z).magnitude) * Mathf.Rad2Deg, -22f, 25f);
         }
@@ -1140,6 +1353,7 @@ public class CharacterNPC : MonoBehaviour
             if (talk > 0.01f) rJaw.rotation = Quaternion.AngleAxis(Mathf.Clamp01(talk * 1.6f) * 11f, rightAxis) * rJaw.rotation;
         }
         ApplyHolds(dt);
+        ApplyFace(dt);
     }
 
     Vector3 HeadForward()
@@ -1203,7 +1417,8 @@ public class CharacterNPC : MonoBehaviour
     /// Walks to a point like a person: turns on the spot first, eases into the stride, matches the walk clip's speed
     /// to the real ground speed (no foot-sliding), and eases out when arriving.
     /// </summary>
-    public IEnumerator WalkTo(Vector3 localTarget, float speed) { return WalkTo(localTarget, speed, -1f); }
+    public IEnumerator WalkTo(Vector3 localTarget, float speed) { return WalkTo(localTarget, speed, -1f, true); }
+    public IEnumerator WalkTo(Vector3 localTarget, float speed, float timeout) { return WalkTo(localTarget, speed, timeout, true); }
 
     /// <summary>How the last WalkTo ended: Arrived, TimedOut (blocked too long; the NPC is placed at the target so the
     /// scene can carry on), or Cancelled (StopWalking was called).</summary>
@@ -1215,18 +1430,20 @@ public class CharacterNPC : MonoBehaviour
     public void StopWalking() { walkToken++; }
 
     /// <summary>
-    /// WalkTo with a time limit. If the NPC has not arrived within `timeout` seconds (default: the time the walk
-    /// should take at half speed, plus 4 s) it is blocked: it is moved to the target so a scripted scene can never
-    /// wait forever, and LastWalk reports TimedOut.
+    /// WalkTo with a time limit. The walk gives up if the NPC makes no progress for 6 s, or takes longer than
+    /// `timeout` (default: the time the walk should take at half speed, plus 4 s). Then LastWalk reports TimedOut and,
+    /// if placeOnTimeout (story characters), the NPC is put at the target so a scripted scene can never wait forever.
+    /// Ambient walkers pass false: they simply stop where they are and pick their next destination - teleporting a
+    /// crowd member reads as a glitch (the play-test caught 4 of those in 40 s of market).
     /// </summary>
-    public IEnumerator WalkTo(Vector3 localTarget, float speed, float timeout)
+    public IEnumerator WalkTo(Vector3 localTarget, float speed, float timeout, bool placeOnTimeout)
     {
         int token = ++walkToken;
         walking = true;
         curSpeed = 0f;
         Vector3 start = transform.localPosition; start.y = localTarget.y;
         if (timeout <= 0f) timeout = Vector3.Distance(start, localTarget) / Mathf.Max(0.2f, speed * 0.5f) + 4f;
-        float elapsed = 0f;
+        float elapsed = 0f, lastProgress = 0f, bestDist = float.MaxValue;
         LastWalk = WalkResult.Arrived;
         while (true)
         {
@@ -1238,38 +1455,61 @@ public class CharacterNPC : MonoBehaviour
             d.y = 0;
             float dist = d.magnitude;
             if (dist < 0.06f) break;
-            if (elapsed > timeout)
+            if (dist < bestDist - 0.2f) { bestDist = dist; lastProgress = elapsed; }
+            if (elapsed > timeout || elapsed - lastProgress > 6f)
             {
                 LastWalk = WalkResult.TimedOut;
-                Debug.LogWarning(name + ": blocked on the way to " + localTarget + " for " + timeout.ToString("0") + " s; placed at the target.");
-                if (cc != null) cc.enabled = false;
-                transform.localPosition = new Vector3(localTarget.x, p.y, localTarget.z);
-                if (cc != null) cc.enabled = true;
+                if (placeOnTimeout)
+                {
+                    Debug.LogWarning(name + ": blocked on the way to " + localTarget + " for " + elapsed.ToString("0") + " s; placed at the target.");
+                    if (cc != null) cc.enabled = false;
+                    transform.localPosition = new Vector3(localTarget.x, p.y, localTarget.z);
+                    if (cc != null) cc.enabled = true;
+                }
                 break;
             }
 
             var world = transform.parent != null ? transform.parent.TransformDirection(d) : d;
-            var targetRot = Quaternion.LookRotation(world, Vector3.up);
+            world.y = 0;
+            Vector3 toTarget = world.normalized;
+            // avoidance (a vehicle, someone in the way) bends the heading; the body turns into it
+            bool avoiding = Time.time < avoidUntil;
+            Vector3 heading = avoiding ? (toTarget + avoidW * 1.8f).normalized : toTarget;
+            if (heading.sqrMagnitude < 1e-4f) heading = toTarget;
+            var targetRot = Quaternion.LookRotation(heading, Vector3.up);
             float ang = Quaternion.Angle(transform.rotation, targetRot);
-            transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot, 300f * Time.deltaTime);
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot, (avoiding ? 420f : 260f) * Time.deltaTime);
 
-            // only walk once roughly facing the way we're going; slow down on arrival
-            float want = ang < 35f ? Mathf.Min(speed, Mathf.Max(0.35f, dist * 1.6f)) : 0f;
-            curSpeed = Mathf.MoveTowards(curSpeed, want, 3.2f * Time.deltaTime);
+            // walk at full pace when facing the way to go, on a curve when turning (no spinning on the spot),
+            // stop and turn when the way is behind; ease in on arrival
+            float pace = Mathf.Min(avoiding ? Mathf.Max(speed, avoidSpeed) : speed, Mathf.Max(0.35f, dist * 1.6f));
+            float want = ang < 35f ? pace : ang < 100f ? pace * 0.35f : 0f;
+            curSpeed = Mathf.MoveTowards(curSpeed, want, (want < curSpeed ? 4.5f : 2.6f) * Time.deltaTime);
             if (curSpeed > 0f)
             {
                 float stepLen = Mathf.Min(dist, curSpeed * Time.deltaTime);
+                // always move the way the body faces (within a few degrees); very close to the target, go straight there
+                Vector3 fwd = transform.forward; fwd.y = 0; fwd.Normalize();
+                Vector3 moveDir = dist < 0.3f ? toTarget : Vector3.RotateTowards(fwd, heading, 12f * Mathf.Deg2Rad, 0f);
                 if (cc != null)
                 {
                     Vector3 before = transform.position;
-                    Vector3 dirW = world.normalized; dirW.y = 0;
-                    cc.Move(dirW * stepLen + Vector3.down * 2f * Time.deltaTime);
+                    cc.Move(moveDir * stepLen + Vector3.down * 2f * Time.deltaTime);
                     Vector3 moved = transform.position - before; moved.y = 0;
-                    // blocked by something (a person, a cart)? after a moment, step around it
+                    // blocked by something (a person, a cart)? turn and walk round it, to one side
                     stuckT = (curSpeed > 0.3f && moved.magnitude < stepLen * 0.3f) ? stuckT + Time.deltaTime : 0f;
-                    if (stuckT > 0.45f) { stuckT = 0f; yield return Sidestep(dirW); }
+                    if (stuckT > 0.45f)
+                    {
+                        stuckT = 0f;
+                        Vector3 side = Vector3.Cross(Vector3.up, toTarget).normalized * (Random.value < 0.5f ? 1f : -1f);
+                        SteerAway(side, 0.9f, speed);
+                    }
                 }
-                else transform.localPosition = p + d.normalized * stepLen;
+                else
+                {
+                    Vector3 local = transform.parent != null ? transform.parent.InverseTransformDirection(moveDir) : moveDir;
+                    transform.localPosition = p + local * stepLen;
+                }
             }
             moving = curSpeed > 0.08f;
             SetStrideSpeed(curSpeed);

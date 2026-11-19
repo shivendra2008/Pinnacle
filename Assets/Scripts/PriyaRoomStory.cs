@@ -291,7 +291,7 @@ public class PriyaRoomStory : MonoBehaviour
         // turn to face Mrs. Kapoor while Arjun narrates
         fadeSpeed = 0.35f; fadeTarget = 0f;
         AutoFocus.FocusOn = kamala.transform;
-        StartCoroutine(Turn(kamala.transform.position + Vector3.up * 1.5f, 3f));
+        var turnToKamala = StartCoroutine(Turn(kamala.transform.position + Vector3.up * 1.5f, 3f));
         yield return Say("arjun_intro1", "ARJUN (V.O.)", "In Chandnipur, everyone has a secret. The city is old enough to keep them.");
         yield return Say("arjun_intro2", "ARJUN (V.O.)", "But sometimes a secret gets too big for the walls that hold it, and it starts to leak through the cracks.");
         yield return Say("arjun_intro3", "ARJUN (V.O.)", "That's when people like me get a phone call.");
@@ -300,6 +300,9 @@ public class PriyaRoomStory : MonoBehaviour
         yield return Say("kamala_welcome2", "KAMALA KAPOOR", "I haven't touched anything. I thought someone should look at it properly. Her room is the door at the end of the hallway. Here is the key.", true);
 
         AutoFocus.FocusOn = null;
+        // when the intro is skipped the 3-second turn towards Kamala is still running: stop it, or it keeps
+        // steering the camera after the player has been given control (found by the automated play-test)
+        StopCoroutine(turnToKamala);
         yield return Turn(builder.transform.TransformPoint(new Vector3(-2f, 1.5f, -1.5f)), 1.4f);
         if (skipAll) { fade = 0f; fadeTarget = 0f; titleEnd = 0f; sub = null; voice.Stop(); kamala.Silence(); skipAll = false; }
         PriyaRoomPlayer.Locked = false;
@@ -381,8 +384,35 @@ public class PriyaRoomStory : MonoBehaviour
         UiKit.Text(new Rect(x - 130, y - 38, 260, 24), label + "   " + Vector3.Distance(cam.position, target).ToString("0.0") + " m", new GUIStyle(sSmall) { alignment = TextAnchor.UpperCenter, fontSize = 15 });
     }
 
-    ClueTag lastFocus;
-    float lastFocusTime;
+    ClueTag lastFocus, shownFocus;
+    float lastFocusTime, focusSince;
+    Light hoverLight;
+
+    /// <summary>
+    /// A small, soft warm light that fades in over the clue the crosshair is on, so a dark object (a maroon suitcase
+    /// on a shadowed floor) is readable without making every clue glow all the time.
+    /// </summary>
+    void UpdateHoverLight(ClueTag t)
+    {
+        if (hoverLight == null)
+        {
+            hoverLight = new GameObject("ClueHoverLight").AddComponent<Light>();
+            hoverLight.transform.SetParent(builder.Root, false);
+            hoverLight.type = LightType.Point; hoverLight.color = new Color(1f, 0.86f, 0.62f);
+            hoverLight.range = 1.6f; hoverLight.intensity = 0f; hoverLight.shadows = LightShadows.None;
+        }
+        var col = t != null ? ClueCollider(t) : null;
+        float want = col != null ? 0.55f : 0f;
+        if (col != null)
+        {
+            Bounds b = col.bounds;
+            Vector3 toCam = (cam.position - b.center).normalized;
+            hoverLight.transform.position = b.center + toCam * Mathf.Max(0.35f, b.extents.magnitude + 0.15f) + Vector3.up * 0.2f;
+            hoverLight.range = Mathf.Clamp(b.extents.magnitude * 2.2f + 0.5f, 0.9f, 1.8f);    // reaches the clue, not the walls
+        }
+        hoverLight.intensity = Mathf.MoveTowards(hoverLight.intensity, want, Time.deltaTime * 6f);
+        hoverLight.enabled = hoverLight.intensity > 0.01f;
+    }
 
     static Collider ClueCollider(ClueTag t)
     {
@@ -399,6 +429,13 @@ public class PriyaRoomStory : MonoBehaviour
     ClueTag LookedAtClue(float maxDist)
     {
         Vector3 o = cam.position, f = cam.forward;
+        // 1) exact: the first thing the crosshair ray touches. Each clue has a padded trigger box around it, so the ray
+        //    meets that box before the clue's own solid parts. Large or low clues (the suitcase on the floor) are
+        //    found wherever on them the crosshair rests, not only near their centre.
+        var exact = ClueUnderCrosshair(o, f, maxDist + 0.6f);
+        if (exact != null) { lastFocus = exact; lastFocusTime = Time.time; return exact; }
+
+        // 2) forgiving: the nearest clue to the line of sight, so small clues don't need pixel-perfect aim
         ClueTag best = null; float bestScore = float.MaxValue;
         foreach (var t in builder.ClueTags)
         {
@@ -417,10 +454,66 @@ public class PriyaRoomStory : MonoBehaviour
             float score = perp / allowed;
             if (score < bestScore) { bestScore = score; best = t; }
         }
-        if (best == null && lastFocus != null && !lastFocus.found && Time.time - lastFocusTime < 0.12f) return lastFocus;
+        if (best == null && lastFocus != null && !lastFocus.found && Time.time - lastFocusTime < 0.25f) return lastFocus;   // no flicker at the edges
         if (best != null) { lastFocus = best; lastFocusTime = Time.time; }
         return best;
     }
+
+    readonly RaycastHit[] rayHits = new RaycastHit[24];
+
+    /// <summary>The unfound clue whose hit-box the crosshair ray meets before any solid wall or furniture (null if none).</summary>
+    ClueTag ClueUnderCrosshair(Vector3 o, Vector3 f, float range)
+    {
+        int n = Physics.RaycastNonAlloc(o, f, rayHits, range, ~0, QueryTriggerInteraction.Collide);
+        System.Array.Sort(rayHits, 0, n, HitOrder);
+        var ray = new Ray(o, f);
+        candidates.Clear();
+        for (int i = 0; i < n; i++)
+        {
+            var c = rayHits[i].collider;
+            if (c == null || c.GetComponentInParent<PriyaRoomPlayer>() != null) continue;
+            var tag = c.GetComponentInParent<ClueTag>();
+            bool usable = tag != null && !tag.found && !tag.id.StartsWith("Hook") && tag.gameObject.activeInHierarchy;
+            if (c.isTrigger)
+            {
+                if (usable && ClueCollider(tag) == c && !candidates.Contains(tag)) candidates.Add(tag);
+                continue;                                                   // other trigger volumes don't block the view
+            }
+            if (usable && !candidates.Contains(tag)) candidates.Add(tag);  // standing inside its box: its own solid part
+            break;                                                          // a wall, furniture, or a clue already examined
+        }
+        if (candidates.Count <= 1) return candidates.Count == 1 ? candidates[0] : null;
+        // the padded boxes of neighbouring clues overlap (the sticky note sits under the laptop, the photo among the
+        // papers): if the crosshair passes through the real outline of several, the smallest - the most specific -
+        // wins; if it passes through none, the clue whose outline is closest to the crosshair line wins
+        ClueTag best = null; float bestThrough = float.MaxValue, bestNear = float.MaxValue; bool anyThrough = false;
+        foreach (var t in candidates)
+        {
+            ShapeScore(t, ray, out bool through, out float volume, out float near);
+            if (through) { anyThrough = true; if (volume < bestThrough) { bestThrough = volume; best = t; } }
+            else if (!anyThrough && near < bestNear) { bestNear = near; best = t; }
+        }
+        return best;
+    }
+
+    readonly List<ClueTag> candidates = new List<ClueTag>();
+
+    /// <summary>Does the ray pass through the clue's own outline (and how big is it), or how close does it come?</summary>
+    static void ShapeScore(ClueTag t, Ray ray, out bool through, out float volume, out float near)
+    {
+        through = false; volume = float.MaxValue; near = float.MaxValue;
+        foreach (var r in t.GetComponentsInChildren<Renderer>())
+        {
+            if (!r.enabled) continue;
+            var b = r.bounds; b.Expand(0.015f);
+            if (b.IntersectRay(ray)) { through = true; volume = Mathf.Min(volume, b.size.x * b.size.y * b.size.z); continue; }
+            Vector3 p = ray.GetPoint(Mathf.Max(0f, Vector3.Dot(b.center - ray.origin, ray.direction)));
+            near = Mathf.Min(near, Vector3.Distance(p, b.ClosestPoint(p)));
+        }
+    }
+
+    static readonly System.Comparison<RaycastHit> HitOrderFn = (a, b) => a.distance.CompareTo(b.distance);
+    static readonly System.Collections.Generic.IComparer<RaycastHit> HitOrder = System.Collections.Generic.Comparer<RaycastHit>.Create(HitOrderFn);
 
     /// <summary>True only if every sample point of the clue is behind something solid.</summary>
     bool ClueHidden(ClueTag t, Bounds b, Vector3 o)
@@ -453,26 +546,43 @@ public class PriyaRoomStory : MonoBehaviour
         Vector3 sp = camComp.WorldToScreenPoint(b.center);
         if (sp.z <= 0.1f) return;
         Vector3 edge = camComp.WorldToScreenPoint(b.center + cam.right * Mathf.Max(0.08f, b.extents.magnitude * 0.7f));
-        float rad = Mathf.Clamp(Mathf.Abs(edge.x - sp.x) / s + 10f, 26f, 120f);
-        float x = sp.x / s, y = (Screen.height - sp.y) / s;
-        float pulse = 0.7f + 0.3f * Mathf.Sin(Time.unscaledTime * 6f);
-        UiKit.Ring(new Rect(x - rad, y - rad, rad * 2f, rad * 2f), new Color(1f, 0.82f, 0.3f, pulse), 3f);
+        float rad = Mathf.Clamp(Mathf.Abs(edge.x - sp.x) / s + 12f, 34f, 130f);
+        // keep the marker on screen even when the clue's centre is near an edge (a suitcase seen from above)
+        float x = Mathf.Clamp(sp.x / s, rad + 8f, W - rad - 8f), y = Mathf.Clamp((Screen.height - sp.y) / s, rad + 70f, H - rad - 110f);
+        float since = Time.unscaledTime - focusSince;
+        float grow = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(since / 0.18f));            // the ring settles in, it does not pop
+        float pulse = 0.75f + 0.25f * Mathf.Sin(Time.unscaledTime * 5f);
+        float r2 = rad * Mathf.Lerp(1.25f, 1f, grow);
+        var ringRect = new Rect(x - r2, y - r2, r2 * 2f, r2 * 2f);
+        UiKit.Ring(new Rect(ringRect.x - 2f, ringRect.y - 2f, ringRect.width + 4f, ringRect.height + 4f), new Color(0f, 0f, 0f, 0.55f * grow), 7f);   // dark halo: readable on light or dark
+        UiKit.Ring(ringRect, new Color(1f, 0.82f, 0.3f, pulse * grow), 3.5f);
+        // the clue's name and what E will do, on a dark tag above the ring
         ClueInfo ci;
-        string nm = Info.TryGetValue(t.id, out ci) ? ci.name : "";
-        UiKit.Text(new Rect(x - 150, y - rad - 30, 300, 26), nm, new GUIStyle(sHead) { alignment = TextAnchor.UpperCenter, fontSize = 17 });
+        string nm = Info.TryGetValue(t.id, out ci) ? ci.name : "Something here";
+        var ns = new GUIStyle(sHead) { alignment = TextAnchor.MiddleCenter, fontSize = 18 };
+        var hs = new GUIStyle(sSmall) { alignment = TextAnchor.MiddleCenter, fontSize = 14 };
+        float tw = Mathf.Max(ns.CalcSize(new GUIContent(nm)).x, hs.CalcSize(new GUIContent("Press E to examine")).x) + 36f;
+        var tag = new Rect(Mathf.Clamp(x - tw / 2f, 8f, W - tw - 8f), y - r2 - 62f, tw, 52f);
+        var o = GUI.color; GUI.color = new Color(1, 1, 1, grow);
+        UiKit.Card(tag, 0.78f);
+        GUI.Label(new Rect(tag.x, tag.y + 5f, tag.width, 24f), nm, ns);
+        GUI.Label(new Rect(tag.x, tag.y + 27f, tag.width, 20f), "Press E to examine", hs);
+        GUI.color = o;
     }
 
     void UpdateInteraction()
     {
         prompt = "";
         builder.Focused = null;
-        if (PriyaRoomPlayer.Locked || phase == Phase.Intro || phase == Phase.Dialogue || phase == Phase.Ending) return;
+        if (PriyaRoomPlayer.Locked || phase == Phase.Intro || phase == Phase.Dialogue || phase == Phase.Ending) { if (hoverLight != null) UpdateHoverLight(null); return; }
 
         Action act = null;
 
         // clues: an exact ray from the crosshair against each clue's own hit-box
         ClueTag looked = (phase == Phase.Explore || phase == Phase.Hook || phase == Phase.DoorReady || phase == Phase.NoteReady) ? LookedAtClue(3.4f) : null;
+        if (looked != shownFocus) { shownFocus = looked; focusSince = Time.unscaledTime; }
         builder.Focused = looked;
+        UpdateHoverLight(looked);
         if (looked != null)
         {
             ClueInfo ci;

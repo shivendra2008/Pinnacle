@@ -20,6 +20,24 @@ Docs: audit and production list `POLISH_AUDIT.md` · story `STORY_BIBLE.md` · s
 - [ ] **Verify all of the above in play mode** (see the matrix in `POLISH_AUDIT.md`)
 - [ ] Standalone build check
 
+## Session 2 (18 Nov 2026)
+- [x] Quality matrix vs. the references, with narrative changes listed for confirmation (`QUALITY_MATRIX.md`)
+- [x] Act I clue hover: exact ray against clue hit-boxes first, clearer marker with name + "Press E to examine", soft hover light (code)
+- [x] Face layer on Rocketbox facial bones: gaze + saccades, blinks, brows, lips, glances away (code; `CharacterNPC.FaceLayer` switch)
+- [x] Automated play-test harness (`PLAYTEST.md`); evidence in `playtest/`
+- [x] Act I clue hints **verified**: 57% → 90% of aims overall, suitcase 31% → 100%
+- [x] Intro camera turn kept running after a skip: **reproduced, fixed, verified**
+- [x] Act II "zombie" NPCs: **reproduced** (walkers sliding at 90-180° to their facing, ~21% of frames), root cause (sideways nudges, unstick slides, turn-around carry, cart pushing), steering rewrite, **verified** (worst 1.2%)
+- [x] Crowd walk timeouts teleported people (regression from session 1): fixed, verified 4 → 0
+- [x] Market shop shelves: scanned props fitted to shelves instead of glowing panels and rainbow boxes (captured)
+- [x] Saves at runtime: backup written, corrupted file recovered (verified)
+- [x] Curator prologue and interlude skip restore camera, controls, time and audio (verified)
+- [ ] **Blinks do not show on the Rocketbox models** (bones move, visible lids do not: `playtest/kamala_blink_check.jpg`): needs faces with blendshapes
+- [ ] Torn photograph (49%), chai cups (82%), diary (85%) hint rates under 90%
+- [ ] Bed, desk, bedside table: available scans too different in proportion (x1.6-2.8 stretch); need fitting models
+- [ ] Realistic child avatars (or stage children out of close shots)
+- [ ] Clue inspect view (rotate and zoom)
+
 ## Next
 - [ ] Justice gate: case conditions instead of `EvidenceCount >= 18`, shown on the casket card
 - [ ] Deduction step: link evidence to questions (fact vs. interpretation), one fair contradiction per act

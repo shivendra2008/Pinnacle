@@ -95,6 +95,16 @@ material (recordings or emails). The casket card will show exactly which conditi
 | **Sacrifice** | Arjun goes in alone, the case stalls, the eviction is frozen, Priya stays hidden | The families' fight drags on; Priya's guilt |
 | **Revolution** | Everything leaks to the press, national protest, Deshpande flees | No courtroom win; Priya needs police protection |
 
+## 6b. Cast presentation (decided 19 Nov 2026)
+Every character is Indian and Hindu; the story has no Muslim characters. The Rocketbox models are adapted to match
+(`CharacterNPC.Looks`, `Tools/make_cast_textures.py`):
+- **Kamala:** Female_Adult_09, a woman in her fifties with a grey bun, wheatish complexion and a bindi.
+- **Vikram:** Male_Adult_15 with short black hair (the model's skullcap removed).
+- **Pandit Harishankar:** Male_Adult_15 with a shaved head and a vermilion-and-sandal tilak, in saffron.
+- **Priya, Reddy, Deshpande:** bindi; complexion warmed where the model was pale. Brown irises throughout.
+- **The hijab model (Female_Adult_06)** is not used. Hallway name plates: Kapoor, Verma, Joshi, Iyer.
+- **Café Irani** is a Zoroastrian (Irani) café tradition and was left as is. It is a decision for the author.
+
 ## 7. The Curator
 
 The host of a "collection" of stories, outside time. He is urbane, dry, never cruel without cause, and he only
