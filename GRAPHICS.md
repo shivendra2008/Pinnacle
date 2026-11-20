@@ -107,3 +107,18 @@ Backups of the originals were not committed; the old numbers are in the table ab
 - **Courtroom**: real benches, counsel tables, bar rail, brass seal, fans, portraits, judge's chair.
 - **Terrace**: ribbed water tank on a brick stand, chairs, plants.
 - Wall signs in Act V that were mirrored now read correctly.
+
+## The Curator's Gallery: light, storm, close-ups (Nov 2026)
+Details and measurements: `Docs/CURATOR.md`.
+- The Gallery's mood volume is now light (contrast 6, saturation -6, bloom 0.22 above 1.25, vignette 0.16, grain 0.08,
+  no aberration, lens distortion or motion blur) and **follows F2** (`LookController.Register`): before, its own grain
+  and aberration stayed on in Balanced and Performance.
+- `GalleryExposure` meters the light on the Curator's face and rides post-exposure (-0.7..+1.5 EV); it ignores lightning.
+- Storm: `GalleryStorm` (lightning through a real opening in the east wall, cold, shadow-casting, a few strokes, thunder
+  after distance / 343 m/s; rain particles outside) and `Resources/Shaders/RainGlass.shader` (drops on the panes).
+  The lightning light is off between flashes, so it only costs a shadowed spot while it is lit. The three high windows
+  behind the bookcase show cloud lit from below by the town (bright enough to read from the door; each sky material
+  keeps its own level under the flashes: `GalleryStorm.AddSky`).
+- Dust motes and candle smoke use a soft round particle (`CuratorGallery.SoftParticle`) instead of untextured squares.
+- The Curator has his own materials (`CharacterNPC.HeroLook.cs`): a smoothness map for wet eyes and varied skin, and the
+  suit tint kept off his hands. Run-time shader variants for builds: `BuildPlayer.EnsureVariantMaterials`.

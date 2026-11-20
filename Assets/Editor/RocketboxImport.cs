@@ -83,8 +83,23 @@ public class RocketboxImport : AssetPostprocessor
         mi.importNormals = ModelImporterNormals.Import;
         mi.importTangents = ModelImporterTangents.CalculateMikk;
         // Male_Adult_15 is modelled with a skullcap; CharacterNPC sinks the cap into the head at load time, which
-        // needs the mesh data (the cast is Indian and Hindu: see CharacterNPC.Looks)
-        mi.isReadable = assetPath.Contains("Male_Adult_15");
+        // needs the mesh data (the cast is Indian and Hindu: see CharacterNPC.Looks). The Curator (Business_Male_04)
+        // gets eyelid-closing shapes built at load time (CuratorFace), which also needs the mesh data. Nobody else does.
+        mi.isReadable = NeedsReadable(assetPath);
+    }
+
+    static bool NeedsReadable(string path) { return path.Contains("Male_Adult_15") || path.Contains("Business_Male_04"); }
+
+    /// <summary>Applies the model settings that changed since a copy of the project was last imported (play-test runs).</summary>
+    public static void EnsureNow()
+    {
+        if (!AssetDatabase.IsValidFolder(Folder)) return;
+        foreach (var guid in AssetDatabase.FindAssets("t:Model", new[] { Folder }))
+        {
+            string path = AssetDatabase.GUIDToAssetPath(guid);
+            var mi = AssetImporter.GetAtPath(path) as ModelImporter;
+            if (mi != null && mi.isReadable != NeedsReadable(path)) { mi.isReadable = NeedsReadable(path); mi.SaveAndReimport(); }
+        }
     }
 
     [InitializeOnLoadMethod]
@@ -114,11 +129,13 @@ public class RocketboxImport : AssetPostprocessor
             }
             foreach (var guid in AssetDatabase.FindAssets("t:Model", new[] { Folder }))
             {
-                var mi = AssetImporter.GetAtPath(AssetDatabase.GUIDToAssetPath(guid)) as ModelImporter;
-                if (mi != null && mi.animationType != ModelImporterAnimationType.Human)
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                var mi = AssetImporter.GetAtPath(path) as ModelImporter;
+                if (mi != null && (mi.animationType != ModelImporterAnimationType.Human || mi.isReadable != NeedsReadable(path)))
                 {
                     mi.animationType = ModelImporterAnimationType.Human;
                     mi.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel;
+                    mi.isReadable = NeedsReadable(path);
                     mi.SaveAndReimport();
                 }
             }

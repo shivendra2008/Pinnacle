@@ -1,0 +1,64 @@
+Sound recordings used for the Curator's Gallery (cut and level-matched by Tools/make_curator_sfx.py).
+
+CC BY 4.0 (attribution required: https://creativecommons.org/licenses/by/4.0/):
+  "Medium shower accompanied by thunders" by CutSomeSlackenstein, CC BY 4.0, https://commons.wikimedia.org/wiki/File:Medium_shower_accompanied_by_thunders.ogg
+  "Creaking floors (Picture Gallery, Kunsthistorisches Museum)" by Work With Sounds / Torsten Nilsson, CC BY 4.0, https://commons.wikimedia.org/wiki/File:WWS_Creakingfloors.ogg
+
+Public domain (no attribution required; credited anyway):
+  "Thunderstorm after hot summer day, 17 minutes, 01 of 04" by stephan, https://commons.wikimedia.org/wiki/File:Thunderstorm_after_hot_summer_day_17_minutes_01_of_04.ogg
+  "Thunderstorm after hot summer day, 17 minutes, 02 of 04" by stephan, https://commons.wikimedia.org/wiki/File:Thunderstorm_after_hot_summer_day_17_minutes_02_of_04.ogg
+  "Rain and thunder (1)" by ezwa, https://commons.wikimedia.org/wiki/File:Rain_and_thunder_(1).ogg
+  "Thunder and rain on a veranda" by ezwa, https://commons.wikimedia.org/wiki/File:Thunder_and_rain_on_a_v.ogg
+  "Rain against the window" by cori, https://commons.wikimedia.org/wiki/File:Rain_against_the_window.ogg
+  "Church, people walking, steps with reverb" by stephan, https://commons.wikimedia.org/wiki/File:Church_people_walking_steps_with_reverb.ogg
+  "Old book (leafing through pages, shutting book)" by cori, https://commons.wikimedia.org/wiki/File:Old_book.ogg
+  "Turning a page" by planish, https://commons.wikimedia.org/wiki/File:Turning_a_page.ogg
+  "Looking up a word in the dictionary" by ezwa, https://commons.wikimedia.org/wiki/File:Looking_up_a_word_in_the_dictionary.ogg
+
+Not yet recorded (synthesised placeholders in the game): match strike, candle blown out, clothing movement.
+
+Cuts:
+  Thunderstorm_after_hot_summer_day_17_minutes_01_of_04.ogg: 3 thunder events over a median low band of 53.8 dB
+  Thunderstorm_after_hot_summer_day_17_minutes_02_of_04.ogg: 8 thunder events over a median low band of 55.8 dB
+  Medium_shower_accompanied_by_thunders.ogg: 23 thunder events over a median low band of 30.1 dB
+  Rain_and_thunder_(1).ogg: 1 thunder events over a median low band of 38.8 dB
+  Thunder_and_rain_on_a_v.ogg: 1 thunder events over a median low band of 51.9 dB
+  thunder_near_00   6.8 s  from Medium_shower_accompanied_by_thunders.ogg at 156.4 s
+  thunder_near_01   6.9 s  from Medium_shower_accompanied_by_thunders.ogg at 256.5 s
+  thunder_near_02   5.5 s  from Medium_shower_accompanied_by_thunders.ogg at 231.6 s
+  thunder_far_00   4.7 s  from Medium_shower_accompanied_by_thunders.ogg at 326.4 s
+  thunder_far_01   5.2 s  from Medium_shower_accompanied_by_thunders.ogg at 210.0 s
+  thunder_far_02   4.3 s  from Medium_shower_accompanied_by_thunders.ogg at 402.5 s
+  thunder_far_03   4.1 s  from Medium_shower_accompanied_by_thunders.ogg at 661.8 s
+  thunder_far_04   4.3 s  from Medium_shower_accompanied_by_thunders.ogg at 206.2 s
+  thunder_far_05   4.3 s  from Medium_shower_accompanied_by_thunders.ogg at 224.0 s
+  rain_outside_00  43.0 s loop  from Medium_shower_accompanied_by_thunders.ogg at 667.9 s
+  rain_outside_01  43.0 s loop  from Thunderstorm_after_hot_summer_day_17_minutes_01_of_04.ogg at 37.8 s
+  rain_window_00  60 s loop  from Rain_against_the_window.ogg
+  step_00  from WWS_Creakingfloors.ogg at 28.17 s (onset contrast 32 dB)
+  step_01  from WWS_Creakingfloors.ogg at 17.53 s (onset contrast 31 dB)
+  step_02  from WWS_Creakingfloors.ogg at 17.03 s (onset contrast 31 dB)
+  step_03  from WWS_Creakingfloors.ogg at 4.62 s (onset contrast 30 dB)
+  step_04  from WWS_Creakingfloors.ogg at 82.13 s (onset contrast 30 dB)
+  step_05  from WWS_Creakingfloors.ogg at 81.20 s (onset contrast 30 dB)
+  step_06  from WWS_Creakingfloors.ogg at 196.36 s (onset contrast 30 dB)
+  step_07  from WWS_Creakingfloors.ogg at 22.19 s (onset contrast 29 dB)
+  step_08  from WWS_Creakingfloors.ogg at 154.03 s (onset contrast 29 dB)
+  step_09  from Church_people_walking_steps_with_reverb.ogg at 11.44 s (onset contrast 20 dB)
+  step_10  from Church_people_walking_steps_with_reverb.ogg at 12.90 s (onset contrast 17 dB)
+  step_11  from Church_people_walking_steps_with_reverb.ogg at 9.82 s (onset contrast 16 dB)
+  book_down_00  from Old_book.ogg at 62.76 s
+  book_down_01  from Old_book.ogg at 57.84 s
+  book_down_02  from Old_book.ogg at 69.36 s
+  book_open/take_00  from Old_book.ogg at 60.20 s
+  book_open/take_01  from Old_book.ogg at 53.78 s
+  page_00  from Old_book.ogg at 54.28 s
+  page_01  from Old_book.ogg at 51.48 s
+  page_02  from Old_book.ogg at 13.87 s
+  page_03  from Old_book.ogg at 12.72 s
+  page_04  from Old_book.ogg at 71.13 s
+  page_05  from Old_book.ogg at 13.30 s
+  page_06  from Old_book.ogg at 16.00 s
+  page_07  from Old_book.ogg at 16.54 s
+  page_08  from Old_book.ogg at 70.45 s
+  page_09  from Old_book.ogg at 12.21 s
