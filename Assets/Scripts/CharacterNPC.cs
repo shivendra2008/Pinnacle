@@ -119,7 +119,7 @@ public class NpcStyle
 /// (sari, blouse, face, hair bun, bangles) with idle breathing, head tracking,
 /// hand gestures, walking, and simple audio-driven lip sync.
 /// </summary>
-public class CharacterNPC : MonoBehaviour
+public partial class CharacterNPC : MonoBehaviour
 {
     public Transform lookTarget;
 
@@ -1282,31 +1282,9 @@ public class CharacterNPC : MonoBehaviour
         catch (System.Exception) { rbClips = false; }       // fall back to the code-driven pose
     }
 
-    void RbClips()
+    /// <summary>Once, when standing still: make sure the animated body faces forward and the feet touch the ground.</summary>
+    void FitModelOnce()
     {
-        if (!graph.IsValid() || !mixer.IsValid()) { RecoverClips(); return; }
-        float dt = Time.deltaTime;
-        if (dt <= 0f) return;                     // paused: the Animator has not rewritten the pose, so add nothing on top
-
-        // walk blend from the real movement, whoever is moving this NPC (WalkTo, a cutscene, a shove)
-        Vector3 p = transform.position, d = p - lastPos; d.y = 0; lastPos = p;
-        if (rideVehicle != null)
-        {
-            walkBlend = Mathf.MoveTowards(walkBlend, 0f, dt * 5f);
-            mixer.SetInputWeight(0, 1f - walkBlend); mixer.SetInputWeight(1, walkBlend); mixer.SetInputWeight(2, 0f);
-            RidePose(dt);
-            return;
-        }
-        measSpeed = Mathf.Lerp(measSpeed, d.magnitude / dt, Mathf.Clamp01(dt * 10f));
-        walkBlend = Mathf.MoveTowards(walkBlend, Mathf.Clamp01((measSpeed - 0.06f) / 0.45f), dt * 4f);
-        runBlend = Mathf.MoveTowards(runBlend, cRun != null ? Mathf.Clamp01((measSpeed - 2.1f) / 0.9f) : 0f, dt * 3f);
-        mixer.SetInputWeight(0, 1f - walkBlend);
-        mixer.SetInputWeight(1, walkBlend * (1f - runBlend));
-        mixer.SetInputWeight(2, walkBlend * runBlend);
-        pWalk.SetSpeed(Mathf.Clamp(measSpeed / 1.3f, 0.7f, 1.8f));      // stride follows ground speed: no foot sliding
-        pRun.SetSpeed(Mathf.Clamp(measSpeed / 3.4f, 0.8f, 1.35f));
-
-        // once, when standing still: make sure the animated body faces forward and the feet touch the ground
         if (!fitted && Time.time - bornAt > 0.25f && walkBlend < 0.02f && rbRoot != null)
         {
             fitted = true;
@@ -1322,6 +1300,37 @@ public class CharacterNPC : MonoBehaviour
                 if (Mathf.Abs(lift) > 0.02f && Mathf.Abs(lift) < 0.6f) rbRoot.position += Vector3.up * lift;
             }
         }
+    }
+
+    void RbClips()
+    {
+        if (!graph.IsValid() || !mixer.IsValid()) { RecoverClips(); return; }
+        float dt = Time.deltaTime;
+        // paused. The graph is still evaluated every frame (at the same time), so the clip pose is written again; the
+        // Curator's layers (hands on the props, planted feet, lean, gaze, face) are put back frozen, a step too small
+        // to advance anything, or he would sag into the bare clip pose while the candle stays in the air
+        if (dt <= 0f) { if (hero != null && rideVehicle == null) { FitModelOnce(); HeroFrame(1e-6f); } return; }
+
+        // walk blend from the real movement, whoever is moving this NPC (WalkTo, a cutscene, a shove)
+        Vector3 p = transform.position, d = p - lastPos; d.y = 0; lastPos = p;
+        if (rideVehicle != null)
+        {
+            walkBlend = Mathf.MoveTowards(walkBlend, 0f, dt * 5f);
+            mixer.SetInputWeight(0, 1f - walkBlend); mixer.SetInputWeight(1, walkBlend); mixer.SetInputWeight(2, 0f);
+            RidePose(dt);
+            return;
+        }
+        if (hero != null) { FitModelOnce(); HeroFrame(dt); return; }     // the Curator: CharacterNPC.Hero.cs owns every layer
+        measSpeed = Mathf.Lerp(measSpeed, d.magnitude / dt, Mathf.Clamp01(dt * 10f));
+        walkBlend = Mathf.MoveTowards(walkBlend, Mathf.Clamp01((measSpeed - 0.06f) / 0.45f), dt * 4f);
+        runBlend = Mathf.MoveTowards(runBlend, cRun != null ? Mathf.Clamp01((measSpeed - 2.1f) / 0.9f) : 0f, dt * 3f);
+        mixer.SetInputWeight(0, 1f - walkBlend);
+        mixer.SetInputWeight(1, walkBlend * (1f - runBlend));
+        mixer.SetInputWeight(2, walkBlend * runBlend);
+        pWalk.SetSpeed(Mathf.Clamp(measSpeed / 1.3f, 0.7f, 1.8f));      // stride follows ground speed: no foot sliding
+        pRun.SetSpeed(Mathf.Clamp(measSpeed / 3.4f, 0.8f, 1.35f));
+
+        FitModelOnce();
 
         // layered on top of the clip: the right hand talks and waves, the head follows the player, the jaw follows the voice
         bool waving = Time.time < waveUntil;

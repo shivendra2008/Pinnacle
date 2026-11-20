@@ -43,7 +43,7 @@ public class PlaytestDriver : MonoBehaviour
         Directory.CreateDirectory(outDir);
         // PINNACLE_PLAYTEST_MODE=act2 runs the market NPC check instead of the main run
         string mode = Environment.GetEnvironmentVariable("PINNACLE_PLAYTEST_MODE");
-        StartCoroutine(mode == "act2" ? MarketNpcs() : mode == "lineup" ? Lineup() : Main());
+        StartCoroutine(mode == "act2" ? MarketNpcs() : mode == "lineup" ? Lineup() : mode == "curator" ? CuratorTests() : Main());
         StartCoroutine(Watchdog());
     }
 
@@ -184,6 +184,149 @@ public class PlaytestDriver : MonoBehaviour
             Check(cam.transform.parent == player.transform, "camera returned to the player after the interlude");
         }
         Finish();
+    }
+
+    // ------------------------------------------------------------------ the Curator scenes: pause, skips, restoration
+    // PINNACLE_PLAYTEST_MODE=curator. Plays the real interludes and checks behaviour, not just that they run:
+    // pausing freezes everything (body, voice, mouth, lightning) and resumes without a jump; a skipped line leaves the
+    // mouth at rest; skipping the whole scene at any beat runs the exit once and gives back the camera (lens, depth of
+    // field, focus), the controls, time, sound and the room's lighting; other characters are not on the hero path.
+    IEnumerator CuratorTests()
+    {
+        Log("Curator play-test " + DateTime.Now + "  Unity " + Application.unityVersion + "  " + SystemInfo.graphicsDeviceName);
+        PriyaRoomBuilder builder = null; PriyaRoomStory story = null;
+        for (float t = 0; t < 20f && (builder == null || story == null || builder.PlayerCtrl == null); t += Time.unscaledDeltaTime)
+        { builder = FindFirstObjectByType<PriyaRoomBuilder>(); story = FindFirstObjectByType<PriyaRoomStory>(); yield return null; }
+        if (builder == null || story == null) { Check(false, "game boots"); Finish(); yield break; }
+        yield return new WaitForSeconds(1f);
+        var player = builder.PlayerCtrl; var cam = player.cam.GetComponent<Camera>();
+        SaveSystem.Profile.playerName = "Tester";
+        story.enabled = false;
+        // the state the scenes must give back
+        Vector3 camLocal = cam.transform.localPosition; float fov = cam.fieldOfView, near = cam.nearClipPlane; bool phys = cam.usePhysicalProperties;
+        var amb = RenderSettings.ambientSkyColor; bool fog = RenderSettings.fog; float fogD = RenderSettings.fogDensity;
+        var af = cam.GetComponent<AutoFocus>(); float dofF = af != null && af.dof != null ? af.dof.focalLength.value : 0f, dofA = af != null && af.dof != null ? af.dof.aperture.value : 0f;
+
+        // ---- 1. pause at four kinds of moment, in the prologue
+        int exits = 0;
+        var inter = CuratorInterlude.Play(0, builder, player, () => exits++, true);
+        yield return null;
+        var npc = Get(inter, "curator") as CharacterNPC;
+        Check(npc != null && npc.IsHero, "the Curator runs on the hero layers");
+        yield return PauseAt(inter, npc, "walking", () => npc != null && npc.Speed > 0.5f, 60f);
+        yield return PauseAt(inter, npc, "holding the book", () => Get(inter, "book") is StoryBookModel b && b.root != null && Vector3.Distance(b.root.position, npc.HandBone(1).position) < 0.3f && npc.Speed < 0.05f && Get(inter, "shot") != null, 60f);
+        yield return PauseAt(inter, npc, "speaking", () => npc != null && npc.HeroSpeaking, 60f);
+        yield return PauseAt(inter, npc, "lightning", () => GalleryStorm.Active != null && GalleryStorm.Active.Flash > 0.05f, 120f);
+        // ---- 2. skip a line: the mouth comes to rest, the scene goes on. Skip a line with time left in it (a short one
+        // could end by itself first, and the skip flag would then skip the next line instead), and check that very clip
+        for (float t = 0; t < 60f && !(npc.HeroSpeaking && npc.VoiceSource.clip != null && npc.VoiceSource.clip.length - npc.VoiceSource.time > 1.5f); t += Time.deltaTime) yield return null;
+        string line = inter.LineNow; var skipped = npc.VoiceSource.clip;
+        CuratorInterlude.TestSkipLine = true;
+        for (int i = 0; i < 30 && CuratorInterlude.TestSkipLine; i++) yield return null;      // taken by the line's loop
+        bool taken = !CuratorInterlude.TestSkipLine; CuratorInterlude.TestSkipLine = false;
+        for (int i = 0; i < 12; i++) yield return null;
+        float mouth = MouthOpen(npc);
+        bool sameClipStopped = !(npc.VoiceSource.isPlaying && npc.VoiceSource.clip == skipped);
+        Check(taken && sameClipStopped, "skipping a line stops its voice (" + line + ")");
+        Check(mouth < 0.05f || (npc.HeroSpeaking && npc.VoiceSource.clip != skipped), "after a skipped line the mouth is at rest (viseme weight " + mouth.ToString("F2") + ")");
+        for (float t = 0; t < 8f && (inter.LineNow == null || inter.LineNow == line); t += Time.deltaTime) yield return null;
+        Check(inter.LineNow != null && inter.LineNow != line, "the scene carries on to the next line after a skip (" + inter.LineNow + ")");
+        // ---- 3. skip the whole scene from here
+        Set(inter, "skipAll", true);
+        for (float t = 0; t < 10f && inter != null; t += Time.deltaTime) yield return null;
+        Check(inter == null && exits == 1, "skipping the prologue mid-scene ends it, exit ran " + exits + " time(s)");
+        CheckRestored(player, cam, camLocal, fov, near, phys, af, dofF, dofA, amb, fog, fogD, "prologue");
+
+        // ---- 4. whole-scene skips at different beats of an interlude (scene 1), and once to the end
+        foreach (float at in new[] { 0.5f, 6f, 14f, 30f })
+        {
+            int n = 0; bool fin = false;
+            var it = CuratorInterlude.Play(1, builder, player, () => { n++; fin = true; }, true);
+            for (float t = 0; t < at; t += Time.deltaTime) yield return null;
+            Set(it, "skipAll", true);
+            for (float t = 0; t < 10f && !fin; t += Time.deltaTime) yield return null;
+            for (int i = 0; i < 5; i++) yield return null;
+            Check(fin && n == 1, "interlude skipped at " + at.ToString("0.0") + " s: exit ran " + n + " time(s)");
+            CheckRestored(player, cam, camLocal, fov, near, phys, af, dofF, dofA, amb, fog, fogD, "interlude skipped at " + at.ToString("0.0") + " s");
+        }
+        // ---- 5. a line with no audio: subtitles time from the text, the mouth does not move
+        {
+            int n = 0; bool fin = false;
+            var it = CuratorInterlude.Play(1, builder, player, () => { n++; fin = true; }, true);
+            for (int i = 0; i < 10; i++) yield return null;
+            var c = Get(it, "curator") as CharacterNPC;
+            it.StopAllCoroutines();
+            var co = (IEnumerator)Call(it, "Line", "no_such_line_id");
+            it.StartCoroutine(co);
+            float maxMouth = 0f;
+            for (int i = 0; i < 45; i++) { yield return null; maxMouth = Mathf.Max(maxMouth, MouthOpen(c)); }
+            Check(!string.IsNullOrEmpty(Get(it, "sub") as string), "a line without audio still shows its subtitle");
+            Check(maxMouth < 0.01f, "a line without audio does not move the mouth (max viseme weight " + maxMouth.ToString("F3") + ")");
+            Set(it, "skipAll", true);
+            Call(it, "Finish");
+            for (int i = 0; i < 5; i++) yield return null;
+            Check(n == 1, "finishing after a missing-audio line runs the exit once");
+        }
+        // ---- 6. nobody else is on the hero path
+        int heroes = 0, others = 0;
+        foreach (var c in FindObjectsByType<CharacterNPC>()) { if (c.IsHero) heroes++; else others++; }
+        Check(heroes == 0, "no hero characters left after the scenes (" + heroes + ")");
+        Log("other characters in the scene: " + others + " (none on the hero layers)");
+        Finish();
+    }
+
+    float MouthOpen(CharacterNPC c)
+    {
+        if (c == null) return 0f;
+        var hero = Get(c, "hero"); var face = hero != null ? Get(hero, "face") as HeroFace : null;
+        if (face == null) return 0f;
+        float m = 0f; var w = face.VisemeWeights;
+        for (int i = 1; i < w.Length; i++) m = Mathf.Max(m, w[i]);
+        return m;
+    }
+
+    IEnumerator PauseAt(CuratorInterlude inter, CharacterNPC npc, string what, Func<bool> when, float limit)
+    {
+        float t0 = Time.time;
+        while (inter != null && Time.time - t0 < limit && !when()) yield return null;
+        if (inter == null || !when()) { Log("SKIP  pause while " + what + ": the moment did not come within " + limit + " s"); yield break; }
+        var root = npc.transform;
+        Call(inter, "SetPaused", true);
+        // a pause set during a frame takes effect from the next one (this frame already has its delta time): the
+        // reference pose is the first paused frame's, then nothing may move for 40 frames
+        yield return null;
+        Vector3 p0 = root.position; Quaternion h0 = npc.HeadBone.rotation;
+        float vt0 = npc.VoiceSource.time, mouth0 = MouthOpen(npc), flash0 = GalleryStorm.Active != null ? GalleryStorm.Active.Flash : 0f;
+        Vector3 hand0 = npc.HandBone(0).position;
+        for (int i = 0; i < 40; i++) yield return null;
+        bool still = (root.position - p0).magnitude < 1e-4f && Quaternion.Angle(npc.HeadBone.rotation, h0) < 0.01f && (npc.HandBone(0).position - hand0).magnitude < 1e-4f;
+        bool voice = Mathf.Abs(npc.VoiceSource.time - vt0) < 1e-3f;
+        bool face = Mathf.Abs(MouthOpen(npc) - mouth0) < 1e-3f;
+        bool sky = GalleryStorm.Active == null || Mathf.Abs(GalleryStorm.Active.Flash - flash0) < 1e-4f;
+        Check(still && voice && face && sky && Time.timeScale == 0f && AudioListener.pause,
+            "paused while " + what + ": body " + (still ? "still" : "MOVED") + ", voice " + (voice ? "held" : "RAN ON") + ", mouth " + (face ? "held" : "MOVED") + ", lightning " + (sky ? "held" : "RAN ON"));
+        Call(inter, "SetPaused", false);
+        // resumes from where it was: nothing jumps on the first frame that moves again (the frame in which the pause
+        // is lifted still has no delta time); the hand is measured against the body, which may be walking
+        yield return null;
+        Vector3 hb = npc.HandBone(0).position, pb = root.position;
+        yield return null;
+        float jump = ((npc.HandBone(0).position - hb) - (root.position - pb)).magnitude;
+        Check(jump < 0.06f && Time.timeScale == 1f && !AudioListener.pause, "resumed after pausing while " + what + " without a jump (" + (jump * 100f).ToString("F1") + " cm in the first frame)");
+    }
+
+    void CheckRestored(PriyaRoomPlayer player, Camera cam, Vector3 camLocal, float fov, float near, bool phys, AutoFocus af, float dofF, float dofA, Color amb, bool fog, float fogD, string after)
+    {
+        bool camOk = cam.transform.parent == player.transform && (cam.transform.localPosition - camLocal).magnitude < 1e-3f && cam.usePhysicalProperties == phys
+                     && Mathf.Abs(cam.fieldOfView - fov) < 0.01f && Mathf.Abs(cam.nearClipPlane - near) < 1e-4f;
+        bool dofOk = af == null || af.dof == null || (Mathf.Abs(af.dof.focalLength.value - dofF) < 0.01f && Mathf.Abs(af.dof.aperture.value - dofA) < 0.01f);
+        Check(camOk, after + ": camera back in Arjun's head with his own lens (fov " + cam.fieldOfView.ToString("F1") + ", near " + cam.nearClipPlane.ToString("F2") + ", physical " + cam.usePhysicalProperties + ")");
+        Check(dofOk && AutoFocus.FocusOn == null, after + ": depth of field and focus handed back");
+        Check(player.enabled && player.GetComponent<CharacterController>().enabled, after + ": player controls back");
+        Check(Mathf.Approximately(Time.timeScale, 1f) && !AudioListener.pause && !GameState.Paused, after + ": time, sound and pause normal");
+        Check((RenderSettings.ambientSkyColor - amb).maxColorComponent < 0.01f && RenderSettings.fog == fog && Mathf.Abs(RenderSettings.fogDensity - fogD) < 1e-4f, after + ": the room's ambient light and fog put back");
+        Check(GalleryStorm.Active == null, after + ": the storm is gone with the Gallery");
+        Check(FindObjectsByType<CuratorInterlude>().Length == 0, after + ": no interlude left behind");
     }
 
     // ------------------------------------------------------------------ every avatar model, front and face

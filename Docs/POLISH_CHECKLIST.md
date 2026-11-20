@@ -38,6 +38,23 @@ Docs: audit and production list `POLISH_AUDIT.md` · story `STORY_BIBLE.md` · s
 - [ ] Realistic child avatars (or stage children out of close shots)
 - [ ] Clue inspect view (rotate and zoom)
 
+## Session 3 (19-20 Nov 2026): the Curator scenes (`Docs/CURATOR.md`)
+- [x] Baseline recorded with sound and measured (feet, hands, camera, light, sound); rig probe of the Curator model
+- [x] Hero performance layers for the Curator only: stride-wheel walk, planted feet with stepping turns, wrist-orientation IK onto grips, finger poses, props owned by the hand (code + footage)
+- [x] Visemes from the actual audio for all 92 Curator lines (`Tools/lipsync`); playback on the voice's real position (code + footage)
+- [x] Blinks that close the lids (generated blendshapes) (footage)
+- [x] Lens-based framing on his animated eyes, beat-driven shots, eyeline on the investigator (code + footage)
+- [x] Gallery look rebuilt; F2 tiers now cover the Gallery's volume; storm with lightning through the east window (footage)
+- [x] Recorded storm, footsteps, pages and book sounds (Commons PD / CC BY 4.0), contact-driven (code + footage)
+- [x] First full recording reviewed shot by shot: 9 faults found and fixed (insert held over the next line, blank and vanishing pages, exhibit framing, book pops, hand jumps on release, a jump cut, square smoke, black Gallery windows, sound beds cut dead) (`CURATOR.md` 4.1)
+- [x] All 8 Curator segments re-recorded with sound and measured against the baseline: foot slip 8% -> 1% / 3-4% -> 0%, 0 prop pops, 0 hand discontinuities, 0 lens changes inside a shot (`CURATOR.md` 4.2, `Docs/curator/`)
+- [x] Curator play-test suite 56/56: pause at four moments, line skip, scene skips at five beats, missing audio, restoration; it caught a real fault (he sagged into the clip pose while paused), fixed (`CURATOR.md` 4.3)
+- [x] Standalone macOS build plays the prologue; run-time shader variants now actually kept (13 materials, 0 keywords lost; before, built skin was mirror-glossy and procedural surfaces lost their maps) (`CURATOR.md` 4.4)
+- [x] Real-time profile, MacBook Air M1, 1920x1080, top tier: 22.9 ms median, 27.1 ms p99, GPU-bound (`Docs/curator/profile_summary.txt`)
+- [ ] Profile on the target PC class (GTX 1660 / Ryzen 5 3600, 1080p)
+- [ ] Recorded match strike, candle blow-out and cloth movement (not found under a usable licence)
+- [ ] Recorded VO and a scan-quality hero head with blendshapes (see `Docs/CURATOR.md` section 5)
+
 ## Next
 - [ ] Justice gate: case conditions instead of `EvidenceCount >= 18`, shown on the casket card
 - [ ] Deduction step: link evidence to questions (fact vs. interpretation), one fair contradiction per act
@@ -47,7 +64,7 @@ Docs: audit and production list `POLISH_AUDIT.md` · story `STORY_BIBLE.md` · s
 - [ ] Runtime NavMesh (`NavMeshSurface.BuildNavMesh` after `BuildWorld`) for market and shelter crowds
 - [ ] Shot lists + polish: Kamala, SUV decision, Act IV escapes, Priya's reveal, Gallery and endings
 - [ ] Switch the remaining world TextMeshes (signs) to `GameKit.Solid`
-- [ ] Shader variant collection for the standalone build
+- [ ] Check Acts I-V in a standalone build (run-time shader variants are now kept, `BuildPlayer.EnsureVariantMaterials`; only the Curator prologue has been looked at in a build)
 - [ ] Act IV mid-act checkpoint (after the ally is won)
 - [ ] Music ducking under dialogue; distinct ambience per location
 - [ ] Profile on an identified target machine (provisional: GTX 1660 / Ryzen 5 3600 class, 1080p, 16.6 ms frame)

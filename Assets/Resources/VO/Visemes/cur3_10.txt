@@ -1,0 +1,10 @@
+# cur3_10  1.225 s  TTS Daniel 124  (Tools/lipsync/curator_lipsync.py)
+# V start end viseme weight stress phoneme | A time strength | P start end | W start end word
+W 0.140 0.560 After
+W 0.560 1.010 you.
+V 0.140 0.259 aa 1.00 1 AA1
+V 0.259 0.354 FF 1.00 -1 F
+V 0.354 0.477 DD 1.00 -1 T
+V 0.477 0.560 aa 0.60 0 AH0
+V 0.560 0.677 I 1.00 -1 Y
+V 0.677 1.010 U 1.00 1 UW1
