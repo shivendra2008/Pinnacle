@@ -31,5 +31,5 @@ says story conflicts should be flagged, not decided, so here they are for you to
 2. **Priya's line at 4 AM:** "four hours" to the hearing changed to "six hours" (the hearing is at 10 AM).
 3. **Deed custody:** Reddy holds the original 1942 deed (her signature on the sign-out sheet). Priya holds the forged
    1965 file, not the deed. Rohan's, Priya's and the hearing line were reworded and re-recorded (`a4b_rohan_2`,
-   `a5_priya_4`, `end1_priya`), and so was the Municipal email card. The old text is in git history (commit before `493e13c`).
+   `a5_priya_4`, `end1_priya`), and so was the Municipal email card. The old text is in git history (commit before `c2bca74`).
 4. **Curator welcome placement:** before Act I, at your request, although its text recaps Act I events.

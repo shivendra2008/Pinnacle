@@ -1,14 +1,14 @@
 # The Curator scenes: how they are built, what was measured, what is still missing
 
 Covers the prologue (scene 0), the interludes after Acts II-IV (scenes 1-3), the Act V Gallery and the three ending
-verdicts. Started 19 Nov 2026 against commit `3aebc82`. Unity 6000.5.9f1, URP 17.5 (Forward+), no HDRP.
+verdicts. Started 19 Nov 2026 against commit `e11a592`. Unity 6000.5.9f1, URP 17.5 (Forward+), no HDRP.
 
 Everything below marked **measured** comes from recordings of the real scenes (see "Tools" at the end) or from
 the rig probe; **designed** means written and compiled but not yet seen in a recording.
 
 ## 1. Baseline (before), measured
 
-Recorded with `CuratorCapture` (fixed 30 fps, offline audio in sync) on the code of `3aebc82`.
+Recorded with `CuratorCapture` (fixed 30 fps, offline audio in sync) on the code of `e11a592`.
 
 | Area | What the footage and the tracking data showed | Kind |
 |---|---|---|
@@ -155,7 +155,7 @@ as cuts), so they cannot come back silently.
 
 ### 4.2 Final recordings, before and after (measured)
 Every Curator scene recorded on 20 Nov 2026 with `CuratorCapture` on an Apple M1 (fixed 30 fps, 1280x720 after,
-960x540 before, offline audio in sync), measured with `Tools/review_capture.py`; before = commit `3aebc82`, after = the committed code (two later changes
+960x540 before, offline audio in sync), measured with `Tools/review_capture.py`; before = commit `e11a592`, after = the committed code (two later changes
 are not in these recordings because no recording exercises them: the pause path, and the build's variant materials). Full
 footage with sound: `Recordings/curator/before|final/<scene>/` (git-ignored, ~0.5 GB). Line-matched stills (same
 line of dialogue, left before, right after): `Docs/curator/prologue_before_after.jpg`, `act2_before_after.jpg`,
