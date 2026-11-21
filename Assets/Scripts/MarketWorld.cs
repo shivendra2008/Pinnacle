@@ -26,6 +26,7 @@ public class MarketWorld : MonoBehaviour
     public Vector3 IdDropPos = new Vector3(2.2f, 0.03f, 40.3f);
     public Vector3 AlleyEnd = new Vector3(11.5f, 0f, 45f);
     public Vector3 SuvStart = new Vector3(0.6f, 0f, 94f);
+    public Vector3 RadioPos = new Vector3(2.5f, 1.1f, 26f);          // the transistor radio on the recharge stall
 
     public Transform Auto;
     public Transform Suv;
@@ -201,6 +202,7 @@ public class MarketWorld : MonoBehaviour
         yield return null;
         TexturePass();
         yield return null;
+        yield return TrimDressing();
         CombineStatic();
         BuildAuto();
         BuildSuv();
@@ -303,6 +305,126 @@ public class MarketWorld : MonoBehaviour
     /// Gives real materials to parts that were built as flat-coloured boxes (keeping each one's own colour):
     /// wood for crates, frames and shutters, plaster and concrete for masonry, rusty metal for boxes and fittings.
     /// </summary>
+    // ------------------------------------------------------------------ dressing budget
+    static readonly Dictionary<Mesh, Mesh> lodMeshes = new Dictionary<Mesh, Mesh>();
+    public int DressingShadowsOff { get; private set; }
+    public int DressingLods { get; private set; }
+
+    static int TriangleCount(Mesh m)
+    {
+        long t = 0;
+        for (int i = 0; i < m.subMeshCount; i++) t += m.GetIndexCount(i) / 3;
+        return (int)t;
+    }
+
+    /// <summary>
+    /// The scanned dressing (fruit, pots, baskets, packets, tea sets: 1k Poly Haven scans of 3,000-47,000 triangles
+    /// each) was about 95% of the triangles a frame drew looking down the lane, most of them again in four shadow
+    /// cascades and the SSAO depth-normals pass (measured with the route: 25 M triangles a frame, 1.3 M without them).
+    /// Small things stop casting the moon's shadow (the lane is lit by practical lamps, which cast none), and each
+    /// detailed prop gets a simplified copy for the distance and is dropped when it is a few pixels tall. The levels go
+    /// by screen height, so a zoomed lens (the licence plate) still shows full detail.
+    /// </summary>
+    IEnumerator TrimDressing()
+    {
+        int made = 0;
+        var renderers = GetComponentsInChildren<MeshRenderer>(true);
+        foreach (var r in renderers)
+        {
+            if (r == null || animated.Contains(r.gameObject) || r.GetComponent<TextMesh>() != null || r.GetComponentInParent<LODGroup>() != null) continue;
+            var mf = r.GetComponent<MeshFilter>();
+            if (mf == null || mf.sharedMesh == null) continue;
+            float size = r.bounds.size.magnitude;
+            if (size < 1.2f && r.shadowCastingMode != UnityEngine.Rendering.ShadowCastingMode.Off)
+            {
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                DressingShadowsOff++;
+            }
+            var mesh = mf.sharedMesh;
+            if (size > 1.7f || !mesh.isReadable || TriangleCount(mesh) < 1200) continue;
+            if (!lodMeshes.TryGetValue(mesh, out var low))
+            {
+                low = Simplify(mesh);
+                lodMeshes[mesh] = low;
+                if (++made % 3 == 0) yield return null;           // a few meshes a frame while the loading card is up
+            }
+            if (low == null) continue;
+            var go = new GameObject("LOD1");
+            go.transform.SetParent(r.transform, false);
+            go.AddComponent<MeshFilter>().sharedMesh = low;
+            var lr = go.AddComponent<MeshRenderer>();
+            lr.sharedMaterials = r.sharedMaterials;
+            lr.shadowCastingMode = r.shadowCastingMode; lr.receiveShadows = r.receiveShadows;
+            var g = r.gameObject.AddComponent<LODGroup>();
+            // PC quality doubles LOD distances (lodBias 2): full detail above ~8% of the screen's height, the simplified
+            // copy down to ~0.6% (six or seven pixels at 1080p), then nothing
+            g.SetLODs(new[] { new LOD(0.16f, new Renderer[] { r }), new LOD(0.012f, new Renderer[] { lr }) });
+            g.RecalculateBounds();
+            DressingLods++;
+        }
+    }
+
+    /// <summary>
+    /// A quick distance copy of a mesh by vertex clustering: vertices are merged on a grid sized to keep roughly a
+    /// fifth of the triangles; each cell keeps its first vertex's texture coordinate and the cell's averaged position
+    /// and normal. Good enough for an object a few dozen pixels tall; never used up close.
+    /// </summary>
+    static Mesh Simplify(Mesh src)
+    {
+        var pos = src.vertices; var nrm = src.normals; var uv = src.uv;
+        if (pos.Length == 0) return null;
+        bool hasN = nrm != null && nrm.Length == pos.Length, hasUv = uv != null && uv.Length == pos.Length;
+        int tris = TriangleCount(src);
+        float target = Mathf.Max(300f, tris * 0.2f);
+        int n = Mathf.Clamp(Mathf.RoundToInt(Mathf.Sqrt(target / 10f)), 6, 40);
+        var b = src.bounds;
+        float cell = Mathf.Max(b.size.x, Mathf.Max(b.size.y, b.size.z)) / n;
+        if (cell <= 0f) return null;
+        var cellOf = new Dictionary<long, int>();
+        var remap = new int[pos.Length];
+        var outPos = new List<Vector3>(); var outN = new List<Vector3>(); var outUv = new List<Vector2>(); var count = new List<int>();
+        for (int i = 0; i < pos.Length; i++)
+        {
+            Vector3 q = (pos[i] - b.min) / cell;
+            long key = ((long)Mathf.FloorToInt(q.x) * 73856093L) ^ ((long)Mathf.FloorToInt(q.y) * 19349663L) ^ ((long)Mathf.FloorToInt(q.z) * 83492791L);
+            if (!cellOf.TryGetValue(key, out int c))
+            {
+                c = outPos.Count; cellOf[key] = c;
+                outPos.Add(Vector3.zero); outN.Add(Vector3.zero); outUv.Add(hasUv ? uv[i] : Vector2.zero); count.Add(0);
+            }
+            outPos[c] += pos[i]; if (hasN) outN[c] += nrm[i]; count[c]++;
+            remap[i] = c;
+        }
+        for (int c = 0; c < outPos.Count; c++) { outPos[c] /= count[c]; outN[c] = outN[c].sqrMagnitude > 1e-12f ? outN[c].normalized : Vector3.up; }
+        var m = new Mesh { name = src.name + "_far" };
+        if (outPos.Count > 65000) m.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+        m.SetVertices(outPos); if (hasN) m.SetNormals(outN); if (hasUv) m.SetUVs(0, outUv);
+        m.subMeshCount = src.subMeshCount;
+        var seen = new HashSet<long>();
+        for (int s = 0; s < src.subMeshCount; s++)
+        {
+            var idx = src.GetTriangles(s);
+            var outIdx = new List<int>(idx.Length / 4);
+            seen.Clear();
+            for (int i = 0; i + 2 < idx.Length; i += 3)
+            {
+                int a = remap[idx[i]], bb = remap[idx[i + 1]], c = remap[idx[i + 2]];
+                if (a == bb || bb == c || a == c) continue;
+                // the same three cells in the same winding once only
+                int lo = Mathf.Min(a, Mathf.Min(bb, c));
+                long k = lo == a ? ((long)a << 42) ^ ((long)bb << 21) ^ c : lo == bb ? ((long)bb << 42) ^ ((long)c << 21) ^ a : ((long)c << 42) ^ ((long)a << 21) ^ bb;
+                if (!seen.Add(k)) continue;
+                outIdx.Add(a); outIdx.Add(bb); outIdx.Add(c);
+            }
+            m.SetTriangles(outIdx, s, false);
+        }
+        m.RecalculateBounds();
+        if (!hasN) m.RecalculateNormals();
+        if (hasUv) m.RecalculateTangents();
+        m.UploadMeshData(false);        // stays readable so static batching can take it
+        return m;
+    }
+
     void TexturePass()
     {
         var map = new Dictionary<string, string>
@@ -374,8 +496,13 @@ public class MarketWorld : MonoBehaviour
         AddLight(new Vector3(0, 4.2f, 84f), new Color(0.75f, 0.85f, 1f), 2.6f, 14f);                  // a street lamp outside the gate
         // billboard at the far end of the lane
         B(transform, "Hoarding", new Vector3(0, 5.2f, 79.7f), new Vector3(7.6f, 3.4f, 0.25f), Rgb(0.06f, 0.09f, 0.15f), false, 0.4f);
-        GameKit.Text(transform, "CHANDNIPUR RENEWAL PROJECT", new Vector3(0, 5.9f, 79.5f), Quaternion.identity, 0.42f, new Color(0.75f, 0.9f, 1f));
-        GameKit.Text(transform, "A NEW CITY IS COMING", new Vector3(0, 4.7f, 79.5f), Quaternion.identity, 0.32f, new Color(1f, 0.8f, 0.4f));
+        // the hoarding stood 27 cm off the gateway wall with nothing holding it: steel brackets tie it back, and the
+        // backlit lettering sits on its face instead of 7 cm in front of it
+        foreach (float bx in new[] { -2.6f, 0f, 2.6f })
+            foreach (float by in new[] { 4.0f, 6.4f })
+                B(transform, "HoardingBracket", new Vector3(bx, by, 79.96f), new Vector3(0.08f, 0.08f, 0.3f), Rgb(0.18f, 0.18f, 0.2f), false, 0.4f, 0.7f);
+        GameKit.Text(transform, "CHANDNIPUR RENEWAL PROJECT", new Vector3(0, 5.9f, 79.565f), Quaternion.identity, 0.42f, new Color(0.75f, 0.9f, 1f));
+        GameKit.Text(transform, "A NEW CITY IS COMING", new Vector3(0, 4.7f, 79.565f), Quaternion.identity, 0.32f, new Color(1f, 0.8f, 0.4f));
         AddLight(new Vector3(0, 3.2f, 77f), new Color(0.6f, 0.8f, 1f), 2.2f, 9f);
     }
 
@@ -508,10 +635,11 @@ public class MarketWorld : MonoBehaviour
         // signboard
         var sc = SignBg[rnd.Next(SignBg.Length)];
         var names = Shops[(k * 2 + (side > 0 ? 5 : 0)) % Shops.Length];
+        // a backlit box sign on a frame that is fixed to the wall (the frame used to float 9 cm off the facade)
         GameKit.Box(transform, "SignBoard", P(0.18f, 3.55f, 0), new Vector3(0.14f, 0.85f, 4.5f), GameKit.Glow(sc, sc, 0.7f));   // lit signboard
-        B(transform, "SignFrame", P(0.14f, 3.55f, 0), new Vector3(0.1f, 0.95f, 4.6f), Rgb(0.9f, 0.85f, 0.7f), false, 0.3f);
+        B(transform, "SignFrame", P(0.095f, 3.55f, 0), new Vector3(0.19f, 0.95f, 4.6f), Rgb(0.9f, 0.85f, 0.7f), false, 0.3f);
         Color tc = (sc.r + sc.g + sc.b) > 1.6f ? Rgb(0.08f, 0.08f, 0.1f) : Rgb(1f, 0.97f, 0.85f);
-        GameKit.Sign(transform, names[0], names[1], P(0.254f, 3.55f, 0), face, 0.34f, 4.2f, tc);
+        Paint(transform, names[0], names[1], P(0.2515f, 3.55f, 0), face, 0.34f, 4.2f, tc);
 
         // tin shade over the shop on rusty brackets, a tube light over the sign, a rainwater pipe, a worn stone step
         if (R2() < 0.65f)
@@ -523,6 +651,7 @@ public class MarketWorld : MonoBehaviour
                 Seg("ShadeBracket", P(0.1f, 2.75f, dz), P(1.05f, 2.93f, dz), 0.025f, Rgb(0.2f, 0.14f, 0.1f));
         }
         Gl(transform, "SignTube", P(0.34f, 4.07f, 0), new Vector3(0.04f, 0.04f, 1.2f), Tube, 2.6f);
+        if (!open) AddLight(P(0.62f, 4.0f, 0), Tube, 0.9f, 2.4f);         // a shuttered shop's sign is lit only by its tube
         B(transform, "TubeFitting", P(0.3f, 4.1f, 0), new Vector3(0.07f, 0.03f, 1.3f), Rgb(0.8f, 0.8f, 0.78f), false, 0.4f);
         Cy(transform, "RainPipe", P(0.1f, h / 2f, 2.88f), 0.05f, h, Rgb(0.25f, 0.2f, 0.17f), 0.3f, 0.3f);
         for (int cl = 0; cl < floors; cl++) B(transform, "PipeClamp", P(0.1f, 1.2f + cl * 3.1f, 2.88f), new Vector3(0.14f, 0.04f, 0.14f), Rgb(0.15f, 0.12f, 0.1f), false, 0.3f, 0.5f);
@@ -547,8 +676,8 @@ public class MarketWorld : MonoBehaviour
                 B(transform, "WinFrame", P(0.05f, yb + 1.3f, dz), new Vector3(0.14f, 1.7f, 1.15f), Rgb(0.25f, 0.17f, 0.1f));
                 if (lit) Gl(transform, "WinGlow", P(0.128f, yb + 1.3f, dz), new Vector3(0.012f, 1.45f, 0.95f), R() < 0.6f ? Tungsten : Tube, 0.82f);
                 else B(transform, "WinDark", P(0.128f, yb + 1.3f, dz), new Vector3(0.012f, 1.45f, 0.95f), dark, false, 0.8f);
-                for (int s = -1; s <= 1; s += 2)   // louvred shutters
-                    B(transform, "Shutter", P(0.14f, yb + 1.3f, dz + s * 0.31f), new Vector3(0.05f, 1.45f, 0.48f), leaf, false, 0.2f);
+                for (int s = -1; s <= 1; s += 2)   // louvred shutters, folded back: a lit window shows as a window, not a 14 cm sliver that shimmered in motion
+                    B(transform, "Shutter", P(0.14f, yb + 1.3f, dz + s * 0.43f), new Vector3(0.05f, 1.45f, 0.36f), leaf, false, 0.2f);
                 for (int g = 0; g < 4; g++)         // iron grill
                     B(transform, "Grill", P(0.2f, yb + 1.3f, dz - 0.42f + g * 0.28f), new Vector3(0.025f, 1.5f, 0.025f), dark, false, 0.4f, 0.6f);
                 B(transform, "Sunshade", P(0.32f, yb + 2.25f, dz), new Vector3(0.6f, 0.05f, 1.3f), paint * 0.5f);
@@ -640,8 +769,8 @@ public class MarketWorld : MonoBehaviour
         B(transform, "GatePillarR", new Vector3(3.45f, 2.7f, z), new Vector3(0.7f, 5.4f, 0.7f), pillar, true, 0.2f);
         B(transform, "GateBeam", new Vector3(0, 5.35f, z), new Vector3(8f, 1.1f, 0.6f), Rgb(0.7f, 0.2f, 0.15f), false, 0.2f);
         B(transform, "GateTop", new Vector3(0, 6.05f, z), new Vector3(6f, 0.4f, 0.5f), Rgb(0.95f, 0.75f, 0.2f), false, 0.3f);
-        GameKit.Sign(transform, "CHANDNI CHOWK BAZAAR", "चांदनी चौक बाज़ार", new Vector3(0, 5.35f, z - 0.304f), Quaternion.identity, 0.42f, 7f, Rgb(1f, 0.92f, 0.65f));
-        GameKit.Sign(transform, "WELCOME", "स्वागतम्", new Vector3(0, 6.05f, z - 0.254f), Quaternion.identity, 0.17f, 3f, Rgb(0.3f, 0.1f, 0.05f));
+        Paint(transform, "CHANDNI CHOWK BAZAAR", "चांदनी चौक बाज़ार", new Vector3(0, 5.35f, z - 0.3015f), Quaternion.identity, 0.42f, 7f, Rgb(1f, 0.92f, 0.65f));
+        Paint(transform, "WELCOME", "स्वागतम्", new Vector3(0, 6.05f, z - 0.2515f), Quaternion.identity, 0.17f, 3f, Rgb(0.3f, 0.1f, 0.05f));
         Garland(new Vector3(-3.1f, 4.8f, z - 0.4f), new Vector3(3.1f, 4.8f, z - 0.4f), 26, 0.7f);
         for (int i = 0; i < 9; i++)   // LED border
             Gl(transform, "GateLED", new Vector3(-3.6f + i * 0.9f, 4.78f, z - 0.34f), new Vector3(0.12f, 0.12f, 0.05f), Flags[i % Flags.Length], 4f);
@@ -691,19 +820,20 @@ public class MarketWorld : MonoBehaviour
         }
         TubeSeg(st, new Vector3(-1.15f, 2.78f, 0.5f), new Vector3(1.15f, 2.78f, 0.5f), 0.02f, bamboo);
         TubeSeg(st, new Vector3(-1.15f, 2.58f, -0.45f), new Vector3(1.15f, 2.58f, -0.45f), 0.02f, bamboo);
-        // a plastic tarpaulin tied over the frame: it sags, and no two are quite the same colour
+        // a plastic tarpaulin tied over the frame: it rests on both rails, sags between them and droops past them,
+        // and no two are quite the same colour (the shared tarp mesh sagged through the front rail)
         Color tc = Color.Lerp(tarp, Rgb(0.45f, 0.45f, 0.45f), 0.15f + R2() * 0.25f);
         var tarpMat = ProcTex.Mat(ProcTex.Get("fabric"), tc, new Vector2(2.7f, 1.9f) / 0.35f, 0.45f, 0.6f);
         if (tarpMat.HasProperty("_Cull")) tarpMat.SetFloat("_Cull", 0f);
-        var aw = VehicleKit.Part(st, "Awning", VehicleKit.Tarp(2.7f, 1.9f, 0.1f + (R2() < 0.5f ? 0.05f : 0.1f)), tarpMat, new Vector3(0, 2.7f, 0.1f));
-        aw.transform.localRotation = Quaternion.Euler(-11f, 0, 0);
+        VehicleKit.Part(st, "Awning", StallAwning(R2() < 0.5f ? 0.05f : 0.09f), tarpMat, Vector3.zero);
         // jute cloth hung over the front of the counter
         var drape = B(st, "Drape", new Vector3(0, 0.46f, 0.41f), new Vector3(2.24f, 0.82f, 0.015f), Rgb(0.62f, 0.52f, 0.36f), false, 0.05f);
         GameKit.Surface(drape, "fabric", 0.25f, 0.3f, 1.4f, Rgb(0.62f, 0.52f, 0.36f) * (0.8f + R2() * 0.3f));
-        TubeSeg(st, new Vector3(0, 2.6f, 0.35f), new Vector3(0, 2.27f, 0.35f), 0.008f, Rgb(0.05f, 0.05f, 0.05f));
+        stallCord = TubeSeg(st, new Vector3(0, 2.6f, 0.35f), new Vector3(0, 2.27f, 0.35f), 0.008f, Rgb(0.05f, 0.05f, 0.05f));
         // hanging bulb (tungsten) + light
-        GameKit.Sphere(st, "Bulb", new Vector3(0, 2.2f, 0.35f), 0.14f, GameKit.Glow(Color.white, new Color(1f, 0.78f, 0.4f), 5f));
+        stallBulb = GameKit.Sphere(st, "Bulb", new Vector3(0, 2.2f, 0.35f), 0.14f, GameKit.Glow(Color.white, new Color(1f, 0.78f, 0.4f), 5f));
         var lamp = AddLight(st.TransformPoint(new Vector3(0, 2.0f, 0.5f)), Tungsten, 2.2f, 5f);
+        stallLamp = lamp;
         if (kind == "chai") StallLamp = lamp;
 
         if (vendor) { Vector3 vp = st.TransformPoint(new Vector3(0.2f, 0, -0.85f)); Vendors.Add(new NpcSpot { pos = new Vector3(vp.x, 0.18f, vp.z), yaw = yaw }); }
@@ -741,21 +871,170 @@ public class MarketWorld : MonoBehaviour
             Cy(p, "Basket", pos, 0.2f, 0.3f, Rgb(0.7f, 0.55f, 0.3f), 0.1f);
     }
 
+    // ------------------------------------------------------------------ signs
+    GameObject stallBulb, stallCord; Light stallLamp;         // the stall StallBase just built (moved when it gets a sign)
+    static readonly Dictionary<string, Material> paintMats = new Dictionary<string, Material>();
+
+    /// <summary>
+    /// Lettering painted on a board: the bilingual sign texture on a single-sided quad 1.5 mm proud of the board's face,
+    /// in a lit, alpha-tested material (alpha to coverage under MSAA), so the street's practical lights, the moon's
+    /// shadows and the fog fall on the paint as they fall on the board around it. (The shared sign helper draws a
+    /// self-lit, double-sided sprite: it glowed at full strength at night, ignored the fog and read mirrored from behind.)
+    /// </summary>
+    GameObject Paint(Transform parent, string english, string hindi, Vector3 pos, Quaternion rot, float maxHeight, float maxWidth, Color ink)
+    {
+        var go = GameKit.Sign(parent, english, hindi, pos, rot, maxHeight, maxWidth, ink);
+        var r = go.GetComponent<MeshRenderer>();
+        if (r == null || go.GetComponent<TextMesh>() != null || r.sharedMaterial == null || r.sharedMaterial.mainTexture == null) return go;
+        var tex = r.sharedMaterial.mainTexture;
+        string key = tex.name + "|" + ColorUtility.ToHtmlStringRGB(ink);
+        if (!paintMats.TryGetValue(key, out var m) || m == null)
+        {
+            var sh = Shader.Find("Universal Render Pipeline/Lit");
+            if (sh == null) return go;
+            m = new Material(sh) { name = "Paint_" + tex.name };
+            m.SetTexture("_BaseMap", tex); m.mainTexture = tex;
+            m.SetColor("_BaseColor", ink); m.color = ink;
+            m.SetFloat("_Smoothness", 0.32f); m.SetFloat("_Metallic", 0f);
+            m.SetFloat("_AlphaClip", 1f); m.SetFloat("_Cutoff", 0.42f); m.EnableKeyword("_ALPHATEST_ON");
+            m.SetFloat("_AlphaToMask", 1f);
+            m.SetFloat("_Cull", 2f);                                    // the board's own back shows from behind
+            m.renderQueue = (int)UnityEngine.Rendering.RenderQueue.AlphaTest;
+            paintMats[key] = m;
+        }
+        Destroy(r.sharedMaterial);
+        r.sharedMaterial = m;
+        r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        r.receiveShadows = true;
+        return go;
+    }
+
+    /// <summary>
+    /// A stall's name board: a painted plywood fascia with real thickness, hung just in front of the bamboo front rail
+    /// on two worn jute straps that loop over the rail and are nailed to its top edge. The stall's bulb hangs from the
+    /// end of the rail beside it, so the board's paint and the goods below catch the same practical light; behind the
+    /// stall the board is plain wood.
+    /// </summary>
     void StallSign(Transform stall, string name, string hindi, float letterHeight, float width, Color ink)
     {
-        const float depth = 0.5f;
-        float height = letterHeight * 2.3f + 0.08f;
-        float centre = 2.43f;
-        float top = centre + height * 0.5f;
-        var board = B(stall, "HangingBoard", new Vector3(0f, centre, depth),
-            new Vector3(width + 0.12f, height, 0.045f), Rgb(0.14f, 0.10f, 0.065f));
+        const float rail = 2.78f, railR = 0.02f, railZ = 0.5f, poleFront = 0.5f + 0.028f, thick = 0.024f;
+        float zc = poleFront + 0.006f + thick * 0.5f;           // its back clears the front poles
+        float face = zc + thick * 0.5f;
+        float top = rail - railR - 0.07f;                         // a hand's width under the rail
+        // the paint first: the board is cut to the lettering (it was a fixed width with up to 40 cm of bare board each side)
+        var paint = Paint(stall, name, hindi, new Vector3(0f, 0f, face + 0.0015f), Quaternion.Euler(0f, 180f, 0f), letterHeight, width, ink);
+        Vector3 ps = paint.GetComponent<TextMesh>() == null ? paint.transform.localScale : new Vector3(width, letterHeight * 2.3f, 1f);
+        float bw = Mathf.Min(ps.x + 0.2f, 2.1f), height = ps.y + 0.1f;
+        float centre = top - height * 0.5f;
+        paint.transform.localPosition = new Vector3(0f, centre, face + 0.0015f);
+        var board = B(stall, "SignBoard", new Vector3(0f, centre, zc), new Vector3(bw, height, thick), Rgb(0.16f, 0.11f, 0.07f));
         GameKit.Surface(board, "wood", 0.8f, 0.44f, 0.55f, Rgb(0.27f, 0.20f, 0.13f));
-        float cord = Mathf.Max(0.025f, 2.78f - top);
-        for (int side = -1; side <= 1; side += 2)
-            B(stall, "BoardStrap", new Vector3(side * width * 0.39f, top + cord / 2f, depth),
-                new Vector3(0.018f, cord + 0.02f, 0.018f), Rgb(0.24f, 0.17f, 0.1f));
-        GameKit.Sign(stall, name, hindi, new Vector3(0f, centre, depth + 0.026f),
-            Quaternion.Euler(0f, 180f, 0f), letterHeight, width, ink);
+        Color jute = Rgb(0.40f, 0.32f, 0.21f) * (0.85f + R2() * 0.2f);
+        foreach (float sx in new[] { -1f, 1f })
+        {
+            float x = sx * (bw * 0.5f - 0.12f);
+            // nailed to the top of the board's face, up over the rail and down its back a little
+            var a = new Vector3(x, top - 0.035f, face + 0.0025f);
+            var b = new Vector3(x, top + 0.004f, face + 0.0025f);
+            var c = new Vector3(x, rail + railR * 0.55f, railZ + railR + 0.004f);
+            var d = new Vector3(x, rail + railR + 0.004f, railZ - railR * 0.4f);
+            var e = new Vector3(x, rail - railR * 0.2f, railZ - railR - 0.004f);
+            Strap(stall, a, b, jute); Strap(stall, b, c, jute); Strap(stall, c, d, jute); Strap(stall, d, e, jute * 0.85f);
+            var nail = GameKit.Cyl(stall, "Nail", new Vector3(x, top - 0.03f, face + 0.0055f), 0.009f, 0.004f, GameKit.Lit(Rgb(0.18f, 0.17f, 0.16f), 0.5f, 0.8f));
+            nail.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+        }
+
+        // The bulb moves out from behind the board (where it was hidden and lit only the board's back): it hangs on its
+        // flex from the awning's front overhang beside the board, so its light falls across the paint, the goods and the
+        // vendor's face. Vikram's hangs at the stove end, out of the conversation's frame.
+        float half = bw * 0.5f;
+        float sideSign = name == "VIKRAM CHAI" ? -1f : (R2() < 0.5f ? -1f : 1f);
+        float bx, by;
+        if (half + 0.12f <= 1.04f) { bx = sideSign * (half + 0.12f); by = centre + 0.05f; }
+        else { bx = sideSign * (half - 0.1f); by = top - height - 0.11f; }
+        const float bz = 0.74f;
+        float tarpY = rail + (bz - railZ) / 0.95f * 0.2f + 0.02f - 1.4f * (bz - railZ) * (bz - railZ);
+        if (stallCord != null) { Destroy(stallCord); stallCord = null; }
+        TubeSeg(stall, new Vector3(bx, tarpY, bz), new Vector3(bx, by + 0.075f, bz), 0.008f, Rgb(0.05f, 0.05f, 0.05f));
+        if (stallBulb != null) stallBulb.transform.localPosition = new Vector3(bx, by, bz);
+        if (stallLamp != null) stallLamp.transform.position = stall.TransformPoint(new Vector3(bx, by - 0.04f, bz + 0.03f));
+    }
+
+    /// <summary>A transistor radio on a counter: the market's music plays from here.</summary>
+    void StallRadio(Transform st, Vector3 at)
+    {
+        var body = B(st, "Radio", at, new Vector3(0.3f, 0.18f, 0.09f), Rgb(0.42f, 0.12f, 0.08f), false, 0.45f);
+        body.transform.localRotation = Quaternion.Euler(0f, -14f, 0f);           // grille to the lane
+        var grille = B(body.transform, "RadioGrille", new Vector3(-0.17f, 0f, 0.51f), new Vector3(0.42f, 0.7f, 0.05f), Rgb(0.75f, 0.68f, 0.5f), false, 0.5f, 0.7f);
+        grille.transform.localScale = new Vector3(0.42f, 0.7f, 0.05f);
+        var dial = GameKit.Box(body.transform, "RadioDial", new Vector3(0.28f, 0.1f, 0.51f), new Vector3(0.22f, 0.22f, 0.05f), GameKit.Glow(Rgb(0.9f, 0.7f, 0.3f), Rgb(1f, 0.7f, 0.3f), 0.6f));
+        dial.transform.localScale = new Vector3(0.22f, 0.22f, 0.05f);
+        var aerial = Seg("RadioAerial", st.TransformPoint(at + new Vector3(0.1f, 0.09f, 0f)), st.TransformPoint(at + new Vector3(0.22f, 0.5f, -0.06f)), 0.006f, Rgb(0.75f, 0.75f, 0.78f));
+        RadioPos = st.TransformPoint(at);
+    }
+
+    void Strap(Transform p, Vector3 a, Vector3 b, Color c)
+    {
+        Vector3 dir = b - a;
+        if (dir.sqrMagnitude < 1e-6f) return;
+        var go = B(p, "Strap", (a + b) * 0.5f, new Vector3(0.024f, 0.004f, dir.magnitude + 0.006f), c, false, 0.08f);
+        Vector3 up = Vector3.Cross(dir.normalized, Vector3.right);
+        go.transform.localRotation = Quaternion.LookRotation(dir.normalized, up.sqrMagnitude > 1e-4f ? up : Vector3.up);
+    }
+
+    static readonly Dictionary<int, Mesh> awnings = new Dictionary<int, Mesh>();
+
+    /// <summary>
+    /// A stall's tarpaulin in the stall's own space, resting on the back rail (z -0.45, y 2.58) and the front rail
+    /// (z 0.5, y 2.78): taut along the rails, sagging a little between them and at the free sides, drooping where it
+    /// overhangs front and back. Two layers with opposite winding so both sides light correctly.
+    /// </summary>
+    static Mesh StallAwning(float sag)
+    {
+        int key = Mathf.RoundToInt(sag * 1000f);
+        if (awnings.TryGetValue(key, out var cached) && cached != null) return cached;
+        const int nx = 14, nz = 10;
+        const float x0 = -1.27f, x1 = 1.27f, z0 = -0.62f, z1 = 0.84f;
+        const float backZ = -0.45f, backY = 2.58f, frontZ = 0.5f, frontY = 2.78f, lift = 0.024f, SideRail = 1.1f;
+        var v = new List<Vector3>(); var uv = new List<Vector2>(); var t = new List<int>();
+        for (int side = 0; side < 2; side++)
+        {
+            int o = v.Count;
+            for (int iz = 0; iz <= nz; iz++)
+                for (int ix = 0; ix <= nx; ix++)
+                {
+                    float u = ix / (float)nx, w = iz / (float)nz;
+                    float x = Mathf.Lerp(x0, x1, u), z = Mathf.Lerp(z0, z1, w);
+                    float k = (z - backZ) / (frontZ - backZ);
+                    float y = Mathf.LerpUnclamped(backY, frontY, k) + lift;
+                    // supported on all four rails (front, back and the two sloping sides at x = +/-1.1): it sags between
+                    // them like a hammock and droops where it hangs past them
+                    float ax = Mathf.Abs(x);
+                    float across = ax < SideRail ? 1f - (ax / SideRail) * (ax / SideRail) : 0f;
+                    if (k > 0f && k < 1f) y -= sag * Mathf.Sin(Mathf.PI * k) * across;
+                    else
+                    {
+                        float over = k <= 0f ? (backZ - z) : (z - frontZ);
+                        y -= 1.4f * over * over;
+                    }
+                    if (ax > SideRail) y -= 2.5f * (ax - SideRail) * (ax - SideRail);
+                    y += Mathf.Sin(u * 17f + w * 5f) * 0.006f + Mathf.Sin(w * 23f + u * 3f) * 0.004f;
+                    v.Add(new Vector3(x, y - side * 0.002f, z));
+                    uv.Add(new Vector2(u * (x1 - x0), w * (z1 - z0)));
+                }
+            for (int iz = 0; iz < nz; iz++)
+                for (int ix = 0; ix < nx; ix++)
+                {
+                    int a = o + iz * (nx + 1) + ix, b = a + 1, c = a + nx + 1, e = c + 1;
+                    if (side == 0) { t.Add(a); t.Add(c); t.Add(b); t.Add(b); t.Add(c); t.Add(e); }
+                    else { t.Add(a); t.Add(b); t.Add(c); t.Add(b); t.Add(e); t.Add(c); }
+                }
+        }
+        var m = new Mesh { name = "StallAwning" };
+        m.SetVertices(v); m.SetUVs(0, uv); m.SetTriangles(t, 0);
+        m.RecalculateNormals(); m.RecalculateBounds(); m.RecalculateTangents();
+        awnings[key] = m;
+        return m;
     }
 
     void Stall(int side, float z, string kind)
@@ -882,6 +1161,7 @@ public class MarketWorld : MonoBehaviour
                 Gl(st, "PhoneGlass", new Vector3(0, top + 0.1f, 0.1f), new Vector3(1.8f, 0.2f, 0.55f), Rgb(0.3f, 0.6f, 1f), 1.2f);
                 for (int i = 0; i < 10; i++)
                     B(st, "Cover", new Vector3(-0.9f + i * 0.2f, 1.7f, 0.4f), new Vector3(0.1f, 0.18f, 0.01f), Color.HSVToRGB(R(), 0.8f, 0.9f), false, 0.4f);
+                StallRadio(st, new Vector3(0.6f, top + 0.2f + 0.09f, 0.08f));      // on top of the phone display
                 StallSign(st, "RECHARGE", "रिचार्ज", 0.22f, 1.4f, Rgb(0.7f, 1f, 1f));
                 break;
             case "corn":
@@ -948,7 +1228,7 @@ public class MarketWorld : MonoBehaviour
         Cy(st, "Kettle", new Vector3(-0.55f, top + 0.35f, 0.0f), 0.24f, 0.46f, Rgb(0.75f, 0.76f, 0.78f), 0.85f, 0.9f);
         Cy(st, "Spout", new Vector3(-0.25f, top + 0.45f, 0.0f), 0.03f, 0.3f, Rgb(0.75f, 0.76f, 0.78f), 0.85f, 0.9f).transform.localRotation = Quaternion.Euler(0, 0, -55f);
         Gl(st, "Flame", new Vector3(-0.55f, top + 0.12f, 0.0f), new Vector3(0.4f, 0.03f, 0.4f), Rgb(1f, 0.4f, 0.1f), 3f);
-        AddLight(st.TransformPoint(new Vector3(-0.55f, 1.2f, 0.3f)), Rgb(1f, 0.55f, 0.2f), 1.8f, 4f, true);
+        AddLight(st.TransformPoint(new Vector3(-0.55f, 1.05f, 0.62f)), Rgb(1f, 0.55f, 0.2f), 1.3f, 4f, true);   // the stove's glow, off the kettle's skin
         Steam(st.TransformPoint(new Vector3(-0.28f, top + 0.75f, 0f)), 1f);
         Steam(st.TransformPoint(new Vector3(-0.55f, top + 0.75f, 0f)), 1.2f);
         // steel glasses in a tray, biscuit jars, a bunch of bananas
@@ -991,7 +1271,8 @@ public class MarketWorld : MonoBehaviour
             GameKit.Sphere(sh, "Flame", new Vector3(-0.45f, 0.7f, -0.45f + i * 0.3f), 0.06f, GameKit.Glow(Color.yellow, new Color(1f, 0.6f, 0.1f), 6f));
         }
         AddLight(sh.TransformPoint(new Vector3(-0.5f, 1.0f, 0)), new Color(1f, 0.55f, 0.15f), 2.4f, 5f, true);
-        GameKit.Sign(sh, "OM", "ॐ", new Vector3(-0.32f, 2.35f, 0), Quaternion.Euler(0, -90f, 0), 0.22f, 0.8f, Rgb(1f, 0.6f, 0.1f));
+        // painted on the marble base, facing the lane (it floated above the shikhara, facing the wall)
+        Paint(sh, "OM", "ॐ", new Vector3(-0.4015f, 0.32f, 0), Quaternion.Euler(0, 90f, 0), 0.1f, 0.5f, Rgb(0.85f, 0.32f, 0.05f));
         Bunting(sh.TransformPoint(new Vector3(-0.5f, 2.9f, -0.9f)), sh.TransformPoint(new Vector3(-0.5f, 2.9f, 0.9f)), 8, 0.2f);
     }
 
@@ -1144,10 +1425,11 @@ public class MarketWorld : MonoBehaviour
         var col = s.gameObject.AddComponent<BoxCollider>(); col.center = new Vector3(0, 0.5f, 0); col.size = new Vector3(0.5f, 1f, 1.4f);
     }
 
-    void TubeSeg(Transform p, Vector3 a, Vector3 b, float thick, Color c)
+    GameObject TubeSeg(Transform p, Vector3 a, Vector3 b, float thick, Color c)
     {
         var go = GameKit.Box(p, "Tube", (a + b) / 2f, new Vector3(thick, thick, Vector3.Distance(a, b)), GameKit.Lit(c, 0.4f, 0.6f));
         go.transform.localRotation = Quaternion.LookRotation((b - a).normalized);
+        return go;
     }
 
     void BuildVehicles()
@@ -1540,7 +1822,7 @@ public class AmbientLife : MonoBehaviour
         {
             var lamp = world.StreetLights[i];
             float distance = Vector3.Distance(eye, lightPositions[i]);
-            float gain = Mathf.SmoothStep(1f, 0f, Mathf.InverseLerp(20f, 32f, distance));
+            float gain = Mathf.SmoothStep(1f, 0f, Mathf.InverseLerp(30f, 46f, distance));     // beyond most of the lane's view and well into the fog
             bool visible = gain > 0.001f;
             if (lamp.enabled != visible) lamp.enabled = visible;
             if (!visible) continue;

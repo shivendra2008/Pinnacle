@@ -24,13 +24,14 @@ public class PriyaRoomStory : MonoBehaviour
     PriyaRoomPlayer player;
     GameMenu menu;
     readonly StoryCompass compass = new StoryCompass();
+    readonly StoryCompass narration = new StoryCompass();       // its subtitle half, for the voice-over
     Coroutine titleAmbience;
     Transform cam;
     Camera camComp;
     CharacterNPC kamala;
 
     // audio
-    AudioSource ambience, sfx, bell, hall3d, voice;
+    AudioSource ambience, sfx, bell, hall3d, voice, doorAudio;
     AudioClip bellClip, stepClip, clickClip, creakClip, dingClip;
     AudioClip[] hallSteps;
     int nextStep;
@@ -149,6 +150,7 @@ public class PriyaRoomStory : MonoBehaviour
             && (phase == Phase.Intro || phase == Phase.Dialogue || phase == Phase.Ending))
         { skipAll = true; skipLine = true; }
         if (phase == Phase.Explore) skipAll = false;
+        if (openingVoices && kb != null && (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame)) StopOpening();
         if (kb != null && kb.jKey.wasPressedThisFrame && phase == Phase.Explore) journalOpen = !journalOpen;
 
         fade = Mathf.MoveTowards(fade, fadeTarget, fadeSpeed * Time.deltaTime);
@@ -284,7 +286,13 @@ public class PriyaRoomStory : MonoBehaviour
         fade = 1f; fadeTarget = 1f;
         objective = "";
         Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false;
-        player.SetLook(0f, 0f);
+        // he already faces Mrs. Kapoor when the landing fades in (it used to turn him to her, then to the door)
+        if (kamala != null)
+        {
+            Vector3 d = kamala.transform.position + Vector3.up * 1.5f - cam.position;
+            player.SetLook(Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg, -Mathf.Atan2(d.y, new Vector2(d.x, d.z).magnitude) * Mathf.Rad2Deg);
+        }
+        else player.SetLook(0f, 0f);
 
         yield return W(0.5f);
         ShowTitle("ACT I  -  THE EMPTY ROOM", "Chandnipur, Old Quarter   |   Tuesday evening   |   6:00 PM", 4.4f);
@@ -293,27 +301,68 @@ public class PriyaRoomStory : MonoBehaviour
         fadeSpeed = 1.15f; fadeTarget = 0f;
         yield return W(0.7f);
 
-        // turn to face Mrs. Kapoor while Arjun narrates
-        AutoFocus.FocusOn = kamala.transform;
-        var turnToKamala = StartCoroutine(Turn(kamala.transform.position + Vector3.up * 1.5f, 3f));
-        yield return Say("arjun_intro1", "ARJUN (V.O.)", "In Chandnipur, everyone has a secret. The city is old enough to keep them.");
-        yield return Say("arjun_intro2", "ARJUN (V.O.)", "But sometimes a secret gets too big for the walls that hold it, and it starts to leak through the cracks.");
-        yield return Say("arjun_intro3", "ARJUN (V.O.)", "That's when people like me get a phone call.");
-
-        yield return Say("kamala_welcome1", "KAMALA KAPOOR", "Mr. Mehra? Thank you for coming. The police say she left on her own. But a mother knows. Something is wrong.", true);
-        yield return Say("kamala_welcome2", "KAMALA KAPOOR", "I haven't touched anything. I thought someone should look at it properly. Her room is the door at the end of the hallway. Here is the key.", true);
-
-        AutoFocus.FocusOn = null;
-        // when the intro is skipped the 3-second turn towards Kamala is still running: stop it, or it keeps
-        // steering the camera after the player has been given control (found by the automated play-test)
-        StopCoroutine(turnToKamala);
-        yield return Turn(builder.transform.TransformPoint(new Vector3(-2f, 1.5f, -1.5f)), 1.4f);
-        if (skipAll) { fade = 0f; fadeTarget = 0f; titleEnd = 0f; sub = null; voice.Stop(); kamala.Silence(); skipAll = false; }
+        // Control comes back as the landing fades in. The title, Arjun's narration and Mrs. Kapoor's welcome play over
+        // free movement, and stop cleanly if he walks into the room, examines a clue or presses Enter.
+        skipAll = false;
         PriyaRoomPlayer.Locked = false;
         phase = Phase.Explore;
         lastProgressTime = Time.time;
         startPos = player.transform.position;
-        Toast("Walk through the door and search Priya's room.", 6f);
+        StartCoroutine(OpeningVoices());
+    }
+
+    bool openingVoices;          // the opening narration and welcome are playing over free movement
+    AudioClip openingClip;
+
+    static readonly string[][] Opening =
+    {
+        new[] { "arjun_intro1", "ARJUN (V.O.)", "In Chandnipur, everyone has a secret. The city is old enough to keep them.", "" },
+        new[] { "arjun_intro2", "ARJUN (V.O.)", "But sometimes a secret gets too big for the walls that hold it, and it starts to leak through the cracks.", "" },
+        new[] { "arjun_intro3", "ARJUN (V.O.)", "That's when people like me get a phone call.", "" },
+        new[] { "kamala_welcome1", "KAMALA KAPOOR", "Mr. Mehra? Thank you for coming. The police say she left on her own. But a mother knows. Something is wrong.", "her" },
+        new[] { "kamala_welcome2", "KAMALA KAPOOR", "I haven't touched anything. I thought someone should look at it properly. Her room is the door at the end of the hallway. Here is the key.", "her" },
+    };
+
+    IEnumerator OpeningVoices()
+    {
+        openingVoices = true;
+        foreach (var l in Opening)
+        {
+            bool hers = l[3] == "her";
+            // she welcomes him on the landing: once he is in Priya's room her lines would talk to an empty hallway
+            if (!openingVoices || (hers && (kamala == null || PlayerInsideRoom()))) break;
+            var clip = VO(l[0]);
+            float dur = clip != null ? clip.length + 0.16f : Mathf.Max(2.5f, l[2].Length * 0.06f);
+            sub = l[1] + ":  " + l[2]; subUntil = Time.time + dur + 0.2f; subSkippable = true;
+            openingClip = clip;
+            if (clip != null)
+            {
+                if (hers) kamala.Say(clip);
+                else { voice.Stop(); voice.clip = clip; voice.Play(); }
+            }
+            skipLine = false;
+            float t = 0f;
+            while (t < dur && openingVoices && !skipLine) { t += Time.deltaTime; yield return null; }
+            if (skipLine && openingVoices)
+            {
+                if (hers) { if (kamala != null) kamala.Silence(); }
+                else if (voice.clip == clip) voice.Stop();
+                skipLine = false;
+            }
+        }
+        if (openingVoices) { sub = null; subSkippable = false; }
+        openingVoices = false; openingClip = null;
+    }
+
+    /// <summary>Ends the opening voices at once (a clue, Mrs. Kapoor's questions or Enter take over).</summary>
+    void StopOpening()
+    {
+        if (!openingVoices) return;
+        openingVoices = false;
+        if (openingClip != null && voice.clip == openingClip) voice.Stop();
+        if (kamala != null) kamala.Silence();
+        sub = null; subSkippable = false;
+        openingClip = null;
     }
 
     IEnumerator RampAmbience(float from, float to, float dur)
@@ -638,12 +687,15 @@ public class PriyaRoomStory : MonoBehaviour
             StartCoroutine(Finale());
             return;
         }
+        StopOpening();
         foundCount++;
         SaveSystem.AddClue(t.id);
         lastProgressTime = Time.time;
         ClueInfo ci = Info[t.id];
         var clip = VO("arjun_clue_" + t.id);
-        float dur = clip != null ? clip.length + 0.5f : 5f;
+        // the card stays up for the voice and for reading it (about 17 characters a second), whichever is longer
+        float read = (ci.desc.Length + ci.quote.Length) / 17f + 0.6f;
+        float dur = Mathf.Max(clip != null ? clip.length + 0.6f : 5f, read);
         ShowThought("CLUE FOUND:  " + ci.name.ToUpper() + "   (" + foundCount + "/9)",
                     ci.desc + "\n\nARJUN:  \"" + ci.quote + "\"", dur);
         sfx.PlayOneShot(dingClip, 0.5f);
@@ -655,6 +707,7 @@ public class PriyaRoomStory : MonoBehaviour
     // ============================================================== KAMALA
     IEnumerator KamalaDialogue()
     {
+        StopOpening();
         phase = Phase.Dialogue;
         PriyaRoomPlayer.Locked = true;
         objective = "";
@@ -840,10 +893,12 @@ public class PriyaRoomStory : MonoBehaviour
 
         for (int i = 0; i < 7; i++)
         {
+            // the steps come up from the stairwell along the landing to the door, so they move as well as grow
+            hall3d.transform.localPosition = Vector3.Lerp(new Vector3(-5.2f, 0.4f, -5.2f), new Vector3(-2.2f, 0.4f, -3.1f), i / 6f);
             HallStep(0.23f + i * 0.055f);
             if (i == 3)
             {
-                hall3d.PlayOneShot(creakClip, 0.25f);
+                doorAudio.PlayOneShot(creakClip, 0.3f);
                 StartCoroutine(SwingDoor(0f, 1.5f));
             }
             yield return new WaitForSeconds(i < 5 ? 0.85f : 1.1f);
@@ -871,7 +926,6 @@ public class PriyaRoomStory : MonoBehaviour
         HallStep(0.24f);
 
         sub = "Someone is standing outside the door."; subUntil = Time.time + 4f; subSkippable = false;
-        Toast("Look at the door and press E to open it.", 6f);
         objective = "Open the door";
         phase = Phase.DoorReady;
     }
@@ -905,12 +959,11 @@ public class PriyaRoomStory : MonoBehaviour
         phase = Phase.NoteReady;
         objective = "";
         prompt = "";
-        hall3d.PlayOneShot(creakClip, 0.32f);
+        doorAudio.PlayOneShot(creakClip, 0.36f);
         if (lightStrip) Destroy(lightStrip);
         yield return SwingDoor(-100f, 1.2f);
         builder.HookNote.SetActive(true);
         sub = "The stairwell is empty. The footsteps are gone. But on the floor, just outside the door..."; subUntil = Time.time + 5f; subSkippable = false;
-        Toast("Look at the paper on the floor and press E.", 6f);
         objective = "Pick up the note";
     }
 
@@ -926,9 +979,9 @@ public class PriyaRoomStory : MonoBehaviour
         thoughtUntil = 0;
         yield return Say("arjun_handwriting", "ARJUN", "The handwriting matches the sticky note from under the keyboard. Whoever left this knows Priya. Someone who has been inside this apartment.");
         yield return Say("arjun_closing", "ARJUN (V.O.)", "Someone is watching me. And they know Priya. The question is, are they protecting her, or protecting themselves?");
-        fadeSpeed = 0.5f; fadeTarget = 1f;
-        StartCoroutine(RampAmbience(ambience.volume, 0f, 3f));
-        yield return new WaitForSeconds(2.5f);
+        fadeSpeed = 0.7f; fadeTarget = 1f;
+        StartCoroutine(RampAmbience(ambience.volume, 0f, 1.8f));
+        yield return new WaitForSeconds(1.7f);
         SaveSystem.CompleteAct(1);
         StartActII(false);
     }
@@ -969,6 +1022,12 @@ public class PriyaRoomStory : MonoBehaviour
         h.transform.localPosition = new Vector3(-2f, 1f, -4.5f);
         hall3d = h.AddComponent<AudioSource>();
         hall3d.spatialBlend = 1f; hall3d.minDistance = 2f; hall3d.maxDistance = 15f;
+        // the door's own voice: the creak comes from its hinge, not from a point out on the landing
+        var dg = new GameObject("DoorAudio");
+        dg.transform.SetParent(builder.Root, false);
+        dg.transform.localPosition = new Vector3(-2.45f, 1.0f, -2.5f);
+        doorAudio = dg.AddComponent<AudioSource>();
+        doorAudio.spatialBlend = 1f; doorAudio.minDistance = 1.2f; doorAudio.maxDistance = 14f; doorAudio.dopplerLevel = 0f;
 
         bellClip = Resources.Load<AudioClip>("temple_bell") ?? MakeBell();
         hallSteps = Resources.LoadAll<AudioClip>("Audio/Curator/steps_wood");
@@ -1190,7 +1249,8 @@ public class PriyaRoomStory : MonoBehaviour
         }
 
         // tutorial checklist
-        if (phase == Phase.Explore && !paused) DrawTutorial(W, H);
+        // it waits while the opening voices' subtitles hold the bottom of the screen (they overlapped it)
+        if (phase == Phase.Explore && !paused && !(openingVoices && Time.time < subUntil)) DrawTutorial(W, H);
 
         // key hints
         if (playing && !paused)
@@ -1223,18 +1283,20 @@ public class PriyaRoomStory : MonoBehaviour
         }
 
         // subtitles
-        if (Time.time < subUntil && !string.IsNullOrEmpty(sub) && !paused)
+        if (Time.time < subUntil && !string.IsNullOrEmpty(sub) && !paused && string.IsNullOrEmpty(dlgText))
         {
-            float h = sSub.CalcHeight(new GUIContent(sub), W * 0.72f) + 16;
-            var r = new Rect(W * 0.14f, H - 60 - h, W * 0.72f, h);
-            Panel(r, 0.55f);
-            GUI.Label(new Rect(r.x + 8, r.y + 8, r.width - 16, h - 8), sub, sSub);
+            // narration and Mrs. Kapoor's lines speak through the same phrase subtitles as the conversations
+            int cut = sub.IndexOf(":  ");
+            string who = cut > 0 ? sub.Substring(0, cut) : null, what = cut > 0 ? sub.Substring(cut + 3) : sub;
+            AudioSource src = voice != null && voice.isPlaying ? voice : (kamala != null && kamala.IsTalking ? kamala.VoiceSource : null);
+            narration.Speak(W, H, who, what, src);
             if (subSkippable)
-                GUI.Label(new Rect(r.xMax - 330, r.yMax + 2, 330, 20), "Space: skip line   |   Enter: skip all", new GUIStyle(sSmall) { fontSize = 13, alignment = TextAnchor.UpperRight });
+                GUI.Label(new Rect(W * 0.5f - 165f, H - 30f, 330, 20), "Space: skip line   |   Enter: skip all", new GUIStyle(sSmall) { fontSize = 13, alignment = TextAnchor.UpperCenter });
         }
 
         // dialogue
         if (!string.IsNullOrEmpty(dlgText) && !paused) DrawDialogue(W, H);
+        if (!paused) compass.Afterglow(W, H);
         if (phase == Phase.Intro && !paused && fade < 0.9f)
             UiKit.Text(new Rect(0, H - 44, W, 26), "Enter: skip intro", new GUIStyle(sSmall) { alignment = TextAnchor.UpperCenter, fontSize = 15 });
 

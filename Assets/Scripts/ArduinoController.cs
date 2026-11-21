@@ -132,8 +132,15 @@ public class ArduinoController : MonoBehaviour
         return Mathf.Abs(value) < 0.08f ? 0f : value;
     }
 
+    bool showPanel;
+
     void OnGUI()
     {
+        // The status panel sat over the objective box in every act, saying DISCONNECTED to everyone without the
+        // controller. It shows while a controller is connected; F3 shows or hides it either way.
+        var kb = UnityEngine.InputSystem.Keyboard.current;
+        if (Event.current.type == EventType.Layout && kb != null && kb.f3Key.wasPressedThisFrame) showPanel = !showPanel;
+        if (!(isConnected ^ showPanel)) return;
         GUI.Box(new Rect(10, 10, 260, 170), "Arduino Controller");
 
         GUI.Label(new Rect(20, 40, 240, 25),

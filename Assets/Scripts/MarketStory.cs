@@ -32,6 +32,7 @@ public class MarketStory : MonoBehaviour
     // audio
     AudioSource ambience, sfx, voice, suvAudio, vendorSrc, musicSrc, phone, dialogueSource;
     readonly StoryCompass compass = new StoryCompass();
+    readonly StoryCompass narration = new StoryCompass();       // its subtitle half, for the voice-over
     Collider[] trafficHits = new Collider[24];
     AudioClip[] cries;
     AudioClip clickClip, dingClip, hornClip, ringClip, engineClip;
@@ -70,7 +71,10 @@ public class MarketStory : MonoBehaviour
         Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false;   // the menu left the cursor free
 
         world = gameObject.AddComponent<MarketWorld>();
-        // Show the location card while the procedural scenery and cast are built over several frames.
+        // Show the location card while the procedural scenery and cast are built over several frames. The camera draws
+        // nothing behind the card meanwhile: it used to render the half-built lane every loading frame (6 s to load).
+        int cullingMask = camComp.cullingMask;
+        camComp.cullingMask = 0;
         yield return null;
         yield return world.Generate(cam);
         SetupEnvironment();
@@ -84,6 +88,15 @@ public class MarketStory : MonoBehaviour
         player.SetLook(0f, 0f);
 
         yield return SpawnPeople();
+        // The reflection probe re-rendered itself 0.6 s and 3 s after it was made: with control handed back early the
+        // second render landed mid-walk as a hitch and a visible jump in the reflections. Render it once, now that the
+        // scenery and the cast are in, behind the loading card.
+        foreach (var lc in GetComponentsInChildren<LookController>(true))
+            if (lc.probe != null) { lc.CancelInvoke(); lc.probe.RenderProbe(); }
+        // two full frames still under the card, so first-use shader work happens out of sight
+        camComp.cullingMask = cullingMask;
+        yield return null;
+        yield return null;
         loading = false;
         if (resume) ApplyResume();
         StartCoroutine(Intro());
@@ -118,6 +131,7 @@ public class MarketStory : MonoBehaviour
         moon.intensity = 1.1f;
         moon.transform.rotation = Quaternion.Euler(48f, 25f, 0f);
         CinematicLook.Shadows(moon, 1f, 0.04f, 0.8f);
+        MarketShadows(true);
         CinematicLook.Ambient(new Color(0.36f, 0.38f, 0.58f), new Color(0.30f, 0.28f, 0.40f), new Color(0.14f, 0.12f, 0.14f), 1f);
         CinematicLook.Probe(transform, new Vector3(0f, 4f, 40f), new Vector3(12f, 12f, 92f), new Color(0.07f, 0.08f, 0.14f), 128);
     }
@@ -225,8 +239,10 @@ public class MarketStory : MonoBehaviour
         fade = Mathf.MoveTowards(fade, fadeTarget, fadeSpeed * Time.deltaTime);
 
         bool witnessSpeaking = phase == Phase.Dialogue || phase == Phase.Hook || phase == Phase.Choice;
-        musicSrc.volume = Mathf.MoveTowards(musicSrc.volume, witnessSpeaking ? 0.09f : 0.27f, Time.deltaTime * 0.6f);
+        musicSrc.volume = Mathf.MoveTowards(musicSrc.volume, witnessSpeaking ? 0.1f : 0.3f, Time.deltaTime * 0.6f);
         vendorSrc.volume = Mathf.MoveTowards(vendorSrc.volume, witnessSpeaking ? 0.18f : 0.7f, Time.deltaTime * 2f);
+        ambienceDuck = Mathf.MoveTowards(ambienceDuck, witnessSpeaking ? 0.72f : 1f, Time.deltaTime * 0.8f);
+        if (ambience != null && !rampingAmbience) ambience.volume = ambienceLevel * ambienceDuck;
 
         if (phase == Phase.Ending)
         {
@@ -251,6 +267,28 @@ public class MarketStory : MonoBehaviour
     {
         Time.timeScale = 1f;
         AudioListener.pause = false;
+        MarketShadows(false);
+    }
+
+    // The moon's shadows in this narrow lane: two cascades over 28 m instead of the pipeline's four over 40 m (the far
+    // lane is in fog and lit by lamps that cast no shadows). Measured on the route: walk p95 54 -> 34 ms on its own.
+    // The pipeline asset is shared by every scene, so its values are put back when the market goes.
+    static int savedCascades = -1; static float savedShadowDistance;
+
+    static void MarketShadows(bool on)
+    {
+        var asset = UniversalRenderPipeline.asset;
+        if (asset == null) return;
+        if (on && savedCascades < 0)
+        {
+            savedCascades = asset.shadowCascadeCount; savedShadowDistance = asset.shadowDistance;
+            asset.shadowCascadeCount = 2; asset.shadowDistance = 28f;
+        }
+        else if (!on && savedCascades >= 0)
+        {
+            asset.shadowCascadeCount = savedCascades; asset.shadowDistance = savedShadowDistance;
+            savedCascades = -1;
+        }
     }
 
     void UpdateStoryFlow()
@@ -281,7 +319,7 @@ public class MarketStory : MonoBehaviour
 
         // the hook: when she's dealt with and the player is back near the stall
         bool cardHandled = idCard == null || Time.time - idDropAt > 25f;
-        if (vikramDone && reddyResolved && cardHandled && !hookStarted && Vector3.Distance(player.transform.position, world.VikramStallFront) < 11f)
+        if (vikramDone && reddyResolved && cardHandled && !hookStarted && Vector3.Distance(player.transform.position, world.VikramStallFront) < 4.5f)
             StartCoroutine(HookSequence());
     }
 
@@ -333,7 +371,7 @@ public class MarketStory : MonoBehaviour
         evidence.Add(e);
         SaveSystem.Data.evidence = new List<string>(evidence); SaveSystem.Save();
         sfx.PlayOneShot(dingClip, 0.5f);
-        Toast("Evidence added to your notes (J)", 3f);
+        Toast(evidence.Count <= 1 ? "Evidence added to your notes (J)" : "Evidence noted", evidence.Count <= 1 ? 3f : 2f);
     }
 
     IEnumerator W(float seconds)
@@ -386,10 +424,10 @@ public class MarketStory : MonoBehaviour
         }
     }
 
-    IEnumerator Menu(string[] labels, string[] options, bool[] disabled, bool[] asked = null)
+    IEnumerator Menu(string[] labels, string[] options, bool[] disabled, bool[] asked = null, string lockedHint = null)
     {
         dlgOptions = options;
-        compass.Open(labels, options, disabled, asked);
+        compass.Open(labels, options, disabled, asked, lockedHint);
         skipAll = false;
         menuResult = -1;
         do
@@ -447,7 +485,7 @@ public class MarketStory : MonoBehaviour
         phase = Phase.Intro;
         fade = 1f; fadeTarget = 1f;
         StartCoroutine(RampAmbience(0f, 0.9f, 4f));
-        yield return W(0.6f);
+        yield return W(0.3f);
         ShowTitle("ACT II  -  THE STREETS KNOW", "Chandnipur Market District   |   7:30 PM", 4.2f);
         fadeSpeed = 1.1f; fadeTarget = 0f;
         yield return W(0.65f);
@@ -471,11 +509,15 @@ public class MarketStory : MonoBehaviour
         if (phase != Phase.Free) titleEnd = 0f;
     }
 
+    float ambienceLevel, ambienceDuck = 1f; bool rampingAmbience;
+
     IEnumerator RampAmbience(float from, float to, float dur)
     {
         float t = 0;
-        while (t < dur) { t += Time.deltaTime; ambience.volume = Mathf.Lerp(from, to, t / dur); yield return null; }
-        ambience.volume = to;
+        rampingAmbience = true;
+        while (t < dur) { t += Time.deltaTime; ambienceLevel = Mathf.Lerp(from, to, t / dur); ambience.volume = ambienceLevel * ambienceDuck; yield return null; }
+        ambienceLevel = to; ambience.volume = to * ambienceDuck;
+        rampingAmbience = false;
     }
 
     // =================================================================== BHASKAR
@@ -500,7 +542,7 @@ public class MarketStory : MonoBehaviour
         {
             var dis = new bool[] { asked[0], !askedA || asked[1], !askedA || asked[2], false };
             yield return Menu(new[] { "Ask about Priya", "The caller", "The black car", "End the ride" },
-                DecorateAsked(opts, new[] { asked[0], asked[1], asked[2], false }, askedA), dis, asked);
+                (string[])opts.Clone(), dis, asked, "Ask him about Priya first.");
             int c = menuResult;
             if (c == 3) break;
             asked[c] = true;
@@ -530,18 +572,6 @@ public class MarketStory : MonoBehaviour
         yield return Line("BHASKAR", "Here we are, sir, the edge of the market. If you need anything, call me. Priya madam is a good person. Find her, bhai.", "b_bye", bhaskar);
         EndDialogue();
         StartCoroutine(AutoLeaves(true));
-    }
-
-    static string[] DecorateAsked(string[] opts, bool[] asked, bool askedA)
-    {
-        var r = new string[opts.Length];
-        for (int i = 0; i < opts.Length; i++)
-        {
-            r[i] = opts[i];
-            if (asked[i]) r[i] += "   (asked)";
-            else if ((i == 1 || i == 2) && !askedA) r[i] += "   (ask about Priya first)";
-        }
-        return r;
     }
 
     IEnumerator AutoLeaves(bool withBhaskar)
@@ -592,17 +622,20 @@ public class MarketStory : MonoBehaviour
         if (c1 == 0)
         {
             yield return Line("ARJUN", "This is your number, Vikram. Priya hid it in her apartment. She trusted you.", "q_v_1a", null);
+            yield return Reaction(c1);
             yield return Line("VIKRAM", "Where did you get that? ... Okay. Okay. Sit down. But keep your voice low.", "v_t1a", vikram);
         }
         else if (c1 == 1)
         {
             yield return Line("ARJUN", "Her mother is terrified, Vikram. She thinks something terrible has happened to her daughter. If you know anything, please.", "q_v_1b", null);
+            yield return Reaction(c1);
             yield return Line("VIKRAM", "Kamala-ji... she's a good woman. ... Alright. Sit. But if anyone asks, you're just drinking chai.", "v_t1b", vikram);
         }
         else
         {
             yield return Line("ARJUN", "I know you're lying. I can involve the police if I have to.", "q_v_1c", null);
             trust = "ANGRY";
+            yield return Reaction(c1);
             yield return Line("VIKRAM", "Then involve the police. I have nothing to say to you.", "v_t1c", vikram);
             yield return Line("VIKRAM", "Alright, alright. Priya came here once. She asked about the land records. That is all I know. Now please, go. I have customers.", "v_partial", vikram);
         }
@@ -624,7 +657,7 @@ public class MarketStory : MonoBehaviour
         {
             var show = new string[4];
             var dis = new bool[4];
-            for (int i = 0; i < 3; i++) { show[i] = q2[i] + (a2[i] ? "   (asked)" : ""); dis[i] = a2[i]; }
+            for (int i = 0; i < 3; i++) { show[i] = q2[i]; dis[i] = a2[i]; }
             show[3] = q2[3];
             yield return Menu(new[] { "The evidence", "Her fears", "Her whereabouts", "Thank Vikram" }, show, dis, a2);
             int c = menuResult;
@@ -674,6 +707,22 @@ public class MarketStory : MonoBehaviour
         vikramDoneAt = Time.time;
         EndDialogue();
         SpawnReddy();
+    }
+
+    /// <summary>
+    /// The camera stays on Vikram for a beat after Arjun's challenge, so his reaction reads before he answers: the note
+    /// makes him look down at it, an appeal lets him soften, a threat makes him straighten and stare. No line plays.
+    /// </summary>
+    IEnumerator Reaction(int choice)
+    {
+        if (skipAll || vikram == null) yield break;
+        dlgSpeaker = "VIKRAM"; dlgText = choice == 0 ? "..." : choice == 1 ? "..." : "...";
+        dialogueSource = null;
+        var keep = vikram.lookTarget;
+        if (choice == 0) { vikram.lookTarget = null; vikram.PlayOnce("Interact"); }
+        float t = 0f;
+        while (t < 0.75f && !skipAll) { if (!GameState.Paused) t += Time.deltaTime; yield return null; }
+        vikram.lookTarget = keep;
     }
 
     // ===================================================================== REDDY
@@ -787,7 +836,16 @@ public class MarketStory : MonoBehaviour
         if (idCard != null) { Destroy(idCard); }
         yield return Turn(vikram.transform.position + Vector3.up * 1.5f, 0.9f);
 
-        // the phone rings
+        // he greets Arjun like any customer (they are being watched) and the stall phone cuts across him
+        var greet = VO("v_cold");
+        if (greet != null && !skipAll)
+        {
+            vikram.Say(greet); dialogueSource = vikram.VoiceSource;
+            dlgSpeaker = "VIKRAM"; dlgText = "Chai? Cutting or full?";
+            yield return W(1.3f);                     // "Chai? Cutting or full?" ends at 1.27 s in the recording
+            vikram.Silence();
+        }
+        dlgText = null;
         phone.PlayOneShot(ringClip, 0.55f);
         vikram.PlayOnce("Interact");
         yield return W(1.1f);
@@ -803,7 +861,6 @@ public class MarketStory : MonoBehaviour
         StartCoroutine(RampSuvAudio());
         float stopZ = 54f;
         yield return MoveSuv(stopZ, 6f, 2f);
-        Toast("A black SUV is crawling down the lane. It's looking for someone.", 4f);
         yield return W(1.2f);
 
         // ----- timed choice (15 s)
@@ -841,7 +898,7 @@ public class MarketStory : MonoBehaviour
         if (end != null) { voice.Stop(); voice.clip = end; voice.Play(); }
         yield return W((end != null ? end.length : 7f) + 0.5f);
         fadeSpeed = 0.5f; fadeTarget = 1f;
-        StartCoroutine(RampAmbience(ambience.volume, 0f, 3f));
+        StartCoroutine(RampAmbience(ambienceLevel, 0f, 3f));
         yield return W(2.8f);
         sub = null;
         phase = Phase.Ending;
@@ -905,6 +962,17 @@ public class MarketStory : MonoBehaviour
     // ---- outcome A: hide
     IEnumerator OutcomeHide()
     {
+        // he scrambles to the gate end of Vikram's counter before he ducks (he used to crouch wherever he stood)
+        var cc = player.GetComponent<CharacterController>();
+        Vector3 cover = new Vector3(-2.35f, player.transform.position.y, 32.45f);
+        for (float t = 0; t < 3f; t += Time.deltaTime)
+        {
+            Vector3 d = cover - player.transform.position; d.y = 0;
+            if (d.magnitude < 0.15f) break;
+            cc.Move(Vector3.ClampMagnitude(d, 2.6f * Time.deltaTime) + Vector3.down * 0.5f * Time.deltaTime);
+            yield return null;
+        }
+        held = false;                 // the anchor follows him to cover
         Toast("You duck behind the counter...", 3f);
         // crouch
         float y0 = cam.localPosition.y;
@@ -1081,6 +1149,7 @@ public class MarketStory : MonoBehaviour
 
     void AvoidVehicles()
     {
+        Vector3 pp = player.transform.position;
         foreach (var n in crowd)
         {
             if (n == null || !n.IsPhysical || !n.IsWalking) continue;
@@ -1089,7 +1158,48 @@ public class MarketStory : MonoBehaviour
             if (cartT != null && n.name != "CartMan") AvoidOne(n, np, cartT);     // the hand cart is dragged, not driven: walk round it
             AvoidOne(n, np, world.Suv);
             AvoidOne(n, np, world.Auto);
+            AvoidPlayer(n, np, pp);
         }
+    }
+
+    /// <summary>
+    /// Walkers step round Arjun as they would round anyone standing at a stall. They used to walk into him, and his
+    /// controller's own collision resolution shoved him down the lane: 12 m during Vikram's conversation on the route,
+    /// which carried the camera off Vikram's face.
+    /// </summary>
+    static void AvoidPlayer(CharacterNPC n, Vector3 np, Vector3 pp)
+    {
+        float dz = np.z - pp.z;
+        if (dz < -2.4f || dz > 2.4f || Mathf.Abs(np.x - pp.x) > 0.85f) return;
+        float side = np.x >= pp.x ? 1f : -1f;
+        float target = Mathf.Clamp(pp.x + side * 1.1f, -2.3f, 2.3f);
+        if (Mathf.Abs(target - pp.x) < 0.8f) target = Mathf.Clamp(pp.x - side * 1.1f, -2.3f, 2.3f);
+        n.NudgeX(target, 1.6f);
+    }
+
+    // While a conversation, the phone call or the SUV choice holds Arjun, he stays exactly where he stood.
+    Vector3 heldAt; bool held;
+
+    void LateUpdate()
+    {
+        if (loading || player == null) return;
+        bool hold = PriyaRoomPlayer.Locked && (phase == Phase.Dialogue || phase == Phase.Hook || phase == Phase.Choice);
+        if (!hold) { held = false; return; }
+        var p = player.transform.position;
+        if (!held)
+        {
+            held = true; heldAt = p;
+            if (p.y > 0.3f)        // already lifted onto someone when the conversation began: back down to the street
+                foreach (var hit in Physics.RaycastAll(p + Vector3.up * 0.5f, Vector3.down, 3f, ~0, QueryTriggerInteraction.Ignore))
+                    if (hit.collider.GetComponentInParent<CharacterNPC>() == null && hit.collider.GetComponentInParent<PriyaRoomPlayer>() == null && hit.point.y < heldAt.y)
+                        heldAt.y = hit.point.y;
+        }
+        if ((p - heldAt).sqrMagnitude < 1e-6f) return;
+        // a walker pressing into him could also lift him (1.4 m up on one run, his eyes over Vikram's head)
+        var cc = player.GetComponent<CharacterController>();
+        cc.enabled = false;
+        player.transform.position = heldAt;
+        cc.enabled = true;
     }
 
     static void AvoidOne(CharacterNPC n, Vector3 np, Transform v)
@@ -1193,12 +1303,15 @@ public class MarketStory : MonoBehaviour
         vendorSrc.spatialBlend = 1f; vendorSrc.minDistance = 3f; vendorSrc.maxDistance = 28f; vendorSrc.rolloffMode = AudioRolloffMode.Linear;
         cries = new AudioClip[12];
         for (int i = 0; i < cries.Length; i++) cries[i] = VO("cry_" + (i + 1));
-        var mgo = new GameObject("StreetMusic");
+        // the music comes out of the transistor radio on the recharge stall's counter (it used to float 3 m up in the
+        // lane, mostly unpanned): fully positional, falling off like a small speaker, no Doppler
+        var mgo = new GameObject("StallRadio");
         mgo.transform.SetParent(transform, false);
-        mgo.transform.position = new Vector3(2.5f, 3f, 20f);
+        mgo.transform.position = world.RadioPos;
         musicSrc = mgo.AddComponent<AudioSource>();
-        musicSrc.clip = Resources.Load<AudioClip>("Audio/Market/stall_radio") ?? MakeMusic(); musicSrc.loop = true; musicSrc.spatialBlend = 0.9f;
-        musicSrc.minDistance = 4f; musicSrc.maxDistance = 30f; musicSrc.rolloffMode = AudioRolloffMode.Linear; musicSrc.volume = 0.27f;
+        musicSrc.clip = Resources.Load<AudioClip>("Audio/Market/stall_radio") ?? MakeMusic(); musicSrc.loop = true; musicSrc.spatialBlend = 1f;
+        musicSrc.minDistance = 1.4f; musicSrc.maxDistance = 30f; musicSrc.rolloffMode = AudioRolloffMode.Logarithmic; musicSrc.dopplerLevel = 0f;
+        musicSrc.spread = 40f; musicSrc.volume = 0.3f;
         musicSrc.Play();
         phone = SpatialSource(world.transform, "StallPhone", world.VikramPos + Vector3.up * 1.1f, 14f);
     }
@@ -1447,15 +1560,16 @@ public class MarketStory : MonoBehaviour
             GUI.Label(new Rect(r.x, r.y + (toastBig ? 10 : 6), r.width, 40), toast, new GUIStyle(sPrompt) { fontSize = toastBig ? 24 : 18 });
         }
 
-        if (Time.time < subUntil && !string.IsNullOrEmpty(sub) && !paused)
+        if (Time.time < subUntil && !string.IsNullOrEmpty(sub) && !paused && string.IsNullOrEmpty(dlgText))
         {
-            float h = sSub.CalcHeight(new GUIContent(sub), W * 0.72f) + 16;
-            var r = new Rect(W * 0.14f, H - 60 - h, W * 0.72f, h);
-            Panel(r, 0.55f);
-            GUI.Label(new Rect(r.x + 8, r.y + 8, r.width - 16, h - 8), sub, sSub);
+            // narration speaks through the same phrase subtitles as the conversations
+            int cut = sub.IndexOf(":  ");
+            string who = cut > 0 ? sub.Substring(0, cut) : null, what = cut > 0 ? sub.Substring(cut + 3) : sub;
+            narration.Speak(W, H, who, what, voice != null && voice.isPlaying ? voice : null);
         }
 
         if (!string.IsNullOrEmpty(dlgText) && !paused) DrawDialogue(W, H);
+        if (!paused) compass.Afterglow(W, H);
         if (phase == Phase.Intro && !paused && fade < 0.9f)
             Shadowed(new Rect(0, H - 44, W, 26), "Enter: skip intro", new GUIStyle(sSmall) { alignment = TextAnchor.UpperCenter, fontSize = 15 });
         if (choiceActive && !paused) DrawChoice(W, H);
