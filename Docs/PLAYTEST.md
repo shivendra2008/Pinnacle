@@ -52,3 +52,33 @@ Footage from the capture says nothing about frame rate (time is stepped). Perfor
 `PINNACLE_PROFILE=1 PINNACLE_PROFILE_OUT=<dir> PINNACLE_SAVE_DIR=<dir>/saves <dir>/Pinnacle.app/Contents/MacOS/Pinnacle -screen-fullscreen 0 -screen-width 1920 -screen-height 1080`
 (the save folder keeps the new game it starts away from the real saves).
 See `Docs/CURATOR.md` for what was measured.
+
+## Scripted routes in a player build (21 Nov 2026)
+`Assets/Scripts/Playtest/PlayRoute.cs` plays the same route in any build (the original code too), with a virtual
+keyboard and scripted look, and quits when done. It does nothing unless `PINNACLE_ROUTE` is set. Build the player
+with `BuildPlayer.MacOS` (add `PINNACLE_BUILD_DEV=1` for a development player whose Profiler markers the route records),
+then launch the binary directly so the environment reaches it:
+
+```bash
+PINNACLE_ROUTE=market PINNACLE_PROFILE_OUT=/tmp/run PINNACLE_SAVE_DIR=/tmp/run/saves Pinnacle.app/Contents/MacOS/Pinnacle -screen-fullscreen 0 -screen-width 1920 -screen-height 1080
+```
+
+| `PINNACLE_ROUTE` | What it plays |
+|---|---|
+| `market` | Act II from chapter select: cold entry, look at Bhaskar, walk through the bazaar gate to Vikram, talk (first answer as `PINNACLE_ROUTE_TRUST=note/appeal/threat`, then thank him), turn and look back through the crowd, walk at the watching woman until she bolts, follow her ride out, pick up her card, the phone, the SUV, the timed choice (`PINNACLE_ROUTE_OUTCOME=hide/walk/plate/timeout`), the outcome. `PINNACLE_ROUTE_RESUME=1` enters from a mid-act saved game; `PINNACLE_ROUTE_CURATOR=1` carries on into the Curator's visit and its hand-over to Act III |
+| `walk` | The market's entry, walk and look back only (quick A/B runs) |
+| `act1intro` | A new game: the prologue skipped, Act I's opening timed, its voices checked over free movement |
+| `act1` | Act I resumed: slow pans across the broken latch and the stairwell window, a stop, backing away |
+
+Outputs in `PINNACLE_PROFILE_OUT`: `summary.txt` (cold entry, steady play and the SUV as separate samples: median,
+p95, p99, worst, frames over 50 and 100 ms; CPU main-thread and GPU times; render counters by section), `frames.csv`,
+`checks.txt` (what the route saw the game do: decisions offered, trust result, Vikram in frame at each decision,
+reply-to-decision gaps, saves, outcomes), `markers.csv` and `spikes.txt` in a development build. Options:
+`PINNACLE_ROUTE_SHOTS=1` stills (not for timing), `PINNACLE_ROUTE_CENSUS=1` triangles and shadow casters per mesh,
+`PINNACLE_ROUTE_EXP=cascades=2,msaa=2,propshadows=0,...` A/B switches applied once the market is built,
+`PINNACLE_ROUTE_CAPTURE=1` footage with the UI at a fixed 30 fps and the mix rendered offline (then
+`python3 Tools/route_video.py <dir>` for the MP4).
+
+The reference machine is a fanless MacBook Air M1: it throttles under sustained load, and other processes (browser,
+macOS services) move the numbers. Compare builds with interleaved runs (base, after, base, after...) after a settle
+wait, and keep the load printed with each run.

@@ -29,7 +29,8 @@ public static class BuildPlayer
             scenes = new[] { "Assets/Scenes/SampleScene.unity" },
             locationPathName = Path.Combine(outDir, "Pinnacle.app"),
             target = BuildTarget.StandaloneOSX,
-            options = BuildOptions.None,
+            // PINNACLE_BUILD_DEV=1: a development player, so the route can read Profiler markers (Docs/PLAYTEST.md)
+            options = Environment.GetEnvironmentVariable("PINNACLE_BUILD_DEV") == "1" ? BuildOptions.Development : BuildOptions.None,
         };
         var report = BuildPipeline.BuildPlayer(opts);
         var s = report.summary;
