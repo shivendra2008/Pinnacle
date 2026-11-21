@@ -16,6 +16,8 @@ public class PriyaRoomBuilder : MonoBehaviour
 
     Transform root;
     public Transform Root => root;
+    // The apartment builder lives on after its room. Only the active market or early Gallery may own the lighting.
+    public GameObject RoomEffectsOwner { get; set; }
     public Transform DoorHinge;
     public GameObject ExtraRoot;   // Act II world (destroyed on restart)
     public GameObject HookNote;
@@ -399,7 +401,7 @@ public class PriyaRoomBuilder : MonoBehaviour
             l.transform.SetParent(root, false);
             l.transform.localPosition = new Vector3(tx[i], 2.5f, zc);
             l.type = LightType.Point; l.range = 7.5f; l.intensity = 2.6f; l.color = new Color(1f, 0.95f, 0.85f);
-            if (i == 2) l.gameObject.AddComponent<FlickerLight>();
+            if (i == 2) l.intensity *= 0.88f;   // a weak tube without a flash in the stairwell
         }
 
         // ---- the four flats: 301 Kapoor (open), 302 Verma, 303 Joshi, 304 Iyer (closed, iron grille gates)
@@ -548,10 +550,10 @@ public class PriyaRoomBuilder : MonoBehaviour
         Strip(Box("LowerFloor", new Vector3(-5.1f, -1.8f, zc), new Vector3(1.8f, 0.1f, depth), new Color(0.3f, 0.28f, 0.26f), null, 0.3f));
         // window in the end wall: the evening sky leaking in
         float wx = LXL + 0.03f;
-        Strip(GameKit.Box(root, "StairWindowGlow", new Vector3(wx, 1.9f, -4.6f), new Vector3(0.05f, 1.1f, 0.9f), GameKit.Glow(new Color(1f, 0.6f, 0.3f), new Color(1f, 0.55f, 0.25f), 2.5f)));
+        // One visible pane in front of its backing. The old pane and the trim shared the same front plane.
         Strip(Box("StairWindowFrame", new Vector3(wx + 0.01f, 1.9f, -4.6f), new Vector3(0.06f, 1.25f, 1.05f), new Color(0.2f, 0.12f, 0.07f), null, 0.2f));
-        Strip(GameKit.Box(root, "StairWindowGlow", new Vector3(wx + 0.02f, 1.9f, -4.6f), new Vector3(0.04f, 1.1f, 0.9f), GameKit.Glow(new Color(1f, 0.6f, 0.3f), new Color(1f, 0.55f, 0.25f), 2.5f)));
-        for (int i = 0; i < 4; i++) Strip(Box("StairWindowBar", new Vector3(wx + 0.05f, 1.9f, -4.95f + i * 0.23f), new Vector3(0.02f, 1.1f, 0.02f), rail, null, 0.4f, 0.6f));
+        Strip(GameKit.Box(root, "StairWindowGlow", new Vector3(wx + 0.049f, 1.9f, -4.6f), new Vector3(0.01f, 1.1f, 0.9f), GameKit.Glow(new Color(1f, 0.6f, 0.3f), new Color(1f, 0.55f, 0.25f), 1.3f)));
+        for (int i = 0; i < 4; i++) Strip(Box("StairWindowBar", new Vector3(wx + 0.073f, 1.9f, -4.95f + i * 0.23f), new Vector3(0.02f, 1.1f, 0.02f), rail, null, 0.4f, 0.6f));
         var wl = new GameObject("StairWindowLight").AddComponent<Light>();
         wl.transform.SetParent(root, false);
         wl.transform.localPosition = new Vector3(-5.2f, 1.9f, -4.6f);
@@ -1153,6 +1155,7 @@ public class PriyaRoomBuilder : MonoBehaviour
     // ================================================================= UPDATE
     void Update()
     {
+        if (RoomEffectsOwner != null && RoomEffectsOwner == ExtraRoot) return;
         if (fan != null) fan.Rotate(0, -140f * Time.deltaTime, 0);
 
         var kb = Keyboard.current;

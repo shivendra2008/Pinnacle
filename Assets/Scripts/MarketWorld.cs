@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -28,6 +29,8 @@ public class MarketWorld : MonoBehaviour
 
     public Transform Auto;
     public Transform Suv;
+    public Light StallLamp { get; private set; }
+    public float StallVoltage { get; set; } = 1f;
     public readonly List<Light> StreetLights = new List<Light>();
     public readonly List<float> StreetLightBase = new List<float>();
     public readonly List<Material> NeonMats = new List<Material>();
@@ -146,6 +149,13 @@ public class MarketWorld : MonoBehaviour
         }
     }
 
+    readonly Dictionary<Color, Material> stringBulbs = new Dictionary<Color, Material>();
+
+    void OnDestroy()
+    {
+        foreach (var material in stringBulbs.Values) Destroy(material);
+    }
+
     void StringLights(Vector3 a, Vector3 b, int n, float sag, Color tint, bool coloured)
     {
         Seg("Cord", a, Sag(a, b, 0.5f, sag), 0.01f, Color.black);
@@ -154,30 +164,50 @@ public class MarketWorld : MonoBehaviour
         {
             float t = i / (float)n;
             Color c = coloured ? Flags[i % Flags.Length] : tint;
-            GameKit.Sphere(transform, "Bulb", Sag(a, b, t, sag) + Vector3.down * 0.06f, 0.1f, GameKit.Glow(c * 0.4f, c, 6f));
+            if (!stringBulbs.TryGetValue(c, out var material))
+            {
+                material = GameKit.Glow(c * 0.4f, c, 2.6f);
+                stringBulbs.Add(c, material);
+            }
+            GameKit.Sphere(transform, "Bulb", Sag(a, b, t, sag) + Vector3.down * 0.06f, 0.1f, material);
         }
     }
 
     // ======================================================================= BUILD
+    // Synchronous entry point for callers that need the complete world immediately.
     public void Generate()
     {
+        var main = Camera.main;
+        var stages = Generate(main != null ? main.transform : transform);
+        while (stages.MoveNext())
+        {
+            if (stages.Current is IEnumerator section)
+                while (section.MoveNext()) { }
+        }
+    }
+
+    public IEnumerator Generate(Transform viewer)
+    {
         BuildGround();
-        BuildFacades();
+        yield return BuildFacades();
         BuildOverhead();
         BuildGate();
-        BuildStalls();
+        yield return BuildStalls();
         BuildShrine();
         BuildPole();
         BuildVehicles();
         BuildAnimals();
         BuildClutter();
+        yield return null;
         TexturePass();
+        yield return null;
         CombineStatic();
         BuildAuto();
         BuildSuv();
         BuildSkyline();
         var life = gameObject.AddComponent<AmbientLife>();
         life.world = this;
+        life.viewer = viewer;
     }
 
     // ------------------------------------------------------- things that move
@@ -350,7 +380,7 @@ public class MarketWorld : MonoBehaviour
     }
 
     // --------------------------------------------------------------- facades
-    void BuildFacades()
+    IEnumerator BuildFacades()
     {
         for (int side = -1; side <= 1; side += 2)
         {
@@ -365,6 +395,7 @@ public class MarketWorld : MonoBehaviour
                 var body = B(transform, "Building", new Vector3(side * (FX + 4f), h / 2f, zc), new Vector3(8f, h, 6f), paint * 0.7f, true, 0.1f);
                 GameKit.SurfaceZY(body, k % 3 == 1 ? "brick" : "facade", 3.2f, new Color(Mathf.Min(1f, paint.r * 1.15f), Mathf.Min(1f, paint.g * 1.15f), Mathf.Min(1f, paint.b * 1.15f)), 1f, 1f);
                 BuildFacade(side, zc, h, floors, paint, k);
+                if (k % 2 == 0) yield return null;
             }
         }
     }
@@ -480,7 +511,7 @@ public class MarketWorld : MonoBehaviour
         GameKit.Box(transform, "SignBoard", P(0.18f, 3.55f, 0), new Vector3(0.14f, 0.85f, 4.5f), GameKit.Glow(sc, sc, 0.7f));   // lit signboard
         B(transform, "SignFrame", P(0.14f, 3.55f, 0), new Vector3(0.1f, 0.95f, 4.6f), Rgb(0.9f, 0.85f, 0.7f), false, 0.3f);
         Color tc = (sc.r + sc.g + sc.b) > 1.6f ? Rgb(0.08f, 0.08f, 0.1f) : Rgb(1f, 0.97f, 0.85f);
-        GameKit.Sign(transform, names[0], names[1], P(0.27f, 3.55f, 0), face, 0.34f, 4.2f, tc);
+        GameKit.Sign(transform, names[0], names[1], P(0.254f, 3.55f, 0), face, 0.34f, 4.2f, tc);
 
         // tin shade over the shop on rusty brackets, a tube light over the sign, a rainwater pipe, a worn stone step
         if (R2() < 0.65f)
@@ -514,8 +545,8 @@ public class MarketWorld : MonoBehaviour
                 float dz = w == 0 ? -1.65f : 1.65f;
                 bool lit = R() < 0.55f;
                 B(transform, "WinFrame", P(0.05f, yb + 1.3f, dz), new Vector3(0.14f, 1.7f, 1.15f), Rgb(0.25f, 0.17f, 0.1f));
-                if (lit) Gl(transform, "WinGlow", P(0.0f, yb + 1.3f, dz), new Vector3(0.06f, 1.45f, 0.95f), R() < 0.6f ? Tungsten : Tube, 1.4f);
-                else B(transform, "WinDark", P(0.0f, yb + 1.3f, dz), new Vector3(0.06f, 1.45f, 0.95f), dark, false, 0.8f);
+                if (lit) Gl(transform, "WinGlow", P(0.128f, yb + 1.3f, dz), new Vector3(0.012f, 1.45f, 0.95f), R() < 0.6f ? Tungsten : Tube, 0.82f);
+                else B(transform, "WinDark", P(0.128f, yb + 1.3f, dz), new Vector3(0.012f, 1.45f, 0.95f), dark, false, 0.8f);
                 for (int s = -1; s <= 1; s += 2)   // louvred shutters
                     B(transform, "Shutter", P(0.14f, yb + 1.3f, dz + s * 0.31f), new Vector3(0.05f, 1.45f, 0.48f), leaf, false, 0.2f);
                 for (int g = 0; g < 4; g++)         // iron grill
@@ -609,8 +640,8 @@ public class MarketWorld : MonoBehaviour
         B(transform, "GatePillarR", new Vector3(3.45f, 2.7f, z), new Vector3(0.7f, 5.4f, 0.7f), pillar, true, 0.2f);
         B(transform, "GateBeam", new Vector3(0, 5.35f, z), new Vector3(8f, 1.1f, 0.6f), Rgb(0.7f, 0.2f, 0.15f), false, 0.2f);
         B(transform, "GateTop", new Vector3(0, 6.05f, z), new Vector3(6f, 0.4f, 0.5f), Rgb(0.95f, 0.75f, 0.2f), false, 0.3f);
-        GameKit.Sign(transform, "CHANDNI CHOWK BAZAAR", "चांदनी चौक बाज़ार", new Vector3(0, 5.35f, z - 0.33f), Quaternion.identity, 0.42f, 7f, Rgb(1f, 0.92f, 0.65f));
-        GameKit.Sign(transform, "WELCOME", "स्वागतम्", new Vector3(0, 6.05f, z - 0.28f), Quaternion.identity, 0.17f, 3f, Rgb(0.3f, 0.1f, 0.05f));
+        GameKit.Sign(transform, "CHANDNI CHOWK BAZAAR", "चांदनी चौक बाज़ार", new Vector3(0, 5.35f, z - 0.304f), Quaternion.identity, 0.42f, 7f, Rgb(1f, 0.92f, 0.65f));
+        GameKit.Sign(transform, "WELCOME", "स्वागतम्", new Vector3(0, 6.05f, z - 0.254f), Quaternion.identity, 0.17f, 3f, Rgb(0.3f, 0.1f, 0.05f));
         Garland(new Vector3(-3.1f, 4.8f, z - 0.4f), new Vector3(3.1f, 4.8f, z - 0.4f), 26, 0.7f);
         for (int i = 0; i < 9; i++)   // LED border
             Gl(transform, "GateLED", new Vector3(-3.6f + i * 0.9f, 4.78f, z - 0.34f), new Vector3(0.12f, 0.12f, 0.05f), Flags[i % Flags.Length], 4f);
@@ -618,17 +649,24 @@ public class MarketWorld : MonoBehaviour
     }
 
     // ------------------------------------------------------------------ stalls
-    void BuildStalls()
+    IEnumerator BuildStalls()
     {
         // left side (x = -2.95, facing +x)
         Stall(-1, 11f, "veg"); Stall(-1, 16.5f, "spice"); Stall(-1, 23f, "sweets"); Stall(-1, 28.5f, "garland");
+        yield return null;
         VikramStall();
+        yield return null;
         Stall(-1, 40f, "saree"); Stall(-1, 47f, "bangles"); Stall(-1, 53f, "coconut"); Stall(-1, 59f, "fruitcart");
+        yield return null;
         Stall(-1, 65f, "balloons"); Stall(-1, 72f, "utensils");
+        yield return null;
         // right side (x = +2.95, facing -x)
         Stall(1, 7f, "panipuri"); Stall(1, 20f, "shoes"); Stall(1, 26f, "mobile"); Stall(1, 32f, "corn");
+        yield return null;
         Stall(1, 38f, "news"); Stall(1, 52f, "samosa"); Stall(1, 58f, "veg"); Stall(1, 64f, "pushcart");
+        yield return null;
         Stall(1, 70f, "toys"); Stall(1, 76f, "spice");
+        yield return null;
     }
 
     Transform StallBase(int side, float z, string kind, Color tarp, bool vendor, bool customer)
@@ -665,7 +703,8 @@ public class MarketWorld : MonoBehaviour
         TubeSeg(st, new Vector3(0, 2.6f, 0.35f), new Vector3(0, 2.27f, 0.35f), 0.008f, Rgb(0.05f, 0.05f, 0.05f));
         // hanging bulb (tungsten) + light
         GameKit.Sphere(st, "Bulb", new Vector3(0, 2.2f, 0.35f), 0.14f, GameKit.Glow(Color.white, new Color(1f, 0.78f, 0.4f), 5f));
-        AddLight(st.TransformPoint(new Vector3(0, 2.0f, 0.5f)), Tungsten, 2.2f, 5f);
+        var lamp = AddLight(st.TransformPoint(new Vector3(0, 2.0f, 0.5f)), Tungsten, 2.2f, 5f);
+        if (kind == "chai") StallLamp = lamp;
 
         if (vendor) { Vector3 vp = st.TransformPoint(new Vector3(0.2f, 0, -0.85f)); Vendors.Add(new NpcSpot { pos = new Vector3(vp.x, 0.18f, vp.z), yaw = yaw }); }
         if (customer) Customers.Add(new NpcSpot { pos = st.TransformPoint(new Vector3(-0.4f, 0, 1.15f)), yaw = yaw + 180f });
@@ -702,6 +741,23 @@ public class MarketWorld : MonoBehaviour
             Cy(p, "Basket", pos, 0.2f, 0.3f, Rgb(0.7f, 0.55f, 0.3f), 0.1f);
     }
 
+    void StallSign(Transform stall, string name, string hindi, float letterHeight, float width, Color ink)
+    {
+        const float depth = 0.5f;
+        float height = letterHeight * 2.3f + 0.08f;
+        float centre = 2.43f;
+        float top = centre + height * 0.5f;
+        var board = B(stall, "HangingBoard", new Vector3(0f, centre, depth),
+            new Vector3(width + 0.12f, height, 0.045f), Rgb(0.14f, 0.10f, 0.065f));
+        GameKit.Surface(board, "wood", 0.8f, 0.44f, 0.55f, Rgb(0.27f, 0.20f, 0.13f));
+        float cord = Mathf.Max(0.025f, 2.78f - top);
+        for (int side = -1; side <= 1; side += 2)
+            B(stall, "BoardStrap", new Vector3(side * width * 0.39f, top + cord / 2f, depth),
+                new Vector3(0.018f, cord + 0.02f, 0.018f), Rgb(0.24f, 0.17f, 0.1f));
+        GameKit.Sign(stall, name, hindi, new Vector3(0f, centre, depth + 0.026f),
+            Quaternion.Euler(0f, 180f, 0f), letterHeight, width, ink);
+    }
+
     void Stall(int side, float z, string kind)
     {
         Color[] tarps = { Rgb(0.1f, 0.3f, 0.7f), Rgb(0.9f, 0.4f, 0.08f), Rgb(0.1f, 0.5f, 0.3f), Rgb(0.8f, 0.12f, 0.15f), Rgb(0.95f, 0.78f, 0.15f) };
@@ -719,7 +775,7 @@ public class MarketWorld : MonoBehaviour
                 for (int i = 0; i < 4; i++) BasketP(st, new Vector3(-0.8f + i * 0.55f, 0.15f, 0.7f));
                 PileP(st, "food_lime_01", new Vector3(-0.8f, 0.1f, 0.7f), 10, 0.13f, 1.2f, Rgb(0.4f, 0.7f, 0.2f), 0.06f);
                 PileP(st, "yellow_onion", new Vector3(0.3f, 0.1f, 0.7f), 8, 0.13f, 1.2f, Rgb(0.6f, 0.25f, 0.35f), 0.08f);
-                GameKit.Sign(st, "SABZI", "सब्ज़ी", new Vector3(0, 2.2f, 0.88f), Quaternion.Euler(0, 180f, 0), 0.22f, 1.2f, Rgb(1f, 0.95f, 0.8f));
+                StallSign(st, "SABZI", "सब्ज़ी", 0.22f, 1.2f, Rgb(1f, 0.95f, 0.8f));
                 break;
             case "spice":
                 Color[] sp = { Rgb(0.8f, 0.1f, 0.05f), Rgb(0.95f, 0.7f, 0.05f), Rgb(0.45f, 0.4f, 0.15f), Rgb(0.5f, 0.28f, 0.1f), Rgb(0.15f, 0.12f, 0.1f), Rgb(0.4f, 0.5f, 0.15f) };
@@ -735,7 +791,7 @@ public class MarketWorld : MonoBehaviour
                     GameKit.Cone(st, "SackPile", new Vector3(-0.8f + i * 0.8f, 0.58f, 0.75f), 0.25f, 0.22f, GameKit.Lit(sp[(i * 2) % 6], 0.3f));
                 }
                 B(st, "ScaleBar", new Vector3(0.9f, 1.55f, 0.1f), new Vector3(0.6f, 0.025f, 0.025f), Rgb(0.6f, 0.5f, 0.2f), false, 0.7f, 0.8f);
-                GameKit.Sign(st, "MASALA", "मसाले", new Vector3(0, 2.2f, 0.88f), Quaternion.Euler(0, 180f, 0), 0.22f, 1.2f, Rgb(1f, 0.9f, 0.6f));
+                StallSign(st, "MASALA", "मसाले", 0.22f, 1.2f, Rgb(1f, 0.9f, 0.6f));
                 break;
             case "sweets":
                 Gl(st, "GlassCase", new Vector3(0, top + 0.3f, 0.1f), new Vector3(2.0f, 0.5f, 0.55f), Rgb(0.8f, 0.9f, 0.95f), 0.5f);
@@ -746,7 +802,7 @@ public class MarketWorld : MonoBehaviour
                 Cy(st, "Kadhai", new Vector3(0.7f, top + 0.12f, -0.2f), 0.4f, 0.2f, Rgb(0.04f, 0.04f, 0.04f), 0.5f, 0.7f);
                 GameKit.Cyl(st, "Jalebi", new Vector3(0.7f, top + 0.2f, -0.2f), 0.34f, 0.03f, GameKit.Glow(Rgb(0.8f, 0.4f, 0.05f), Rgb(1f, 0.5f, 0.05f), 1.5f));
                 Steam(st.TransformPoint(new Vector3(0.7f, top + 0.3f, -0.2f)), 1.1f);
-                GameKit.Sign(st, "MITHAI", "मिठाई", new Vector3(0, 2.2f, 0.88f), Quaternion.Euler(0, 180f, 0), 0.25f, 1.4f, Rgb(1f, 0.9f, 0.5f));
+                StallSign(st, "MITHAI", "मिठाई", 0.25f, 1.4f, Rgb(1f, 0.9f, 0.5f));
                 break;
             case "garland":
                 for (int i = 0; i < 3; i++)
@@ -782,7 +838,7 @@ public class MarketWorld : MonoBehaviour
                         Sp(st, "Coconut", new Vector3(-0.4f + Mathf.Cos(a) * rr, top + 0.1f + l * 0.15f, 0.1f + Mathf.Sin(a) * rr), 0.2f, Rgb(0.4f, 0.6f, 0.2f), 0.4f);
                     }
                 Cy(st, "Log", new Vector3(0.7f, top + 0.15f, 0.1f), 0.2f, 0.3f, Rgb(0.45f, 0.3f, 0.18f), 0.1f);
-                GameKit.Sign(st, "NARIYAL PAANI", "नारियल पानी", new Vector3(0, 2.2f, 0.88f), Quaternion.Euler(0, 180f, 0), 0.22f, 1.6f, Rgb(0.9f, 1f, 0.7f));
+                StallSign(st, "NARIYAL PAANI", "नारियल पानी", 0.22f, 1.6f, Rgb(0.9f, 1f, 0.7f));
                 break;
             case "fruitcart":
                 B(st, "CartBed", new Vector3(0, 0.75f, 0.2f), new Vector3(1.9f, 0.1f, 0.9f), Rgb(0.45f, 0.3f, 0.15f), true, 0.2f);
@@ -813,7 +869,7 @@ public class MarketWorld : MonoBehaviour
                 Gl(st, "PuriBox", new Vector3(-0.2f, 1.15f, 0.05f), new Vector3(0.7f, 0.45f, 0.5f), Rgb(0.85f, 0.9f, 0.95f), 0.4f);
                 Pile(st, new Vector3(-0.2f, 1.05f, 0.05f), Rgb(0.8f, 0.55f, 0.25f), 20, 0.22f, 0.09f);
                 Cy(st, "WaterPot", new Vector3(0.45f, 1.1f, 0.0f), 0.17f, 0.45f, Rgb(0.6f, 0.4f, 0.2f), 0.5f);
-                GameKit.Sign(st, "PANI PURI", "पानी पूरी", new Vector3(0, 2.15f, 0.88f), Quaternion.Euler(0, 180f, 0), 0.24f, 1.6f, Rgb(1f, 0.95f, 0.6f));
+                StallSign(st, "PANI PURI", "पानी पूरी", 0.24f, 1.6f, Rgb(1f, 0.95f, 0.6f));
                 break;
             case "shoes":
                 B(st, "Mat", new Vector3(0, 0.015f, 0.9f), new Vector3(2.4f, 0.03f, 1.6f), Rgb(0.5f, 0.15f, 0.12f), false, 0.1f);
@@ -826,7 +882,7 @@ public class MarketWorld : MonoBehaviour
                 Gl(st, "PhoneGlass", new Vector3(0, top + 0.1f, 0.1f), new Vector3(1.8f, 0.2f, 0.55f), Rgb(0.3f, 0.6f, 1f), 1.2f);
                 for (int i = 0; i < 10; i++)
                     B(st, "Cover", new Vector3(-0.9f + i * 0.2f, 1.7f, 0.4f), new Vector3(0.1f, 0.18f, 0.01f), Color.HSVToRGB(R(), 0.8f, 0.9f), false, 0.4f);
-                GameKit.Sign(st, "RECHARGE", "रिचार्ज", new Vector3(0, 2.2f, 0.88f), Quaternion.Euler(0, 180f, 0), 0.22f, 1.4f, Rgb(0.7f, 1f, 1f));
+                StallSign(st, "RECHARGE", "रिचार्ज", 0.22f, 1.4f, Rgb(0.7f, 1f, 1f));
                 break;
             case "corn":
                 B(st, "Grill", new Vector3(-0.3f, top + 0.15f, 0.1f), new Vector3(0.9f, 0.3f, 0.45f), Rgb(0.1f, 0.1f, 0.1f), false, 0.4f, 0.5f);
@@ -843,7 +899,7 @@ public class MarketWorld : MonoBehaviour
                 for (int i = 0; i < 12; i++)
                     B(st, "Magazine", new Vector3(-0.95f + i * 0.17f, 1.4f, 0.4f), new Vector3(0.15f, 0.4f, 0.02f), Color.HSVToRGB(R(), 0.5f, 0.9f), false, 0.3f);
                 B(st, "PaperStack", new Vector3(0.6f, top + 0.12f, 0.1f), new Vector3(0.5f, 0.24f, 0.4f), Rgb(0.85f, 0.83f, 0.75f), false, 0.1f);
-                GameKit.Sign(st, "NEWS", "समाचार", new Vector3(0, 2.2f, 0.88f), Quaternion.Euler(0, 180f, 0), 0.24f, 1.4f, Rgb(1f, 0.95f, 0.8f));
+                StallSign(st, "NEWS", "समाचार", 0.24f, 1.4f, Rgb(1f, 0.95f, 0.8f));
                 break;
             case "samosa":
                 Gl(st, "GlassCase", new Vector3(-0.5f, top + 0.25f, 0.1f), new Vector3(0.9f, 0.4f, 0.5f), Rgb(0.8f, 0.9f, 0.95f), 0.5f);
@@ -853,7 +909,7 @@ public class MarketWorld : MonoBehaviour
                 Cy(st, "Gas", new Vector3(0.9f, 0.3f, -0.1f), 0.17f, 0.6f, Rgb(0.75f, 0.1f, 0.08f), 0.4f);
                 AddLight(st.TransformPoint(new Vector3(0.5f, 1.3f, 0.2f)), Rgb(1f, 0.5f, 0.1f), 1.6f, 4f, true);
                 Steam(st.TransformPoint(new Vector3(0.5f, top + 0.3f, 0f)), 1.3f);
-                GameKit.Sign(st, "SAMOSA JALEBI", "समोसा जलेबी", new Vector3(0, 2.2f, 0.88f), Quaternion.Euler(0, 180f, 0), 0.22f, 1.8f, Rgb(1f, 0.9f, 0.5f));
+                StallSign(st, "SAMOSA JALEBI", "समोसा जलेबी", 0.22f, 1.8f, Rgb(1f, 0.9f, 0.5f));
                 break;
             case "pushcart":
                 B(st, "CartBed", new Vector3(0, 0.75f, 0.1f), new Vector3(1.7f, 0.1f, 0.85f), Rgb(0.4f, 0.28f, 0.15f), true, 0.2f);
@@ -899,7 +955,7 @@ public class MarketWorld : MonoBehaviour
         for (int i = 0; i < 8; i++) Cy(st, "Glass", new Vector3(0.1f + (i % 4) * 0.1f, top + 0.07f, -0.1f + (i / 4) * 0.12f), 0.035f, 0.1f, Rgb(0.88f, 0.92f, 0.92f), 0.9f);
         for (int i = 0; i < 3; i++) Cy(st, "Jar", new Vector3(0.65f + i * 0.2f, top + 0.15f, 0.15f), 0.08f, 0.28f, Rgb(0.85f, 0.55f, 0.2f), 0.6f);
         for (int i = 0; i < 6; i++) Cy(st, "Banana", new Vector3(0.0f + i * 0.04f, 1.9f - i * 0.02f, 0.4f), 0.03f, 0.22f, Rgb(0.98f, 0.85f, 0.2f), 0.4f);
-        GameKit.Sign(st, "VIKRAM CHAI", "विक्रम चाय", new Vector3(0, 2.25f, 0.9f), Quaternion.Euler(0, 180f, 0), 0.3f, 2.0f, Rgb(1f, 0.9f, 0.5f));
+        StallSign(st, "VIKRAM CHAI", "विक्रम चाय", 0.3f, 2.0f, Rgb(1f, 0.9f, 0.5f));
         // customers' low stools and plastic chairs in front
         for (int i = 0; i < 3; i++)
         {
@@ -1437,9 +1493,10 @@ public class MarketWorld : MonoBehaviour
         {
             float x = -50 + i * 6.5f;
             float h = 14f + R() * 20f;
-            GameKit.Box(transform, "FarBuilding", new Vector3(x, h / 2f, 100f + R() * 14f), new Vector3(5.5f, h, 5f), m);
+            float z = 100f + R() * 14f;
+            GameKit.Box(transform, "FarBuilding", new Vector3(x, h / 2f, z), new Vector3(5.5f, h, 5f), m);
             for (float y = 3f; y < h; y += 3f)
-                if (R() < 0.3) GameKit.Box(transform, "FarWindow", new Vector3(x + (R() - 0.5f) * 3f, y, 97.3f), new Vector3(0.7f, 0.9f, 0.05f), win);
+                if (R() < 0.3) GameKit.Box(transform, "FarWindow", new Vector3(x + (R() - 0.5f) * 3f, y, z - 2.52f), new Vector3(0.7f, 0.9f, 0.05f), win);
         }
         GameKit.Sphere(transform, "Moon", new Vector3(-18f, 42f, 130f), 7f, GameKit.Unlit(new Color(0.9f, 0.93f, 1f)));
     }
@@ -1451,8 +1508,10 @@ public class AmbientLife : MonoBehaviour
     public MarketWorld world;
     Quaternion[] baseRot;
     float[] phase;
-    float[] flameBase;
-    float flickerTimer;
+    public Transform viewer;
+    Vector3[] lightPositions;
+    bool[] flames;
+    float nextLightUpdate;
 
     void Start()
     {
@@ -1463,8 +1522,33 @@ public class AmbientLife : MonoBehaviour
             baseRot[i] = world.Swayers[i].localRotation;
             phase[i] = Random.value * 6.28f;
         }
-        flameBase = new float[world.FlameLights.Count];
-        for (int i = 0; i < flameBase.Length; i++) flameBase[i] = world.FlameLights[i].intensity;
+        lightPositions = new Vector3[world.StreetLights.Count];
+        flames = new bool[lightPositions.Length];
+        for (int i = 0; i < lightPositions.Length; i++)
+        {
+            var lamp = world.StreetLights[i];
+            lightPositions[i] = lamp.transform.position;
+            flames[i] = world.FlameLights.Contains(lamp);
+        }
+        UpdateLights(Time.time);
+    }
+
+    void UpdateLights(float t)
+    {
+        Vector3 eye = viewer.position;
+        for (int i = 0; i < lightPositions.Length; i++)
+        {
+            var lamp = world.StreetLights[i];
+            float distance = Vector3.Distance(eye, lightPositions[i]);
+            float gain = Mathf.SmoothStep(1f, 0f, Mathf.InverseLerp(20f, 32f, distance));
+            bool visible = gain > 0.001f;
+            if (lamp.enabled != visible) lamp.enabled = visible;
+            if (!visible) continue;
+            if (flames[i]) gain *= 0.94f + 0.1f * Mathf.PerlinNoise(t * 1.6f, i * 0.73f);
+            if (lamp == world.StallLamp) gain *= world.StallVoltage;
+            float intensity = gain * world.StreetLightBase[i];
+            if (Mathf.Abs(lamp.intensity - intensity) > 0.003f) lamp.intensity = intensity;
+        }
     }
 
     void Update()
@@ -1479,12 +1563,10 @@ public class AmbientLife : MonoBehaviour
         foreach (var sp in world.Spinners)
             if (sp != null) sp.Rotate(0, 0, 260f * Time.deltaTime, Space.Self);
 
-        flickerTimer -= Time.deltaTime;
-        if (flickerTimer <= 0f)
+        if (t >= nextLightUpdate)
         {
-            flickerTimer = 0.07f;
-            for (int i = 0; i < flameBase.Length; i++)
-                if (world.FlameLights[i] != null) world.FlameLights[i].intensity = flameBase[i] * Random.Range(0.75f, 1.2f);
+            nextLightUpdate = t + 0.08f;
+            UpdateLights(t);
         }
     }
 }

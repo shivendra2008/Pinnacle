@@ -29,6 +29,7 @@ public class CuratorSound : MonoBehaviour
     readonly List<AudioSource> pool = new List<AudioSource>();
     public AudioSource rainOut, rainWindow, roomTone;
     public AudioSource voice;                                       // the Curator's voice (ducking key)
+    public bool clearThunderFilter;
     float duck;
     /// <summary>Gain for the scene's own beds while the Curator speaks (1 = no ducking).</summary>
     public float DuckGain { get { return Mathf.Lerp(1f, 0.63f, duck); } }
@@ -136,6 +137,8 @@ public class CuratorSound : MonoBehaviour
         var clip = Pick(category);
         if (clip == null) return null;
         var s = Free();
+        if (clearThunderFilter && s.TryGetComponent<AudioLowPassFilter>(out var filter))
+            filter.enabled = false;
         s.transform.position = at;
         s.clip = clip; s.loop = false; s.spatialBlend = spatial;
         s.volume = Mathf.Clamp01(Mathf.Pow(10f, (db + Random.Range(-1.5f, 1.5f)) / 20f));
@@ -161,6 +164,7 @@ public class CuratorSound : MonoBehaviour
         {
             var lp = s.GetComponent<AudioLowPassFilter>();
             if (lp == null) lp = s.gameObject.AddComponent<AudioLowPassFilter>();
+            lp.enabled = true;
             lp.cutoffFrequency = Mathf.Lerp(9000f, 1800f, Mathf.InverseLerp(0.5f, 6f, km));    // distance takes the top off
         }
     }

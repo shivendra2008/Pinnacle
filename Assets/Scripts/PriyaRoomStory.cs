@@ -23,6 +23,8 @@ public class PriyaRoomStory : MonoBehaviour
 
     PriyaRoomPlayer player;
     GameMenu menu;
+    readonly StoryCompass compass = new StoryCompass();
+    Coroutine titleAmbience;
     Transform cam;
     Camera camComp;
     CharacterNPC kamala;
@@ -30,6 +32,8 @@ public class PriyaRoomStory : MonoBehaviour
     // audio
     AudioSource ambience, sfx, bell, hall3d, voice;
     AudioClip bellClip, stepClip, clickClip, creakClip, dingClip;
+    AudioClip[] hallSteps;
+    int nextStep;
     float nextBell;
     bool bellEnabled;
 
@@ -117,7 +121,7 @@ public class PriyaRoomStory : MonoBehaviour
         kamala.lookTarget = cam;
         kamala.transform.localRotation = Quaternion.identity;
 
-        StartCoroutine(RampAmbience(0f, 0.35f, 3f)); // quiet bed under the title screen
+        titleAmbience = StartCoroutine(RampAmbience(0f, 0.35f, 3f)); // quiet bed under the title screen
         menu = new GameMenu();
         menu.OnPlay = OnMenuPlay;
     }
@@ -145,13 +149,13 @@ public class PriyaRoomStory : MonoBehaviour
             && (phase == Phase.Intro || phase == Phase.Dialogue || phase == Phase.Ending))
         { skipAll = true; skipLine = true; }
         if (phase == Phase.Explore) skipAll = false;
-        if (kb != null && kb.jKey.wasPressedThisFrame && phase != Phase.Intro) journalOpen = !journalOpen;
+        if (kb != null && kb.jKey.wasPressedThisFrame && phase == Phase.Explore) journalOpen = !journalOpen;
 
         fade = Mathf.MoveTowards(fade, fadeTarget, fadeSpeed * Time.deltaTime);
 
-        if (bellEnabled && Time.time > nextBell)
+        if (bellEnabled && phase == Phase.Explore && !voice.isPlaying && Time.time > nextBell)
         {
-            bell.PlayOneShot(bellClip, 0.35f);
+            bell.PlayOneShot(bellClip, 0.16f);
             nextBell = Time.time + UnityEngine.Random.Range(14f, 24f);
         }
 
@@ -166,7 +170,7 @@ public class PriyaRoomStory : MonoBehaviour
 
         if (phase == Phase.Explore)
         {
-            bool quiet = Time.time > thoughtUntil + 2f && PlayerInsideRoom();
+            bool quiet = Time.time > thoughtUntil + 0.5f && PlayerInsideRoom();
             if (quiet && !dlgDone && foundCount >= 3) StartCoroutine(KamalaDialogue());
             else if (quiet && dlgDone && foundCount >= TotalClues && !allCluesTriggered) StartCoroutine(AllCluesFound());
         }
@@ -236,7 +240,7 @@ public class PriyaRoomStory : MonoBehaviour
     {
         if (skipAll) { sub = null; yield break; }
         var clip = VO(file);
-        float dur = clip != null ? clip.length + 0.45f : Mathf.Max(2.5f, text.Length * 0.06f);
+        float dur = clip != null ? clip.length + 0.16f : Mathf.Max(2.5f, text.Length * 0.06f);
         sub = speaker + ":  " + text;
         subUntil = Time.time + dur + 0.2f;
         subSkippable = true;
@@ -285,11 +289,11 @@ public class PriyaRoomStory : MonoBehaviour
         yield return W(0.5f);
         ShowTitle("ACT I  -  THE EMPTY ROOM", "Chandnipur, Old Quarter   |   Tuesday evening   |   6:00 PM", 4.4f);
         StartCoroutine(RampAmbience(ambience.volume, 0.9f, 4f));
-        bellEnabled = true; nextBell = Time.time + 3f;
-        yield return W(4.6f);
+        bellEnabled = true; nextBell = Time.time + 9f;
+        fadeSpeed = 1.15f; fadeTarget = 0f;
+        yield return W(0.7f);
 
         // turn to face Mrs. Kapoor while Arjun narrates
-        fadeSpeed = 0.35f; fadeTarget = 0f;
         AutoFocus.FocusOn = kamala.transform;
         var turnToKamala = StartCoroutine(Turn(kamala.transform.position + Vector3.up * 1.5f, 3f));
         yield return Say("arjun_intro1", "ARJUN (V.O.)", "In Chandnipur, everyone has a secret. The city is old enough to keep them.");
@@ -639,7 +643,7 @@ public class PriyaRoomStory : MonoBehaviour
         lastProgressTime = Time.time;
         ClueInfo ci = Info[t.id];
         var clip = VO("arjun_clue_" + t.id);
-        float dur = clip != null ? clip.length + 2.5f : 8f;
+        float dur = clip != null ? clip.length + 0.5f : 5f;
         ShowThought("CLUE FOUND:  " + ci.name.ToUpper() + "   (" + foundCount + "/9)",
                     ci.desc + "\n\nARJUN:  \"" + ci.quote + "\"", dur);
         sfx.PlayOneShot(dingClip, 0.5f);
@@ -691,19 +695,12 @@ public class PriyaRoomStory : MonoBehaviour
             dlgText = dlgText == null || dlgText.Length == 0 ? "Is there anything else you want to ask me?" : dlgText;
             int choice = -1;
             skipAll = false;
-        skipAll = false;
+            compass.Open(new[] { "Threats", "Priya’s work", "The police", "Leave" }, menu, asked: dlgAsked);
             yield return null;
             while (choice < 0)
             {
                 if (GameState.Paused) { yield return null; continue; }
-                var kb = Keyboard.current;
-                if (kb != null)
-                {
-                    if (kb.digit1Key.wasPressedThisFrame) choice = 0;
-                    else if (kb.digit2Key.wasPressedThisFrame) choice = 1;
-                    else if (kb.digit3Key.wasPressedThisFrame) choice = 2;
-                    else if (kb.digit4Key.wasPressedThisFrame) choice = 3;
-                }
+                choice = compass.Poll();
                 yield return null;
             }
             sfx.PlayOneShot(clickClip, 0.5f);
@@ -732,10 +729,8 @@ public class PriyaRoomStory : MonoBehaviour
                 yield return null;
             }
             dlgText = "";
-            var more = VO("kamala_more");
-            dlgText = "Is there anything else you want to ask me?";
-            if (more != null) kamala.Say(more);
-            yield return W(more != null ? more.length + 0.2f : 1f);
+            // Her answer already invites the next question. Keep the witness on camera.
+            dlgText = "What else do you want to ask?";
         }
 
         dlgSpeaker = null; dlgText = null; dlgOptions = null;
@@ -766,7 +761,7 @@ public class PriyaRoomStory : MonoBehaviour
         thoughtUntil = 0;
         sfx.PlayOneShot(dingClip, 0.7f);
         Toast("All 9 clues found. The picture is complete...", 3.5f);
-        yield return new WaitForSeconds(2.6f);
+        yield return new WaitForSeconds(1.1f);
         yield return MoveAhead();
     }
 
@@ -785,18 +780,14 @@ public class PriyaRoomStory : MonoBehaviour
         dlgSpeaker = "CASE STATUS   -   " + foundCount + " of 9 clues found";
         dlgText = "You have enough evidence to follow a lead. The phone number from the sticky note points to a chai stall in the market.\n\nMove ahead now, or keep searching Priya's room for more clues?";
         dlgOptions = new[] { "Move ahead  -  follow the lead to the market", "Keep searching  -  find more clues first" };
+        compass.Open(new[] { "Follow the lead", "Keep searching" }, dlgOptions);
         int choice = -1;
         skipAll = false;
         yield return null;
         while (choice < 0)
         {
             if (GameState.Paused) { yield return null; continue; }
-            var kb = Keyboard.current;
-            if (kb != null)
-            {
-                if (kb.digit1Key.wasPressedThisFrame) choice = 0;
-                else if (kb.digit2Key.wasPressedThisFrame) choice = 1;
-            }
+            choice = compass.Poll();
             yield return null;
         }
         sfx.PlayOneShot(clickClip, 0.5f);
@@ -831,6 +822,12 @@ public class PriyaRoomStory : MonoBehaviour
     }
 
     // ================================================================= HOOK
+    void HallStep(float gain)
+    {
+        var clip = hallSteps.Length > 0 ? hallSteps[nextStep++ % hallSteps.Length] : stepClip;
+        hall3d.PlayOneShot(clip, gain);
+    }
+
     IEnumerator HookSequence()
     {
         phase = Phase.Hook;
@@ -843,10 +840,10 @@ public class PriyaRoomStory : MonoBehaviour
 
         for (int i = 0; i < 7; i++)
         {
-            hall3d.PlayOneShot(stepClip, 0.5f + i * 0.08f);
+            HallStep(0.23f + i * 0.055f);
             if (i == 3)
             {
-                sfx.PlayOneShot(creakClip, 0.4f);
+                hall3d.PlayOneShot(creakClip, 0.25f);
                 StartCoroutine(SwingDoor(0f, 1.5f));
             }
             yield return new WaitForSeconds(i < 5 ? 0.85f : 1.1f);
@@ -871,7 +868,7 @@ public class PriyaRoomStory : MonoBehaviour
             yield return null;
         }
         Destroy(shadow);
-        hall3d.PlayOneShot(stepClip, 0.4f);
+        HallStep(0.24f);
 
         sub = "Someone is standing outside the door."; subUntil = Time.time + 4f; subSkippable = false;
         Toast("Look at the door and press E to open it.", 6f);
@@ -908,7 +905,7 @@ public class PriyaRoomStory : MonoBehaviour
         phase = Phase.NoteReady;
         objective = "";
         prompt = "";
-        sfx.PlayOneShot(creakClip, 0.5f);
+        hall3d.PlayOneShot(creakClip, 0.32f);
         if (lightStrip) Destroy(lightStrip);
         yield return SwingDoor(-100f, 1.2f);
         builder.HookNote.SetActive(true);
@@ -942,6 +939,7 @@ public class PriyaRoomStory : MonoBehaviour
         var root = new GameObject("ActII_Market");
         var old = builder.ExtraRoot;                          // e.g. the Curator's Gallery
         builder.ExtraRoot = root;
+        builder.RoomEffectsOwner = root;
         player.transform.SetParent(root.transform, true);   // keep the player when the room is switched off
         builder.Root.gameObject.SetActive(false);
         if (old != null) Destroy(old);
@@ -973,7 +971,8 @@ public class PriyaRoomStory : MonoBehaviour
         hall3d.spatialBlend = 1f; hall3d.minDistance = 2f; hall3d.maxDistance = 15f;
 
         bellClip = Resources.Load<AudioClip>("temple_bell") ?? MakeBell();
-        stepClip = MakeStep();
+        hallSteps = Resources.LoadAll<AudioClip>("Audio/Curator/steps_wood");
+        if (hallSteps.Length == 0) stepClip = MakeStep();
         clickClip = MakeClick();
         creakClip = MakeCreak();
         dingClip = MakeDing();
@@ -1167,7 +1166,7 @@ public class PriyaRoomStory : MonoBehaviour
         GUI.matrix = Matrix4x4.Scale(new Vector3(s, s, 1));
         float W = Screen.width / s, H = Screen.height / s;
 
-        bool playing = phase != Phase.Title && phase != Phase.Intro && phase != Phase.Ending;
+        bool playing = phase == Phase.Explore || phase == Phase.DoorReady || phase == Phase.NoteReady;
         UiKit.Letterbox(W, H, !paused && phase != Phase.Title && (phase == Phase.Intro || !string.IsNullOrEmpty(dlgText)));
 
         // crosshair
@@ -1283,6 +1282,7 @@ public class PriyaRoomStory : MonoBehaviour
     void OnMenuPlay(int act, bool resume)
     {
         menu.Dispose();
+        if (titleAmbience != null) StopCoroutine(titleAmbience);
         sfx.PlayOneShot(clickClip, 0.6f);
         if (act == 1)
         {
@@ -1447,27 +1447,7 @@ public class PriyaRoomStory : MonoBehaviour
     // --- dialogue ---------------------------------------------------------------
     void DrawDialogue(float W, float H)
     {
-        float textH = sPanel.CalcHeight(new GUIContent(dlgText), W * 0.7f - 40);
-        float optH = dlgOptions != null ? 4 * 30 + 12 : 34;
-        float ph = 50 + textH + optH + 10;
-        var r = new Rect(W * 0.15f, H - ph - 30, W * 0.7f, ph);
-        Panel(r, 0.82f);
-        GUI.Label(new Rect(r.x + 20, r.y + 10, r.width - 40, 26), dlgSpeaker, sHead);
-        GUI.Label(new Rect(r.x + 20, r.y + 38, r.width - 40, textH + 4), dlgPlain ? dlgText : "\"" + dlgText + "\"", sPanel);
-        float y = r.y + 44 + textH;
-        if (dlgOptions != null)
-        {
-            for (int i = 0; i < dlgOptions.Length; i++)
-            {
-                var st = new GUIStyle(sPanel);
-                bool asked = i < 3 && dlgAsked != null && dlgAsked[i];
-                st.normal.textColor = asked ? new Color(0.6f, 0.6f, 0.6f) : new Color(1f, 0.9f, 0.6f);
-                GUI.Label(new Rect(r.x + 30, y + 8 + i * 30, r.width - 60, 28), "Press " + (i + 1) + ":   " + dlgOptions[i] + (asked ? "   (asked)" : ""), st);
-            }
-        }
-        else
-        {
-            GUI.Label(new Rect(r.x + 30, y + 6, r.width - 60, 28), "[E] / [Space] next line   |   [Enter] skip conversation", sSmall);
-        }
+        if (dlgOptions != null) compass.Draw(W, H, dlgSpeaker);
+        else compass.Speak(W, H, dlgSpeaker, dlgText, kamala != null ? kamala.VoiceSource : null);
     }
 }

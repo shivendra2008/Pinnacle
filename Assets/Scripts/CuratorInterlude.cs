@@ -57,6 +57,7 @@ public class CuratorInterlude : ActStoryBase
             s = root.AddComponent<CuratorInterlude>();
         }
         builder.ExtraRoot = root;
+        if (scene == 0 || scene == 1) builder.RoomEffectsOwner = root;
         if (old != null) Destroy(old);
         GameState.ResetForNewScene();
         s.builder = builder; s.player = player; s.scene = scene; s.onDone = next; s.resume = false;
@@ -102,6 +103,7 @@ public class CuratorInterlude : ActStoryBase
     StoryBookModel book;
     Transform candle, focus, exhibit;
     GameObject candleFlame; Light candleLight; CandleFlicker candleFlicker; FlameWobble flameWobble;
+    float lastGalleryLevel = -1f;
     float lightLevel;              // hall lights 0..1 (mirrored into the ambient every frame)
     bool done;
     AudioSource tick;
@@ -175,6 +177,7 @@ public class CuratorInterlude : ActStoryBase
 
         // sound: every event has a cause (feet, hands, the storm)
         sound = CuratorSound.Make(transform, At(EastWindow), At(new Vector3(0f, 3f, 2f)));
+        sound.clearThunderFilter = scene <= 1;
         sound.voice = curator.VoiceSource;
         sound.SetFallback("steps_wood", stepClip); sound.SetFallback("page", pageClip); sound.SetFallback("candle_blow", blowClip);
         sound.SetFallback("match", matchClip); sound.SetFallback("book_down", Tone(140f, 0.2f, 25f, 0.5f)); sound.SetFallback("book_take", pageClip);
@@ -350,6 +353,7 @@ public class CuratorInterlude : ActStoryBase
     IEnumerator SkipOut()
     {
         curator.Silence(); sub = null;
+        if (scene <= 1) { LineNow = null; TestSkipLine = false; }
         fadeSpeed = 2.5f; fadeTarget = 1f;
         while (fade < 0.99f) yield return null;
         yield return new WaitForSeconds(0.3f);
@@ -376,14 +380,14 @@ public class CuratorInterlude : ActStoryBase
             screen = new Vector2(0.5f, 0.55f), follow = 0.2f, handheld = 0.06f,
             focusOn = t => t < 2.0f ? Flame() : Eyes(),
         });
-        yield return new WaitForSeconds(3.4f);
+        yield return new WaitForSeconds(2.3f);
         curator.Expression("knowing", 1.5f);
         curator.Eyeline(At(new Vector3(-4.6f, 1.7f, 5f)));       // he looks up the hall, to where he is going
-        yield return new WaitForSeconds(1.8f);
+        yield return new WaitForSeconds(1.0f);
 
         // 2. the hall comes up around him, candle by candle: a high, slow, composed wide; a distant flash in the windows
         StartCoroutine(LightHall(4.5f));
-        sfx.PlayOneShot(boomClip, 0.35f);
+        // The storm schedules its own thunder after the flash. Let the hall open in room tone.
         Cut(new Shot(24f, 8f)
         {
             pos = t => At(new Vector3(Mathf.Lerp(7.2f, 6.2f, Ease(t / 8f)), Mathf.Lerp(6.4f, 5.2f, Ease(t / 8f)), Mathf.Lerp(-12.4f, -11.2f, Ease(t / 8f)))),
@@ -500,9 +504,9 @@ public class CuratorInterlude : ActStoryBase
             look = t => Eyes(), screen = new Vector2(0.5f, 0.62f), follow = 1.2f, handheld = 0.04f,
         });
         fadeSpeed = 0.6f; fadeTarget = 0f;
-        yield return new WaitForSeconds(1.6f);
+        yield return new WaitForSeconds(scene == 1 ? 0.9f : 1.6f);
         gal.storm.Strike(3.4f, 0.6f);
-        yield return new WaitForSeconds(1.6f);
+        yield return new WaitForSeconds(scene == 1 ? 0.9f : 1.6f);
         curator.Eyeline(At(Visitor));
 
         var lines = Lines();
@@ -985,12 +989,14 @@ public class CuratorInterlude : ActStoryBase
 
     Shot shot; float shotT; bool camOn, newCut;
     Vector3 aimSmooth, aimVel, posNow; float focusNow;
+    Quaternion earlyCameraRotation;
     Vector3 camLocal0; float fov0, near0; bool phys0; float focal0; Vector2 sensor0; Camera.GateFitMode gate0;
     DepthOfField dof; float dofFocal0, dofAperture0;
     public int Cuts { get; private set; }
 
     void DetachCamera()
     {
+        if (scene <= 1) earlyCameraRotation = cam.localRotation;
         camLocal0 = cam.localPosition; fov0 = camComp.fieldOfView; near0 = camComp.nearClipPlane;
         phys0 = camComp.usePhysicalProperties; focal0 = camComp.focalLength; sensor0 = camComp.sensorSize; gate0 = camComp.gateFit;
         player.enabled = false;
@@ -1014,8 +1020,12 @@ public class CuratorInterlude : ActStoryBase
     void LateUpdate()
     {
         if (done) return;          // finished: the next scene's lighting is already in place
-        // the Act I room keeps writing its own ambient light every frame; the Gallery has its own
-        CuratorGallery.Mood(null, lightLevel);
+        // Early galleries own their ambient settings, so a static shot needs no repeated lighting writes.
+        if (scene > 1 || !Mathf.Approximately(lastGalleryLevel, lightLevel))
+        {
+            CuratorGallery.Mood(null, lightLevel);
+            lastGalleryLevel = lightLevel;
+        }
         float duck = sound != null ? sound.DuckGain : 1f;
         if (ambience != null) ambience.volume = bedLevel * duck;
         if (tick != null) tick.volume = tickLevel * duck;
@@ -1055,6 +1065,7 @@ public class CuratorInterlude : ActStoryBase
         focusNow = newCut ? fd : Mathf.Lerp(focusNow, fd, 1f - Mathf.Exp(-dt / 0.18f));
         focus.position = posNow + (r * Vector3.forward) * focusNow - Vector3.up * 1.5f;     // AutoFocus measures to FocusOn + 1.5 m
         if (dof != null) { dof.focalLength.value = shot.lens; dof.aperture.value = shot.fstop; }
+        if (scene <= 1 && newCut && dof != null) dof.focusDistance.value = Mathf.Max(0.1f, fd);
         if (newCut) AutoFocus.SnapNext = true;
         newCut = false;
     }
@@ -1202,7 +1213,7 @@ public class CuratorInterlude : ActStoryBase
     void RestoreCamera()
     {
         cam.SetParent(player.transform, false);
-        cam.localPosition = camLocal0; cam.localRotation = Quaternion.identity;
+        cam.localPosition = camLocal0; cam.localRotation = scene <= 1 ? earlyCameraRotation : Quaternion.identity;
         camComp.usePhysicalProperties = phys0; camComp.focalLength = focal0; camComp.sensorSize = sensor0; camComp.gateFit = gate0;
         camComp.fieldOfView = fov0; camComp.nearClipPlane = near0;
         if (dof != null) { dof.focalLength.value = dofFocal0; dof.aperture.value = dofAperture0; }
