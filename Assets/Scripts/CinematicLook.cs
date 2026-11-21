@@ -180,6 +180,8 @@ public class AutoFocus : MonoBehaviour
     public DepthOfField dof;
     public float defaultDistance = 5f;
     public static Transform FocusOn;       // set during conversations so the speaker is always sharp
+    /// <summary>Set on a cut: the next update jumps straight to the new focus distance instead of pulling to it.</summary>
+    public static bool SnapNext;
     float current = 4f;
 
     void Update()
@@ -195,7 +197,8 @@ public class AutoFocus : MonoBehaviour
             target = Vector3.Distance(transform.position, FocusOn.position + Vector3.up * 1.5f);
         else if (Physics.Raycast(transform.position, transform.forward, out var hit, 30f, ~0, QueryTriggerInteraction.Ignore))
             target = hit.distance;
-        current = Mathf.Lerp(current, Mathf.Max(0.4f, target), 1f - Mathf.Exp(-6f * Time.unscaledDeltaTime));
+        current = SnapNext ? Mathf.Max(0.4f, target) : Mathf.Lerp(current, Mathf.Max(0.4f, target), 1f - Mathf.Exp(-6f * Time.unscaledDeltaTime));
+        SnapNext = false;
         dof.focusDistance.value = current;
     }
 
@@ -209,6 +212,20 @@ public class LookController : MonoBehaviour
     public ReflectionProbe probe;
     static int tier = 0;               // default: Cinematic (F2 to switch); survives restarts
     public static bool DofAllowed { get { return tier == 0; } }
+    /// <summary>The current tier: 0 Cinematic, 1 Balanced, 2 Performance.</summary>
+    public static int Tier { get { return tier; } }
+
+    // Local volumes (the Gallery's mood) override the same effects as the film look. Their overrides used to stay on
+    // whatever the tier said, so grain and aberration survived "Performance". They register here and follow the tier.
+    static readonly List<VolumeProfile> extra = new List<VolumeProfile>();
+    public static void Register(VolumeProfile p)
+    {
+        if (p == null || extra.Contains(p)) return;
+        extra.RemoveAll(x => x == null);
+        extra.Add(p);
+        ApplyTierTo(p);
+    }
+    public static void Unregister(VolumeProfile p) { extra.Remove(p); }
     float shownUntil;
     GUIStyle style;
 
@@ -234,18 +251,26 @@ public class LookController : MonoBehaviour
 
     void ApplyTier()
     {
-        // 0 = Cinematic (everything), 1 = Balanced (no DOF / motion blur / aberration), 2 = Performance (also no grain, cheap bloom)
-        Set<DepthOfField>(tier == 0 && AutoFocus.FocusOn != null);
-        Set<MotionBlur>(tier == 0);
-        Set<ChromaticAberration>(tier == 0);
-        Set<LensDistortion>(tier == 0);
-        Set<FilmGrain>(tier <= 1);
-        if (profile.TryGet(out Bloom b)) b.highQualityFiltering.value = tier <= 1;
+        ApplyTierTo(profile);
+        extra.RemoveAll(x => x == null);
+        foreach (var p in extra) ApplyTierTo(p);
     }
 
-    void Set<T>(bool on) where T : VolumeComponent
+    // 0 = Cinematic (everything), 1 = Balanced (no DOF / motion blur / aberration), 2 = Performance (also no grain, cheap bloom)
+    static void ApplyTierTo(VolumeProfile p)
     {
-        if (profile.TryGet(out T c)) c.active = on;
+        if (p == null) return;
+        Set<DepthOfField>(p, tier == 0 && AutoFocus.FocusOn != null);
+        Set<MotionBlur>(p, tier == 0);
+        Set<ChromaticAberration>(p, tier == 0);
+        Set<LensDistortion>(p, tier == 0);
+        Set<FilmGrain>(p, tier <= 1);
+        if (p.TryGet(out Bloom b)) b.highQualityFiltering.value = tier <= 1;
+    }
+
+    static void Set<T>(VolumeProfile p, bool on) where T : VolumeComponent
+    {
+        if (p.TryGet(out T c)) c.active = on;
     }
 
     void OnGUI()

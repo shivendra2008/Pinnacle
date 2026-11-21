@@ -1,0 +1,13 @@
+# gal_chosen  1.171 s  TTS Daniel 138  (Tools/lipsync/curator_lipsync.py)
+# V start end viseme weight stress phoneme | A time strength | P start end | W start end word
+W 0.150 0.450 So
+W 0.450 0.640 be
+W 0.640 0.970 it.
+V 0.150 0.256 SS 1.00 -1 S
+V 0.256 0.340 E 1.00 1 OW1
+V 0.340 0.495 U 1.00 1 OW1
+V 0.495 0.549 PP 1.00 -1 B
+V 0.549 0.640 I 1.00 1 IY1
+V 0.640 0.810 I 1.00 1 IH1
+V 0.810 0.970 DD 1.00 -1 T
+A 0.340 0.52

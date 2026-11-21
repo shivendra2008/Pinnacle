@@ -31,6 +31,7 @@ public class Act5Story : ActStoryBase
     readonly Transform[] lids = new Transform[3];
     readonly Light[] casketLights = new Light[3];
     CuratorGallery gallery;          // the shared Gallery (the Curator's interludes happen in the same hall)
+    CuratorSound gallerySound;       // rain and thunder in the hall (only while we are in it)
     bool inGallery; float galleryLevel;
     GameObject skyQuad, sun;
     const float TerraceSkyRotation = 0f;      // turn the panorama (degrees) if the sunrise is not where the terrace faces
@@ -143,7 +144,16 @@ public class Act5Story : ActStoryBase
         sb.root.localRotation = Quaternion.LookRotation(Vector3.right, Vector3.forward);    // lying flat, cover up, readable from the hall
         book = sb.root;
         bookLabel = GameKit.Solid(GameKit.Text(transform, "", G + new Vector3(-2.7f, 0.945f + StoryBookModel.T + 0.012f, 1.85f), Quaternion.Euler(90f, 0, 0), 0.03f, new Color(0.95f, 0.8f, 0.4f)));
-        curator = Npc(G + new Vector3(0f, 0f, 3.5f), 180f, Cast.Curator(), "The Curator");
+        curator = Npc(G + new Vector3(0f, 0f, 3.5f), 180f, Cast.Curator(), "The Curator", false);
+        // the same performance layers as in his interludes: planted feet, visemes on his lines, blinks, an eyeline
+        // on Arjun (he is talking to him, so looking into the player's eyes is meant here)
+        curator.EnableHero();
+        curator.Eyeline(cam.position);
+        gallery.exposure.subject = () => curator != null ? curator.EyePoint() : transform.position + G;
+        gallerySound = CuratorSound.Make(transform, G + new Vector3(11.9f, 5.3f, 1.7f), G + new Vector3(0f, 3f, 2f));
+        gallerySound.voice = curator.VoiceSource;
+        gallerySound.rainLevel = 0f;                 // the shelter comes first; the rain fades in with the Gallery
+        gallery.storm.Thunder += (km, st) => { if (inGallery) gallerySound.Thunder(km, st); };
     }
 
     void BuildCourtroom()
@@ -331,7 +341,7 @@ public class Act5Story : ActStoryBase
         fadeSpeed = 0.35f; fadeTarget = 0f;
         yield return LightGallery(2.4f);
         yield return new WaitForSeconds(0.8f);
-        yield return Turn(curator.transform.position + Vector3.up * 1.7f, 1f);
+        yield return Turn(curator.EyePoint(), 1f);
         yield return Talk("gal_1", curator);
         yield return Talk("gal_2", curator);
         yield return Talk("gal_3", curator);
@@ -387,6 +397,9 @@ public class Act5Story : ActStoryBase
     void LateUpdate()
     {
         if (inGallery) CuratorGallery.Mood(null, galleryLevel);
+        if (gallery != null) gallery.storm.autoStrikes = inGallery;
+        if (gallerySound != null) gallerySound.rainLevel = Mathf.MoveTowards(gallerySound.rainLevel, inGallery ? 1f : 0f, Time.deltaTime * 0.8f);
+        if (inGallery && curator != null && cam != null) curator.Eyeline(cam.position);
     }
 
     bool Sealed(int i)
@@ -516,7 +529,7 @@ public class Act5Story : ActStoryBase
         Teleport(G + new Vector3(-1.2f, 0.1f, -0.6f), 10f, 5f);
         bookLabel.text = bookTitle;
         yield return FadeIn(0.8f);
-        yield return Turn(curator.transform.position + Vector3.up * 1.7f, 0.8f);
+        yield return Turn(curator.EyePoint(), 0.8f);
         for (int i = 0; i < curatorLines.Length; i++)
         {
             if (i == curatorLines.Length - 1) StartCoroutine(Turn(book.position, 1.6f));     // "The book is closed."
@@ -549,7 +562,8 @@ public class Act5Story : ActStoryBase
             "#CAST", "Arjun Mehra  -  the detective", "Priya Kapoor  -  the advocate", "Kamala Kapoor  -  her mother", "Rohan Kapoor  -  her brother",
             "Vikram Sahu  -  the chai seller", "Bhaskar  -  the auto driver", "Inspector Sonal Reddy  -  Crime Branch", "Raj Malhotra  -  the builder",
             "Pandit Harishankar  -  the priest", "Councilor Meghna Deshpande", "and The Curator", "", "",
-            "#MADE WITH", "Unity 6  -  Universal Render Pipeline", "Character models: Quaternius (CC0)", "Voices: macOS speech synthesis", "", "",
+            "#MADE WITH", "Unity 6  -  Universal Render Pipeline", "Character models: Microsoft Rocketbox (MIT), Quaternius (CC0)", "Voices: macOS speech synthesis",
+            "Storm and Gallery sounds: Wikimedia Commons recordings by", "CutSomeSlackenstein and Work With Sounds / Torsten Nilsson (CC BY 4.0),", "stephan, cori, ezwa and planish (public domain)", "", "",
             "#Some secrets are worth uncovering.",
         };
         creditsStart = Time.time;
