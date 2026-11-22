@@ -1,0 +1,39 @@
+# kamala_more  2.399 s  words heard on-device (Tools/lipsync/npc_lipsync.py)
+# V start end viseme weight stress phoneme | A time strength | P start end | W start end word
+W 0.000 0.300 Is
+W 0.300 0.540 there
+W 0.540 0.720 anything
+W 0.720 1.020 else
+W 1.020 1.320 you
+W 1.320 1.500 want
+W 1.500 1.740 to
+W 1.740 1.980 ask
+W 1.980 2.399 me?
+V 0.000 0.155 I 1.00 1 IH1
+V 0.155 0.300 SS 1.00 -1 Z
+V 0.300 0.351 TH 1.00 -1 DH
+V 0.351 0.540 E 1.00 1 EH1
+V 0.540 0.588 aa 1.00 1 AE1
+V 0.588 0.609 nn 1.00 -1 N
+V 0.609 0.632 I 0.60 0 IY0
+V 0.632 0.659 TH 1.00 -1 TH
+V 0.659 0.690 I 1.00 1 IH1
+V 0.690 0.720 kk 1.00 -1 NG
+V 0.720 0.802 E 1.00 1 EH1
+V 0.802 0.846 nn 1.00 -1 L
+V 0.846 0.917 SS 1.00 -1 S
+V 0.917 1.020 E 1.00 1 EH1
+V 1.020 1.098 I 1.00 -1 Y
+V 1.098 1.320 U 1.00 1 UW1
+V 1.320 1.351 U 1.00 -1 W
+V 1.351 1.425 aa 1.00 1 AA1
+V 1.425 1.456 nn 1.00 -1 N
+V 1.456 1.500 DD 1.00 -1 T
+V 1.500 1.574 DD 1.00 -1 T
+V 1.574 1.740 U 1.00 1 UW1
+V 1.740 1.842 aa 1.00 1 AA1
+V 1.842 1.913 SS 1.00 -1 S
+V 1.913 1.945 kk 1.00 -1 K
+V 1.945 2.075 PP 1.00 -1 M
+V 2.075 2.399 I 1.00 1 IY1
+A 0.000 0.27

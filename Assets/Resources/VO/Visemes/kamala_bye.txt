@@ -1,0 +1,31 @@
+# kamala_bye  2.676 s  words heard on-device (Tools/lipsync/npc_lipsync.py)
+# V start end viseme weight stress phoneme | A time strength | P start end | W start end word
+W 0.000 0.540 Please,
+W 0.540 0.900 Mr.
+W 0.900 1.560 Mirror,
+W 1.560 1.860 find
+W 1.860 2.100 my
+W 2.100 2.676 daughter.
+V -0.045 0.062 PP 1.00 -1 P
+V 0.062 0.193 nn 1.00 -1 L
+V 0.193 0.365 I 1.00 1 IY1
+V 0.365 0.505 SS 1.00 -1 S
+V 0.505 0.676 PP 1.00 -1 M
+V 0.676 0.935 RR 1.00 -1 R
+V 0.935 1.028 PP 1.00 -1 M
+V 1.028 1.178 E 1.00 1 ER1
+V 1.178 1.261 RR 1.00 -1 R
+V 1.261 1.457 O 1.00 1 AO1
+V 1.457 1.560 RR 1.00 -1 R
+V 1.560 1.643 FF 1.00 -1 F
+V 1.643 1.734 I 1.00 1 IH1
+V 1.734 1.794 nn 1.00 -1 N
+V 1.794 1.850 DD 1.00 -1 D
+V 1.850 1.911 PP 1.00 -1 M
+V 1.911 2.015 aa 1.00 1 AY1
+V 2.015 2.100 I 1.00 1 AY1
+V 2.100 2.190 DD 1.00 -1 D
+V 2.190 2.436 O 1.00 1 AO1
+V 2.436 2.552 DD 1.00 -1 T
+V 2.552 2.676 aa 0.60 0 AH0
+A 1.643 0.44

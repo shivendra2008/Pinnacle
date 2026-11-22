@@ -1,0 +1,40 @@
+# a4b_kamala_2  2.531 s  words heard on-device (Tools/lipsync/npc_lipsync.py)
+# V start end viseme weight stress phoneme | A time strength | P start end | W start end word
+W 0.000 0.480 No,
+W 0.480 0.900 whatever
+W 0.900 1.260 they
+W 1.260 1.740 wanted,
+W 1.740 1.800 it
+W 1.800 2.160 wasn't
+W 2.160 2.531 here.
+V 0.000 0.121 nn 1.00 -1 N
+V 0.121 0.247 E 1.00 1 OW1
+V 0.247 0.480 U 1.00 1 OW1
+V 0.480 0.528 U 1.00 -1 W
+V 0.528 0.635 aa 1.00 1 AE1
+V 0.635 0.689 DD 1.00 -1 T
+V 0.689 0.798 E 1.00 1 EH1
+V 0.798 0.846 FF 1.00 -1 V
+V 0.846 0.900 E 0.60 0 ER0
+V 0.900 0.963 TH 1.00 -1 DH
+V 0.963 1.141 E 1.00 1 EY1
+V 1.141 1.260 I 1.00 1 EY1
+V 1.260 1.325 U 1.00 -1 W
+V 1.325 1.478 aa 1.00 1 AA1
+V 1.478 1.543 nn 1.00 -1 N
+V 1.543 1.616 DD 1.00 -1 T
+V 1.616 1.669 I 0.60 0 IH0
+V 1.669 1.740 DD 1.00 -1 D
+V 1.740 1.771 I 1.00 1 IH1
+V 1.771 1.800 DD 1.00 -1 T
+V 1.800 1.849 U 1.00 -1 W
+V 1.849 1.961 aa 1.00 1 AE1
+V 1.961 2.041 SS 1.00 -1 S
+V 2.041 2.090 nn 1.00 -1 N
+V 2.090 2.160 DD 1.00 -1 T
+V 2.160 2.251 I 0.45 -1 HH
+V 2.251 2.406 I 1.00 1 IH1
+V 2.406 2.531 aa 0.60 0 AH0
+A 0.689 0.67
+A 0.963 0.46
+A 1.141 0.55

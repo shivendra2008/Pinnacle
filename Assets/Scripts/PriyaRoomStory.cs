@@ -33,6 +33,10 @@ public class PriyaRoomStory : MonoBehaviour
     // audio
     AudioSource ambience, sfx, bell, hall3d, voice, doorAudio;
     AudioClip bellClip, stepClip, clickClip, creakClip, dingClip;
+    // the door's three voices, each where it happens: the latch at the handle, the hinge, the frame where the leaf stops
+    AudioSource latchSrc, hingeSrc, frameSrc;
+    AudioClip latchOpenClip, latchCatchClip, hingeLoopClip, frameClip;
+    readonly List<string> doorLog = new List<string>();      // what the door played, when and where (read by the play-test route)
     AudioClip[] hallSteps;
     int nextStep;
     float nextBell;
@@ -104,6 +108,7 @@ public class PriyaRoomStory : MonoBehaviour
     // hallway positions (builder-local)
     static readonly Vector3 KamalaIdle = new Vector3(-1.5f, 0f, -3.9f);
     static readonly Vector3 KamalaDoor = new Vector3(-1.9f, 0f, -3.15f);
+    static readonly Vector3 KamalaThreshold = new Vector3(-1.95f, 0f, -2.2f);  // just inside the room, clear of the open door's leaf
     static readonly Vector3 KamalaExit = new Vector3(-3.9f, 0f, -4.4f);   // she heads for the stairs
 
     // ======================================================================
@@ -115,6 +120,7 @@ public class PriyaRoomStory : MonoBehaviour
         PriyaRoomPlayer.Locked = true;
         startPos = player.transform.position;
         SetupAudio();
+        compass.sfx = sfx;                                    // the dial ticks softly as its needle picks a bearing
         SetupPolish();
         SetupDust();
 
@@ -735,8 +741,19 @@ public class PriyaRoomStory : MonoBehaviour
         journalOpen = false;
         sfx.PlayOneShot(clickClip, 0.5f);
 
-        // she walks up to the doorway
+        // She comes to the doorway and steps over the threshold into the room (from the landing she stood behind the
+        // jamb: small, backlit and half hidden from most of the room); if he is across the room she comes a little
+        // further over the open floor, so her face is lit by the room and close enough to read when she asks.
         yield return kamala.WalkTo(KamalaDoor, 1.5f);
+        Vector3 me = builder.transform.InverseTransformPoint(player.transform.position);
+        Vector3 toMe = me - KamalaThreshold; toMe.y = 0f;
+        if (toMe.magnitude > 1.1f) yield return kamala.WalkTo(KamalaThreshold, 1.2f);      // (if he stands in the doorway she stays on the landing)
+        if (toMe.magnitude > 3.1f)
+        {
+            Vector3 stop = KamalaThreshold + toMe.normalized * Mathf.Min(1.3f, toMe.magnitude - 1.8f);
+            stop.x = Mathf.Clamp(stop.x, -2.2f, 1.4f); stop.z = Mathf.Clamp(stop.z, -2.2f, 0.6f);
+            yield return kamala.WalkTo(stop, 1.1f, 4f);
+        }
         AutoFocus.FocusOn = kamala.transform;
         yield return Turn(kamala.transform.position + Vector3.up * 1.5f, 0.9f);
 
@@ -919,11 +936,7 @@ public class PriyaRoomStory : MonoBehaviour
             // the steps come up from the stairwell along the landing to the door, so they move as well as grow
             hall3d.transform.localPosition = Vector3.Lerp(new Vector3(-5.2f, 0.4f, -5.2f), new Vector3(-2.2f, 0.4f, -3.1f), i / 6f);
             HallStep(0.23f + i * 0.055f);
-            if (i == 3)
-            {
-                doorAudio.PlayOneShot(creakClip, 0.3f);
-                StartCoroutine(SwingDoor(0f, 1.5f));
-            }
+            if (i == 3) StartCoroutine(SwingDoor(0f, 1.5f, false));
             yield return new WaitForSeconds(i < 5 ? 0.85f : 1.1f);
         }
 
@@ -963,18 +976,163 @@ public class PriyaRoomStory : MonoBehaviour
         return m;
     }
 
-    IEnumerator SwingDoor(float toAngle, float dur)
+    /// <summary>
+    /// Swings the door. Opened by hand, the latch releases at the handle first; the hinge sounds only while the leaf is
+    /// turning, louder and a little higher the faster it turns (from the hinge, fading out as it slows); reaching the
+    /// frame, it knocks on the stop and the latch catches there. (It used to be one creak clip from a point by the hinge,
+    /// the same length whatever the door did, and no latch or contact at all.)
+    /// </summary>
+    IEnumerator SwingDoor(float toAngle, float dur, bool byHand)
     {
         var h = builder.DoorHinge;
         float from = h.localEulerAngles.y;
         if (from > 180f) from -= 360f;
+        bool shutting = Mathf.Abs(toAngle) < 0.5f;
+        if (byHand)
+        {
+            DoorSound("latch", latchSrc, latchOpenClip, 0.55f);
+            float w = 0f;
+            while (w < 0.14f) { if (!GameState.Paused) w += Time.deltaTime; yield return null; }     // the handle turns, then the leaf moves
+        }
+        hingeSrc.volume = 0f; hingeSrc.pitch = 0.9f;
+        hingeSrc.Play();
+        DoorLog("hinge_start", hingeSrc.transform.position);
+        float prev = from;
         for (float t = 0; t < dur; t += Time.deltaTime)
         {
             float k = Mathf.SmoothStep(0, 1, t / dur);
-            h.localRotation = Quaternion.Euler(0, Mathf.Lerp(from, toAngle, k), 0);
+            float a = Mathf.Lerp(from, toAngle, k);
+            h.localRotation = Quaternion.Euler(0, a, 0);
+            float speed = Time.deltaTime > 0f ? Mathf.Abs(a - prev) / Time.deltaTime : 0f;      // degrees a second
+            prev = a;
+            if (Time.deltaTime > 0f)
+            {
+                float want = Mathf.Clamp01(speed / 110f) * 0.42f;
+                hingeSrc.volume = Mathf.MoveTowards(hingeSrc.volume, want, Time.deltaTime * 2.5f);
+                hingeSrc.pitch = 0.88f + 0.22f * Mathf.Clamp01(speed / 110f);
+            }
             yield return null;
         }
         h.localRotation = Quaternion.Euler(0, toAngle, 0);
+        // the creak stops with the leaf (a short fade, not a cut)
+        for (float t = 0; t < 0.08f; t += Time.deltaTime) { hingeSrc.volume = Mathf.Lerp(hingeSrc.volume, 0f, t / 0.08f); yield return null; }
+        hingeSrc.Stop();
+        DoorLog("hinge_stop", hingeSrc.transform.position);
+        if (shutting)
+        {
+            DoorSound("frame", frameSrc, frameClip, 0.8f);                 // the leaf meets the stop on the frame
+            DoorSound("latch", frameSrc, latchCatchClip, 0.45f);            // and the latch bolt snaps into the strike
+        }
+    }
+
+    void DoorSound(string kind, AudioSource src, AudioClip clip, float gain)
+    {
+        if (src == null || clip == null) return;
+        src.PlayOneShot(clip, gain);
+        DoorLog(kind, src.transform.position);
+    }
+
+    void DoorLog(string kind, Vector3 at)
+    {
+        doorLog.Add(Time.time.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) + " " + kind + " " + builder.Root.InverseTransformPoint(at).ToString("F2"));
+    }
+
+    AudioSource DoorSource(string name, Transform parent, Vector3 local, float minD, float maxD)
+    {
+        var go = new GameObject(name);
+        go.transform.SetParent(parent, false);
+        go.transform.localPosition = local;
+        var a = go.AddComponent<AudioSource>();
+        a.spatialBlend = 1f; a.minDistance = minD; a.maxDistance = maxD; a.rolloffMode = AudioRolloffMode.Logarithmic;
+        a.dopplerLevel = 0f; a.playOnAwake = false;
+        return a;
+    }
+
+    void SetupDoorSounds()
+    {
+        var hinge = builder.DoorHinge;
+        // the handle travels with the leaf (it is on the door); the hinge and the strike are fixed in the frame
+        latchSrc = DoorSource("DoorLatchAudio", hinge, new Vector3(0.85f, 1.0f, 0.03f), 0.6f, 9f);
+        hingeSrc = DoorSource("DoorHingeAudio", builder.Root, builder.Root.InverseTransformPoint(hinge.position) + new Vector3(0f, 1.15f, 0f), 0.8f, 11f);
+        hingeSrc.loop = true;
+        frameSrc = DoorSource("DoorFrameAudio", builder.Root, new Vector3(-1.5f, 1.0f, -2.5f), 0.8f, 12f);
+        latchOpenClip = MakeLatch(false);
+        latchCatchClip = MakeLatch(true);
+        hingeLoopClip = MakeHingeLoop();
+        hingeSrc.clip = hingeLoopClip;
+        frameClip = MakeFrameKnock();
+    }
+
+    /// <summary>A brass latch: the bolt sliding (a dry click with a short metallic ring), then the handle's spring.
+    /// Catching, it is one sharper snap.</summary>
+    AudioClip MakeLatch(bool catching)
+    {
+        int n = (int)(SR * (catching ? 0.12f : 0.2f));
+        var d = new float[n];
+        var r = new System.Random(catching ? 31 : 17);
+        void Click(int at, float amp, float ring, float decay, float noiseMs)
+        {
+            int nl = (int)(SR * noiseMs / 1000f);
+            for (int i = at; i < n; i++)
+            {
+                float t = (i - at) / (float)SR;
+                float env = Mathf.Exp(-t * decay);
+                float noise = i - at < nl ? ((float)r.NextDouble() * 2f - 1f) * (1f - (i - at) / (float)nl) : 0f;
+                d[i] += amp * (noise * 0.9f + env * (0.5f * Mathf.Sin(2f * Mathf.PI * ring * t) + 0.25f * Mathf.Sin(2f * Mathf.PI * ring * 2.76f * t)));
+            }
+        }
+        if (catching) { Click(0, 1f, 2900f, 70f, 3f); Click((int)(SR * 0.012f), 0.35f, 1700f, 90f, 2f); }
+        else { Click(0, 0.8f, 3300f, 85f, 4f); Click((int)(SR * 0.075f), 0.45f, 2200f, 110f, 2.5f); }
+        Normalize(d, 0.7f);
+        var c = AudioClip.Create(catching ? "latch_catch" : "latch_release", n, 1, SR, false);
+        c.SetData(d, 0);
+        return c;
+    }
+
+    /// <summary>A dry hinge pin under load: stick-slip pulses (~32 a second) exciting a squeal near 640 Hz, low and
+    /// restrained, made to loop seamlessly (its level follows the door's speed while it plays).</summary>
+    AudioClip MakeHingeLoop()
+    {
+        int n = SR;                                   // one second, whole cycles of everything so it loops
+        var d = new float[n];
+        var r = new System.Random(9);
+        float lp = 0f;
+        for (int i = 0; i < n; i++)
+        {
+            float t = i / (float)SR;
+            float slip = Mathf.Pow(Mathf.Max(0f, Mathf.Sin(2f * Mathf.PI * 32f * t)), 6f);          // 32 Hz grabs
+            float wob = 1f + 0.06f * Mathf.Sin(2f * Mathf.PI * 3f * t);
+            float tone = Mathf.Sin(2f * Mathf.PI * 640f * wob * t) * 0.6f + Mathf.Sin(2f * Mathf.PI * 1280f * wob * t) * 0.25f;
+            float noise = (float)r.NextDouble() * 2f - 1f;
+            lp += (noise - lp) * 0.08f;
+            d[i] = slip * (tone * 0.7f + lp * 0.8f) + lp * 0.05f;
+        }
+        Normalize(d, 0.6f);
+        var c = AudioClip.Create("hinge_loop", n, 1, SR, false);
+        c.SetData(d, 0);
+        return c;
+    }
+
+    /// <summary>A wooden leaf meeting its frame: a short, low knock (two damped body modes) with a dull burst on top.</summary>
+    AudioClip MakeFrameKnock()
+    {
+        int n = (int)(SR * 0.35f);
+        var d = new float[n];
+        var r = new System.Random(5);
+        float lp = 0f;
+        for (int i = 0; i < n; i++)
+        {
+            float t = i / (float)SR;
+            float body = Mathf.Exp(-t * 26f) * (Mathf.Sin(2f * Mathf.PI * 118f * t) + 0.55f * Mathf.Sin(2f * Mathf.PI * 236f * t + 0.6f) + 0.25f * Mathf.Sin(2f * Mathf.PI * 410f * t));
+            float noise = (float)r.NextDouble() * 2f - 1f;
+            lp += (noise - lp) * 0.25f;
+            float burst = Mathf.Exp(-t * 90f) * lp;
+            d[i] = body * 0.8f + burst * 0.9f;
+        }
+        Normalize(d, 0.85f);
+        var c = AudioClip.Create("frame_knock", n, 1, SR, false);
+        c.SetData(d, 0);
+        return c;
     }
 
     IEnumerator OpenDoor()
@@ -982,9 +1140,8 @@ public class PriyaRoomStory : MonoBehaviour
         phase = Phase.NoteReady;
         objective = "";
         prompt = "";
-        doorAudio.PlayOneShot(creakClip, 0.36f);
         if (lightStrip) Destroy(lightStrip);
-        yield return SwingDoor(-100f, 1.2f);
+        yield return SwingDoor(-100f, 1.2f, true);
         builder.HookNote.SetActive(true);
         sub = "The stairwell is empty. The footsteps are gone. But on the floor, just outside the door..."; subUntil = Time.time + 5f; subSkippable = false;
         objective = "Pick up the note";
@@ -1051,6 +1208,7 @@ public class PriyaRoomStory : MonoBehaviour
         dg.transform.localPosition = new Vector3(-2.45f, 1.0f, -2.5f);
         doorAudio = dg.AddComponent<AudioSource>();
         doorAudio.spatialBlend = 1f; doorAudio.minDistance = 1.2f; doorAudio.maxDistance = 14f; doorAudio.dopplerLevel = 0f;
+        SetupDoorSounds();
 
         bellClip = Resources.Load<AudioClip>("temple_bell") ?? MakeBell();
         hallSteps = Resources.LoadAll<AudioClip>("Audio/Curator/steps_wood");
@@ -1208,7 +1366,21 @@ public class PriyaRoomStory : MonoBehaviour
         var noise = ps.noise; noise.enabled = true; noise.strength = 0.08f; noise.frequency = 0.4f;
         var rend = go.GetComponent<ParticleSystemRenderer>();
         var shader = Shader.Find("Sprites/Default");
-        if (shader != null) rend.sharedMaterial = new Material(shader);
+        if (shader != null)
+        {
+            // a soft round mote (with no texture they drew as hard white squares in the window light)
+            const int N = 32;
+            var dot = new Texture2D(N, N, TextureFormat.RGBA32, false) { name = "DustMote", wrapMode = TextureWrapMode.Clamp };
+            for (int y = 0; y < N; y++)
+                for (int x = 0; x < N; x++)
+                {
+                    float u = (x + 0.5f) / N * 2f - 1f, v = (y + 0.5f) / N * 2f - 1f;
+                    float a = Mathf.Clamp01(1f - Mathf.Sqrt(u * u + v * v)); a *= a;
+                    dot.SetPixel(x, y, new Color(1f, 1f, 1f, a));
+                }
+            dot.Apply();
+            rend.sharedMaterial = new Material(shader) { mainTexture = dot };
+        }
     }
 
     // ==================================================================== UI
@@ -1249,7 +1421,7 @@ public class PriyaRoomStory : MonoBehaviour
         float W = Screen.width / s, H = Screen.height / s;
 
         bool playing = phase == Phase.Explore || phase == Phase.DoorReady || phase == Phase.NoteReady;
-        UiKit.Letterbox(W, H, !paused && phase != Phase.Title && (phase == Phase.Intro || !string.IsNullOrEmpty(dlgText)));
+        UiKit.Letterbox(W, H, !paused && phase != Phase.Title && (phase == Phase.Intro || !string.IsNullOrEmpty(dlgText) || compass.IsOpen));
 
         // crosshair
         if (playing && !paused) UiKit.Crosshair(W, H);
@@ -1317,8 +1489,8 @@ public class PriyaRoomStory : MonoBehaviour
                 GUI.Label(new Rect(W * 0.5f - 165f, H - 30f, 330, 20), "Space: skip line   |   Enter: skip all", new GUIStyle(sSmall) { fontSize = 13, alignment = TextAnchor.UpperCenter });
         }
 
-        // dialogue
-        if (!string.IsNullOrEmpty(dlgText) && !paused) DrawDialogue(W, H);
+        // dialogue: an open decision draws even when the line before it has cleared
+        if ((compass.IsOpen || !string.IsNullOrEmpty(dlgText)) && !paused) DrawDialogue(W, H);
         if (!paused) compass.Afterglow(W, H);
         if (phase == Phase.Intro && !paused && fade < 0.9f)
             UiKit.Text(new Rect(0, H - 44, W, 26), "Enter: skip intro", new GUIStyle(sSmall) { alignment = TextAnchor.UpperCenter, fontSize = 15 });
@@ -1532,7 +1704,8 @@ public class PriyaRoomStory : MonoBehaviour
     // --- dialogue ---------------------------------------------------------------
     void DrawDialogue(float W, float H)
     {
-        if (dlgOptions != null) compass.Draw(W, H, dlgSpeaker);
-        else compass.Speak(W, H, dlgSpeaker, dlgText, voice != null && voice.isPlaying ? voice : (kamala != null ? kamala.VoiceSource : null));
+        if (compass.IsOpen) compass.Draw(W, H, dlgPlain ? dlgSpeaker : null, -1f, dlgPlain ? dlgText : null);
+        else if (dlgOptions == null)        // (the frame between a commit and the story clearing its options draws only the afterglow)
+            compass.Speak(W, H, dlgSpeaker, dlgText, voice != null && voice.isPlaying ? voice : (kamala != null ? kamala.VoiceSource : null));
     }
 }

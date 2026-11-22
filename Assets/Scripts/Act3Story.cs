@@ -13,12 +13,13 @@ using UnityEngine.Rendering.Universal;
 /// 3. Kali Temple: Pandit Harishankar's question (three answers, each reveals more), Priya's envelope and letter,
 ///    then the phone call + Kamala's text and the branch choice that decides Act IV.
 /// </summary>
-public class Act3Story : ActStoryBase
+public partial class Act3Story : ActStoryBase
 {
     protected override int ActNumber { get { return 3; } }
     protected override string ActTitle { get { return "ACT III  -  THE FILE"; } }
     protected override string ActSubtitle { get { return "Old Chandnipur Library   |   9:00 PM"; } }
     protected override LookPreset Look { get { return LookPreset.Apartment; } }
+    protected override bool UseCompass { get { return true; } }       // the decision compass and phrase subtitles of Acts I-II
 
     static readonly Vector3 LibStart = new Vector3(-5f, 0.1f, -9.4f);
     static readonly Vector3 Base = new Vector3(60f, 0f, 0f);          // basement origin
@@ -131,22 +132,12 @@ public class Act3Story : ActStoryBase
         // long red runner down the central aisle
         var runner = B("Runner", new Vector3(-0.15f, 0.006f, 0), new Vector3(1.0f, 0.012f, 19f), new Color(0.5f, 0.12f, 0.1f), false, 0.1f);
         GameKit.Surface(runner, "rug", 1.0f, 1f, 1f, new Color(0.55f, 0.14f, 0.11f));
-        // bookshelves with books
+        // bookcases: sides, spine, shelves, plinth, cornice, and books of real sizes (Act3Story.Props)
         var rnd = new System.Random(3);
         foreach (float z in new[] { -2f, 1.5f, 5f })
             foreach (float x0 in new[] { -4.4f, 1.6f })
                 for (int u = 0; u < 2; u++)
-                {
-                    float x = x0 + u * 2.5f;
-                    B("Shelf", new Vector3(x, 1.4f, z), new Vector3(2.4f, 2.8f, 0.5f), wood, true, 0.2f);
-                    for (int sh = 0; sh < 5; sh++)
-                        foreach (float face in new[] { -0.26f, 0.26f })
-                            for (int k = 0; k < 4; k++)
-                            {
-                                Color bc = Color.HSVToRGB((float)rnd.NextDouble(), 0.45f, 0.25f + (float)rnd.NextDouble() * 0.35f);
-                                B("Books", new Vector3(x - 0.9f + k * 0.6f, 0.4f + sh * 0.52f, z + face), new Vector3(0.56f, 0.34f + (float)rnd.NextDouble() * 0.08f, 0.04f), bc, false, 0.15f);
-                            }
-                }
+                    BuildBookcase(new Vector3(x0 + u * 2.5f, 0f, z), 2.4f, 2.8f, 0.5f, rnd);
         // reading tables with green banker's lamps
         foreach (float x in new[] { -3f, 3f })
             for (int i = 0; i < 2; i++)
@@ -193,36 +184,26 @@ public class Act3Story : ActStoryBase
         GameKit.Text(transform, "MAHARAJA OF CHANDNIPUR", new Vector3(0, 2.8f, 10.84f), Quaternion.identity, 0.08f, new Color(0.9f, 0.8f, 0.5f));
 
         // front desk + computer (CRT)
-        B("FrontDesk", new Vector3(3.8f, 0.45f, -9.3f), new Vector3(2.6f, 0.9f, 0.9f), wood, true, 0.3f);
-        var mon = B("Monitor", new Vector3(3.8f, 1.15f, -9.35f), new Vector3(0.5f, 0.45f, 0.45f), new Color(0.75f, 0.72f, 0.65f), false, 0.3f);
-        Glow("Screen", new Vector3(3.8f, 1.17f, -9.58f), new Vector3(0.38f, 0.3f, 0.01f), new Color(0.3f, 0.7f, 0.45f), 1.4f);
-        B("Keyboard", new Vector3(3.8f, 0.92f, -9.65f), new Vector3(0.45f, 0.03f, 0.16f), new Color(0.75f, 0.72f, 0.65f));
-        PL(new Vector3(3.8f, 1.5f, -9.9f), new Color(0.5f, 0.9f, 0.6f), 0.8f, 3f);
-        computer = mon.transform;
-        GameKit.Text(transform, "ENQUIRY", new Vector3(3.8f, 1.05f, -9.76f), Quaternion.identity, 0.09f, new Color(0.9f, 0.85f, 0.7f));
+        computer = BuildFrontDesk(new Vector3(3.8f, 0f, -9.3f));
+        PL(new Vector3(3.8f, 1.35f, -9.85f), new Color(0.45f, 0.9f, 0.6f), 0.55f, 2.2f);         // the screen's faint green on the keys and the face
 
         // librarian's desk with locked drawer
-        var desk = B("LibrarianDesk", new Vector3(-4.2f, 0.42f, 8.5f), new Vector3(2f, 0.84f, 0.9f), new Color(0.4f, 0.25f, 0.14f), true, 0.35f);
-        B("Drawer", new Vector3(-4.2f, 0.62f, 8.04f), new Vector3(0.8f, 0.22f, 0.04f), new Color(0.35f, 0.21f, 0.12f));
-        B("DrawerLock", new Vector3(-4.2f, 0.62f, 8.01f), new Vector3(0.12f, 0.08f, 0.03f), new Color(0.85f, 0.65f, 0.25f), false, 0.8f, 0.9f);
+        var desk = BuildLibrarianDesk(new Vector3(-4.2f, 0f, 8.5f));
         B("BrassLamp", new Vector3(-3.6f, 1.0f, 8.6f), new Vector3(0.12f, 0.3f, 0.12f), new Color(0.85f, 0.65f, 0.25f), false, 0.8f, 0.9f);
         Glow("BrassLampShade", new Vector3(-3.6f, 1.2f, 8.6f), new Vector3(0.3f, 0.16f, 0.3f), new Color(1f, 0.82f, 0.5f), 2.2f);
         PL(new Vector3(-3.7f, 1.45f, 8.3f), new Color(1f, 0.82f, 0.55f), 2.6f, 5f);
-        B("DeskTop", new Vector3(-4.2f, 0.855f, 8.5f), new Vector3(2.1f, 0.03f, 1.0f), new Color(0.28f, 0.16f, 0.09f), false, 0.55f);
-        B("Blotter", new Vector3(-4.3f, 0.875f, 8.45f), new Vector3(0.7f, 0.01f, 0.45f), new Color(0.12f, 0.25f, 0.15f), false, 0.1f);
-        B("Ledger", new Vector3(-4.85f, 0.9f, 8.55f), new Vector3(0.32f, 0.05f, 0.24f), new Color(0.4f, 0.1f, 0.08f), false, 0.2f);
-        B("NamePlate", new Vector3(-4.2f, 0.92f, 8.08f), new Vector3(0.5f, 0.1f, 0.03f), new Color(0.85f, 0.65f, 0.25f), false, 0.8f, 0.9f);
-        GameKit.Text(transform, "LIBRARIAN", new Vector3(-4.2f, 0.92f, 8.06f), Quaternion.identity, 0.045f, new Color(0.15f, 0.1f, 0.05f));
         B("LibChairSeat", new Vector3(-4.2f, 0.48f, 9.4f), new Vector3(0.55f, 0.06f, 0.5f), new Color(0.35f, 0.21f, 0.12f), true, 0.35f);
         B("LibChairBack", new Vector3(-4.2f, 0.85f, 9.65f), new Vector3(0.55f, 0.7f, 0.05f), new Color(0.35f, 0.21f, 0.12f), false, 0.35f);
-        // the clue: a yellowed note taped beside the drawer lock
-        Glow("DeskNote", new Vector3(-3.55f, 0.6f, 8.035f), new Vector3(0.26f, 0.2f, 0.005f), new Color(0.95f, 0.88f, 0.55f), 0.35f);
-        GameKit.Text(transform, "drawer code:", new Vector3(-3.55f, 0.66f, 8.028f), Quaternion.identity, 0.028f, new Color(0.15f, 0.12f, 0.35f));
-        GameKit.Text(transform, "the year we became", new Vector3(-3.55f, 0.61f, 8.028f), Quaternion.identity, 0.024f, new Color(0.15f, 0.12f, 0.35f));
-        GameKit.Text(transform, "free - BACKWARDS", new Vector3(-3.55f, 0.565f, 8.028f), Quaternion.identity, 0.024f, new Color(0.15f, 0.12f, 0.35f));
-        GameKit.Text(transform, "(see calendar, Record Rm)", new Vector3(-3.55f, 0.525f, 8.028f), Quaternion.identity, 0.018f, new Color(0.6f, 0.1f, 0.1f));
-        PL(new Vector3(-3.8f, 0.7f, 7.4f), new Color(1f, 0.9f, 0.7f), 0.8f, 1.8f);      // little kicker so the note can be read
-        libDesk = desk.transform;
+        // the clue: a yellowed note taped on the desk's apron beside the drawer lock (paper, lit by the desk lamp's kicker;
+        // its lettering depth-tested and 1 mm off the paper)
+        B("DeskNote", new Vector3(-3.55f, 0.745f, 8.062f), new Vector3(0.24f, 0.17f, 0.003f), new Color(0.9f, 0.84f, 0.58f), false, 0.1f);
+        B("DeskNoteTape", new Vector3(-3.55f, 0.828f, 8.06f), new Vector3(0.09f, 0.025f, 0.002f), new Color(0.85f, 0.82f, 0.7f), false, 0.4f);
+        GameKit.Solid(GameKit.Text(transform, "drawer code:", new Vector3(-3.55f, 0.795f, 8.059f), Quaternion.identity, 0.026f, new Color(0.15f, 0.12f, 0.35f)));
+        GameKit.Solid(GameKit.Text(transform, "the year we became", new Vector3(-3.55f, 0.755f, 8.059f), Quaternion.identity, 0.022f, new Color(0.15f, 0.12f, 0.35f)));
+        GameKit.Solid(GameKit.Text(transform, "free - BACKWARDS", new Vector3(-3.55f, 0.72f, 8.059f), Quaternion.identity, 0.022f, new Color(0.15f, 0.12f, 0.35f)));
+        GameKit.Solid(GameKit.Text(transform, "(see calendar, Record Rm)", new Vector3(-3.55f, 0.685f, 8.059f), Quaternion.identity, 0.017f, new Color(0.6f, 0.1f, 0.1f)));
+        PL(new Vector3(-3.8f, 0.85f, 7.4f), new Color(1f, 0.9f, 0.7f), 0.8f, 1.8f);      // little kicker so the note can be read
+        libDesk = desk;
 
         // stairs to the record room
         B("BasementDoorFrame", new Vector3(5.6f, 1.15f, 10.85f), new Vector3(1.3f, 2.3f, 0.12f), wood);
@@ -261,6 +242,7 @@ public class Act3Story : ActStoryBase
                             B("FileBox", new Vector3(x, 0.36f + s * 0.52f, z - 0.75f + k * 0.5f), new Vector3(0.5f, 0.28f, 0.42f), new Color(0.6f, 0.48f, 0.32f) * (0.8f + 0.3f * (float)rnd.NextDouble()), false, 0.1f);
                 }
                 B("ShelfBlock", new Vector3(x, 1.2f, z), new Vector3(0.66f, 2.4f, 2.05f), metal * 0.1f, true).GetComponent<Renderer>().enabled = false;   // solid but invisible
+                ShelvingSupports(new Vector3(x, 0f, z), 1f);                    // feet under the uprights, X-bracing across the ends
                 GameKit.Text(transform, (u + 11).ToString(), new Vector3(x + 0.34f, 2.3f, z), Quaternion.Euler(0, -90f, 0), 0.09f, new Color(0.95f, 0.9f, 0.7f));
             }
             GameKit.Text(transform, "BLOCK " + blocks[bi], new Vector3(x, 2.75f, -5.2f), Quaternion.identity, 0.16f, new Color(1f, 0.9f, 0.6f));
@@ -278,6 +260,7 @@ public class Act3Story : ActStoryBase
         for (int i = 0; i < 4; i++)
             GameKit.Box(doorPivot, "CageRail", new Vector3(0, 0.2f + i * 0.7f, 1.05f), new Vector3(0.02f, 0.02f, 2.1f), GameKit.Lit(iron, 0.4f, 0.6f));
         GameKit.Box(doorPivot, "Padlock", new Vector3(0.04f, 1.1f, 2.0f), new Vector3(0.06f, 0.12f, 0.1f), GameKit.Lit(new Color(0.85f, 0.65f, 0.25f), 0.8f, 0.9f));
+        CageMesh(doorPivot);
         GameKit.Text(transform, "1940 - 1945", new Vector3(cx + 0.1f, 2.05f, cz), Quaternion.Euler(0, -90f, 0), 0.08f, new Color(1f, 0.85f, 0.5f));
         // the wall calendar - lit by its own lamp so it reads as something worth looking at
         var calRot = Quaternion.Euler(0, 90f, 0);   // faces into the room (west)
@@ -285,12 +268,13 @@ public class Act3Story : ActStoryBase
         B("CalendarBoard", new Vector3(Base.x + 7.95f, 1.6f, -3f), new Vector3(0.04f, 0.95f, 0.72f), new Color(0.95f, 0.92f, 0.8f), false, 0.1f);
         B("CalendarHeader", new Vector3(Base.x + 7.925f, 2.0f, -3f), new Vector3(0.01f, 0.14f, 0.72f), new Color(0.6f, 0.15f, 0.1f));
         B("CalendarNail", new Vector3(Base.x + 7.9f, 2.12f, -3f), new Vector3(0.03f, 0.03f, 0.03f), new Color(0.3f, 0.3f, 0.3f), false, 0.6f, 0.8f);
-        GameKit.Text(transform, "NATIONAL DAYS", new Vector3(Base.x + 7.915f, 2.0f, -3f), calRot, 0.06f, new Color(1f, 0.95f, 0.85f));
-        GameKit.Text(transform, "26 JAN    15 AUG    2 OCT", new Vector3(Base.x + 7.92f, 1.78f, -3f), calRot, 0.045f, ink);
-        for (int i = 0; i < 3; i++) B("RedCircle", new Vector3(Base.x + 7.925f, 1.78f, -3.22f + i * 0.22f), new Vector3(0.005f, 0.1f, 0.17f), redInk * 0.9f);
-        GameKit.Text(transform, "Independence - 15 . 8 . 1947", new Vector3(Base.x + 7.92f, 1.55f, -3f), calRot, 0.04f, ink);
-        GameKit.Text(transform, "\"the year we became free -", new Vector3(Base.x + 7.92f, 1.36f, -3f), calRot, 0.035f, redInk);
-        GameKit.Text(transform, "read it backwards\"", new Vector3(Base.x + 7.92f, 1.29f, -3f), calRot, 0.035f, redInk);
+        BuildCalendarSheet(new Vector3(Base.x + 7.93f, 1.6f, -3f));
+        GameKit.Solid(GameKit.Text(transform, "NATIONAL DAYS", new Vector3(Base.x + 7.915f, 2.0f, -3f), calRot, 0.06f, new Color(1f, 0.95f, 0.85f)));
+        GameKit.Solid(GameKit.Text(transform, "26 JAN    15 AUG    2 OCT", new Vector3(Base.x + 7.92f, 1.78f, -3f), calRot, 0.045f, ink));
+        // (the three days are ringed in red on the printed sheet now)
+        GameKit.Solid(GameKit.Text(transform, "Independence - 15 . 8 . 1947", new Vector3(Base.x + 7.92f, 1.55f, -3f), calRot, 0.04f, ink));
+        GameKit.Solid(GameKit.Text(transform, "\"the year we became free -", new Vector3(Base.x + 7.92f, 1.36f, -3f), calRot, 0.035f, redInk));
+        GameKit.Solid(GameKit.Text(transform, "read it backwards\"", new Vector3(Base.x + 7.92f, 1.29f, -3f), calRot, 0.035f, redInk));
         Spot(new Vector3(Base.x + 6.9f, 2.85f, -3f), new Vector3(50f, 90f, 0f), new Color(1f, 0.86f, 0.62f), 5f, 4f, 45f);
         calendar = new GameObject("Calendar").transform; calendar.SetParent(transform, false); calendar.position = new Vector3(Base.x + 7.9f, 1.6f, -3f);
         // ceiling pipes, a clerk's table by the stairs
@@ -521,6 +505,7 @@ public class Act3Story : ActStoryBase
         Diya(Temple + new Vector3(4.6f, 0f, -12.4f), false);
         PL(Temple + new Vector3(5f, 1.8f, -11.8f), new Color(1f, 0.68f, 0.35f), 2.8f, 6f);
         pandit = Npc(Temple + new Vector3(5.5f, 0f, -12.4f), 0f, Cast.Pandit(), "Pandit Harishankar");
+        BuildEnvelope(Temple + new Vector3(6.05f, 0.035f, -12.3f));             // Priya's envelope, kept on a brass plate beside him
         for (int i = 0; i < 4; i++) Npc(Temple + new Vector3(-2.5f + i * 1.6f, 0f, 2.6f), (i - 1.5f) * 6f, Cast.Devotee(800 + i), "Devotee" + i, false);   // facing the shrine
         foreach (var lp in new[] { new Vector2(-8f, -9f), new Vector2(8f, -8f), new Vector2(-8f, 4f), new Vector2(8f, 4f) })
         {
@@ -793,12 +778,15 @@ public class Act3Story : ActStoryBase
         yield return Talk("a3_pandit_1", pandit);
         yield return Talk("a3_arjun_q");
         yield return Talk("a3_pandit_2", pandit);
-        yield return Choose(new[] { DialogueDB.Text("a3_ans_a"), DialogueDB.Text("a3_ans_b"), DialogueDB.Text("a3_ans_c") });
+        // the Pandit waits for an answer: three intentions on the dial, Arjun's full answer previewed under it
+        yield return Choose(new[] { "The truth", "The people", "Both are one" },
+                            new[] { DialogueDB.Text("a3_ans_a"), DialogueDB.Text("a3_ans_b"), DialogueDB.Text("a3_ans_c") }, null, null);
         int c = menuResult;
         yield return Talk(c == 0 ? "a3_ans_a" : c == 1 ? "a3_ans_b" : "a3_ans_c");
         yield return Talk(c == 0 ? "a3_pandit_a" : c == 1 ? "a3_pandit_b" : "a3_pandit_c", pandit);
         EndTalk();
         SaveSystem.Data.panditAnswer = c;
+        if (envelope != null) envelope.gameObject.SetActive(false);
         Toast("You received: PRIYA'S SEALED ENVELOPE", 4f, true);
         AddEvidence("Certified copy of the original 1942 land deed - admissible in court.");
         AddEvidence("Priya's letter: councilor, builder and police are connected; the hearing is at 10 AM, Municipal Court.");
@@ -828,12 +816,13 @@ public class Act3Story : ActStoryBase
         yield return Narrate("a3_vo_crossroads");
         dlgSpeaker = "WHERE NOW?";
         dlgText = "Two urgent calls, and time for one. Whatever you choose, the others will have to wait.";
-        yield return Choose(new[]
+        // the crossroads: each bearing previews where it leads (Act IV's three locations, in branch order 0 / 1 / 2)
+        yield return Choose(new[] { "Meet the caller", "Protect the family", "Confront Reddy" }, new[]
         {
             "Go to Café Irani  -  meet the mysterious caller",
             "Go to the Kapoor house  -  protect the family",
             "Call Inspector Reddy  -  confront her directly",
-        });
+        }, null, null, dlgSpeaker, dlgText);
         EndTalk();
         SaveSystem.Data.branch = menuResult; SaveSystem.Save();
         yield return Narrate("a3_vo_end");
