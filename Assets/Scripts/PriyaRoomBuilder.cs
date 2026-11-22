@@ -16,6 +16,8 @@ public class PriyaRoomBuilder : MonoBehaviour
 
     Transform root;
     public Transform Root => root;
+    // The apartment builder lives on after its room. Only the active market or early Gallery may own the lighting.
+    public GameObject RoomEffectsOwner { get; set; }
     public Transform DoorHinge;
     public GameObject ExtraRoot;   // Act II world (destroyed on restart)
     public GameObject HookNote;
@@ -244,7 +246,9 @@ public class PriyaRoomBuilder : MonoBehaviour
         float wx0 = 0.2f, wx1 = 2.2f, wy0 = 0.9f, wy1 = 2.3f;
         float cx = (wx0 + wx1) / 2, cy = (wy0 + wy1) / 2, z = HalfD;
         var frameC = new Color(0.30f, 0.17f, 0.09f);
-        Strip(Box("WinFrame_T", new Vector3(cx, wy1, z - 0.02f), new Vector3(wx1 - wx0 + 0.1f, 0.08f, 0.14f), frameC));
+        // the head fits between the jambs: it overlapped them with coplanar faces, each textured on its own, and the
+        // top corners shimmered when the camera moved
+        Strip(Box("WinFrame_T", new Vector3(cx, wy1, z - 0.02f), new Vector3(wx1 - wx0 - 0.08f, 0.08f, 0.14f), frameC));
         Strip(Box("WinFrame_B", new Vector3(cx, wy0, z - 0.06f), new Vector3(wx1 - wx0 + 0.2f, 0.06f, 0.26f), frameC)); // sill
         Strip(Box("WinFrame_L", new Vector3(wx0, cy, z - 0.02f), new Vector3(0.08f, wy1 - wy0, 0.14f), frameC));
         Strip(Box("WinFrame_R", new Vector3(wx1, cy, z - 0.02f), new Vector3(0.08f, wy1 - wy0, 0.14f), frameC));
@@ -292,6 +296,9 @@ public class PriyaRoomBuilder : MonoBehaviour
         rod.transform.localRotation = Quaternion.Euler(0, 0, 90);
         Strip(rod);
 
+        // a wooden mullion divides the casement: the broken latch hangs from it (it used to float in the open window)
+        Strip(Box("WinFrame_Mullion", new Vector3(cx + 0.645f, (wy0 + 0.03f + wy1 - 0.04f) * 0.5f, z - 0.08f), new Vector3(0.05f, wy1 - 0.04f - (wy0 + 0.03f), 0.06f), frameC));   // sill top to head
+        Strip(Box("LatchKeeper", new Vector3(cx + 0.614f, cy - 0.215f, z - 0.112f), new Vector3(0.012f, 0.07f, 0.03f), new Color(0.32f, 0.3f, 0.28f), null, 0.4f, 0.8f));
         // CLUE 9 - the broken latch
         var latch = Box("Latch", new Vector3(cx + 0.55f, cy - 0.2f, z - 0.1f), new Vector3(0.14f, 0.03f, 0.05f), new Color(0.45f, 0.4f, 0.35f), null, 0.5f, 0.8f);
         latch.transform.localRotation = Quaternion.Euler(0, 0, -25);
@@ -399,7 +406,7 @@ public class PriyaRoomBuilder : MonoBehaviour
             l.transform.SetParent(root, false);
             l.transform.localPosition = new Vector3(tx[i], 2.5f, zc);
             l.type = LightType.Point; l.range = 7.5f; l.intensity = 2.6f; l.color = new Color(1f, 0.95f, 0.85f);
-            if (i == 2) l.gameObject.AddComponent<FlickerLight>();
+            if (i == 2) l.intensity *= 0.88f;   // a weak tube without a flash in the stairwell
         }
 
         // ---- the four flats: 301 Kapoor (open), 302 Verma, 303 Joshi, 304 Iyer (closed, iron grille gates)
@@ -548,10 +555,11 @@ public class PriyaRoomBuilder : MonoBehaviour
         Strip(Box("LowerFloor", new Vector3(-5.1f, -1.8f, zc), new Vector3(1.8f, 0.1f, depth), new Color(0.3f, 0.28f, 0.26f), null, 0.3f));
         // window in the end wall: the evening sky leaking in
         float wx = LXL + 0.03f;
-        Strip(GameKit.Box(root, "StairWindowGlow", new Vector3(wx, 1.9f, -4.6f), new Vector3(0.05f, 1.1f, 0.9f), GameKit.Glow(new Color(1f, 0.6f, 0.3f), new Color(1f, 0.55f, 0.25f), 2.5f)));
+        // One visible pane in front of its backing. The old pane and the trim shared the same front plane.
         Strip(Box("StairWindowFrame", new Vector3(wx + 0.01f, 1.9f, -4.6f), new Vector3(0.06f, 1.25f, 1.05f), new Color(0.2f, 0.12f, 0.07f), null, 0.2f));
-        Strip(GameKit.Box(root, "StairWindowGlow", new Vector3(wx + 0.02f, 1.9f, -4.6f), new Vector3(0.04f, 1.1f, 0.9f), GameKit.Glow(new Color(1f, 0.6f, 0.3f), new Color(1f, 0.55f, 0.25f), 2.5f)));
-        for (int i = 0; i < 4; i++) Strip(Box("StairWindowBar", new Vector3(wx + 0.05f, 1.9f, -4.95f + i * 0.23f), new Vector3(0.02f, 1.1f, 0.02f), rail, null, 0.4f, 0.6f));
+        // evening sky through dusty glass: orange, not clipped to white (it bloomed into a halo round the bars)
+        Strip(GameKit.Box(root, "StairWindowGlow", new Vector3(wx + 0.049f, 1.9f, -4.6f), new Vector3(0.01f, 1.1f, 0.9f), GameKit.Glow(new Color(0.85f, 0.42f, 0.16f), new Color(1f, 0.48f, 0.18f), 0.62f)));
+        for (int i = 0; i < 4; i++) Strip(Box("StairWindowBar", new Vector3(wx + 0.073f, 1.9f, -4.95f + i * 0.23f), new Vector3(0.02f, 1.1f, 0.02f), rail, null, 0.4f, 0.6f));
         var wl = new GameObject("StairWindowLight").AddComponent<Light>();
         wl.transform.SetParent(root, false);
         wl.transform.localPosition = new Vector3(-5.2f, 1.9f, -4.6f);
@@ -1153,6 +1161,7 @@ public class PriyaRoomBuilder : MonoBehaviour
     // ================================================================= UPDATE
     void Update()
     {
+        if (RoomEffectsOwner != null && RoomEffectsOwner == ExtraRoot) return;
         if (fan != null) fan.Rotate(0, -140f * Time.deltaTime, 0);
 
         var kb = Keyboard.current;

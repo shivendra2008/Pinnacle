@@ -24,6 +24,10 @@ public class ArduinoController : MonoBehaviour
     public float rightY;
     public bool rightButton;
 
+    [Header("Option Button (D4)")]
+    [Tooltip("True while the D4 button is held. It is wired with INPUT_PULLUP, so the board sends 0 when pressed and 1 when released.")]
+    public bool optionButton;
+
     [Header("Status")]
     public bool isConnected;
 
@@ -97,7 +101,9 @@ public class ArduinoController : MonoBehaviour
     {
         string[] values = data.Split(',');
 
-        if (values.Length != 6)
+        // lx,ly,lb,rx,ry,rb,optionButton. A line of six (the older sketch, without D4) is still read: D4 then counts
+        // as released.
+        if (values.Length != 7 && values.Length != 6)
             return;
 
         if (!float.TryParse(values[0], NumberStyles.Float,
@@ -116,6 +122,12 @@ public class ArduinoController : MonoBehaviour
 
         if (!int.TryParse(values[5], out int rb)) return;
 
+        int ob = 1;                                       // released
+        if (values.Length == 7 && !int.TryParse(values[6], out ob)) return;
+
+        // A button is only ever 0 or 1. Anything else is a line that arrived cut short, its values shifted: skip it.
+        if (!IsButton(lb) || !IsButton(rb) || !IsButton(ob)) return;
+
         leftX = ApplyDeadzone((lx - 512f) / 512f);
         leftY = ApplyDeadzone((ly - 512f) / 512f);
 
@@ -124,7 +136,13 @@ public class ArduinoController : MonoBehaviour
 
         leftButton = lb == 0;
         rightButton = rb == 0;
+        optionButton = ob == 0;
         lastPacketTime = Time.unscaledTime;
+    }
+
+    static bool IsButton(int value)
+    {
+        return value == 0 || value == 1;
     }
 
     float ApplyDeadzone(float value)
@@ -132,9 +150,16 @@ public class ArduinoController : MonoBehaviour
         return Mathf.Abs(value) < 0.08f ? 0f : value;
     }
 
+    bool showPanel;
+
     void OnGUI()
     {
-        GUI.Box(new Rect(10, 10, 260, 170), "Arduino Controller");
+        // The status panel sat over the objective box in every act, saying DISCONNECTED to everyone without the
+        // controller. It shows while a controller is connected; F3 shows or hides it either way.
+        var kb = UnityEngine.InputSystem.Keyboard.current;
+        if (Event.current.type == EventType.Layout && kb != null && kb.f3Key.wasPressedThisFrame) showPanel = !showPanel;
+        if (!(isConnected ^ showPanel)) return;
+        GUI.Box(new Rect(10, 10, 260, 195), "Arduino Controller");
 
         GUI.Label(new Rect(20, 40, 240, 25),
             "Status: " + (isConnected ? "CONNECTED" : "DISCONNECTED"));
@@ -150,6 +175,9 @@ public class ArduinoController : MonoBehaviour
 
         GUI.Label(new Rect(20, 145, 240, 25),
             $"Right Button: {rightButton}");
+
+        GUI.Label(new Rect(20, 170, 240, 25),
+            $"Option Button (D4): {optionButton}");
     }
 
     void OnApplicationQuit()

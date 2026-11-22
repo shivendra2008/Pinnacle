@@ -55,6 +55,23 @@ Docs: audit and production list `POLISH_AUDIT.md` · story `STORY_BIBLE.md` · s
 - [ ] Recorded match strike, candle blow-out and cloth movement (not found under a usable licence)
 - [ ] Recorded VO and a scan-quality hero head with blendshapes (see `Docs/CURATOR.md` section 5)
 
+## Session 4 (21 Nov 2026): Acts I-II, the market, Curator scenes 0-1 (`Docs/ACTS_1_2.md`)
+- [x] Supplied `Pinnacle_Acts_1_2.patch` applied once, unchanged, as its own commit (it was not yet applied)
+- [x] Scripted route for player builds, any version of the code (`PlayRoute.cs`, `Docs/PLAYTEST.md`): timing by section, render counters, Profiler markers (dev build), checks, footage with UI and sound
+- [x] Market baseline measured on the original code (3 runs) and compared with interleaved runs (section 7 of `ACTS_1_2.md`)
+- [x] Market GPU cost: dressing props were ~95% of triangles; small props no longer cast moon shadows, distant props simplified or dropped, 2 cascades in the market (A/B measured, after-build measured)
+- [x] Cold entry: control 15.7-16.0 s -> 2.3-2.9 s (final interleaved runs); no rendering behind the loading card; probe rendered once (measured)
+- [x] Player no longer shoved or lifted during conversations; Vikram in frame at every decision (measured)
+- [x] Stall boards: fitted, hung under the rail on straps, lit paint, single-sided; awnings rest on their rails; bulbs beside the boards (visually checked)
+- [x] Shop frames, hoarding and OM plaque attached; windows, stair pane, window head and latch fixed (visually checked; motion review pending)
+- [x] One decision compass at every decision in Acts I-II; input tests (keys, gamepad, held key, pause) pass (measured)
+- [x] Act I control 30 s -> 1.2 s with voices over free movement; Act II pacing beats (measured / code)
+- [x] Radio on a stall, hallway steps that travel, creak at the door, bed ducking (code; listening pending)
+- [x] Curator scene 1 skip hands over to Act III once with camera/time/sound restored (measured)
+- [ ] Listen on headphones and laptop speakers (balance, panning, attack/falloff)
+- [ ] Recorded door creak, horn, phone and engines (no licensed recordings in the project)
+- [ ] A person plays Act I end to end (nine clues, Kamala, door, note) and the market by hand (control feel)
+
 ## Next
 - [ ] Justice gate: case conditions instead of `EvidenceCount >= 18`, shown on the casket card
 - [ ] Deduction step: link evidence to questions (fact vs. interpretation), one fair contradiction per act

@@ -315,9 +315,11 @@ public class HeroFace
         if (live) track.Weights(at, vis);
         else for (int i = 0; i < VisemeTrack.Count; i++) vis[i] = 0f;
         if (DebugViseme >= 0) for (int i = 0; i < VisemeTrack.Count; i++) vis[i] = i == DebugViseme ? 1f : 0f;
-        float k = 1f - Mathf.Exp(-dt / 0.022f);              // a light smoothing: no frame-to-frame jitter
+        // a light smoothing: no frame-to-frame jitter. Paused, the hero is re-posed with a 1e-6 s step: nothing advances
+        // (the mouth crept 0.1% over 40 paused frames after a line, which the pause test caught at the lightning)
+        float k = dt > 1e-4f ? 1f - Mathf.Exp(-dt / 0.022f) : 0f;
         for (int i = 0; i < VisemeTrack.Count; i++) visSmooth[i] += (vis[i] - visSmooth[i]) * k;
-        speechAmt = Mathf.MoveTowards(speechAmt, live ? 1f : 0f, dt * 6f);
+        if (dt > 1e-4f) speechAmt = Mathf.MoveTowards(speechAmt, live ? 1f : 0f, dt * 6f);
         if (live)
         {
             while (nextAccent < track.accentT.Length && track.accentT[nextAccent] <= at)
