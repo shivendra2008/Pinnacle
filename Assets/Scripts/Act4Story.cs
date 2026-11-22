@@ -176,8 +176,12 @@ public partial class Act4Story : ActStoryBase
         GameKit.SurfaceZY(front, "plaster", 2.2f, cream);
         B("Cornice", new Vector3(5.05f, 5.05f, 0), new Vector3(0.7f, 0.18f, 11.7f), new Color(0.8f, 0.75f, 0.64f), false, 0.2f);
         GameKit.Surface(B("FrontPlinth", new Vector3(4.98f, 0.3f, 0), new Vector3(0.1f, 0.6f, 11.5f), new Color(0.55f, 0.2f, 0.16f), false, 0.2f), "plaster", 2f, 1f, 1f, new Color(0.55f, 0.2f, 0.16f));
-        B("SignBoard", new Vector3(4.97f, 3.75f, -1f), new Vector3(0.05f, 0.8f, 5.6f), new Color(0.42f, 0.08f, 0.07f), false, 0.3f);
-        GameKit.Solid(GameKit.Text(transform, "CAFÉ IRANI  -  SINCE 1932", new Vector3(4.94f, 3.75f, -1f), Quaternion.Euler(0, 90f, 0), 0.26f, new Color(0.95f, 0.88f, 0.7f)));
+        // the signboard hangs over the counter window, clear of the pergola (slats z -1.95..1.75): once its lettering was
+        // depth-tested (it used to draw through everything) the 5.6 m board running under the pergola's roof lost most of
+        // its letters behind the slats as seen from the entrance
+        B("SignBoard", new Vector3(4.97f, 3.75f, -3.4f), new Vector3(0.05f, 0.8f, 2.9f), new Color(0.42f, 0.08f, 0.07f), false, 0.3f);
+        GameKit.Solid(GameKit.Text(transform, "CAFÉ IRANI", new Vector3(4.94f, 3.87f, -3.4f), Quaternion.Euler(0, 90f, 0), 0.3f, new Color(0.95f, 0.88f, 0.7f)));
+        GameKit.Solid(GameKit.Text(transform, "SINCE 1932", new Vector3(4.94f, 3.53f, -3.4f), Quaternion.Euler(0, 90f, 0), 0.13f, new Color(0.95f, 0.88f, 0.7f)));
         foreach (float wz in new[] { -3.0f, 3.2f })
         {
             GameKit.Surface(B("WindowFrame", new Vector3(4.98f, 1.9f, wz), new Vector3(0.08f, 1.7f, 1.5f), wood, false, 0.4f), "wood", 0.9f, 1f, 1f, wood);

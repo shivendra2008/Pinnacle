@@ -741,7 +741,8 @@ public class PlayRoute : MonoBehaviour
                     Check(voice != null && voice.clip != null && voice.clip.name == want && vt != null && vt.times[vt.times.Length - 1] <= voice.clip.length + 0.05f,
                           "Arjun's answer plays his recording (" + want + ", " + (voice != null && voice.clip != null ? voice.clip.length.ToString("F2") : "-") + " s)");
                     string tr = Get(market, "trust") as string;
-                    for (int i = 0; i < 600 && (tr == "COLD"); i++) { yield return null; tr = Get(market, "trust") as string; }
+                    double tw0 = Now;          // his line, the reaction beat and Vikram's reply come first (up to ~15 s)
+                    while (tr == "COLD" && Now - tw0 < 25.0) { yield return null; tr = Get(market, "trust") as string; }
                     Note("trust after the first answer (" + trustPick + "): " + tr);
                     for (float t = 0; t < 1.5f; t += Time.deltaTime) yield return null;
                     Segment("approach", false);
@@ -1470,10 +1471,21 @@ public class PlayRoute : MonoBehaviour
         }
         yield return LookAtPoint(c, 80f);
         double p0 = Now;
-        while (!(((string)Get(st, "prompt") ?? "").Contains(label)) && Now - p0 < 4f)
+        while (!(((string)Get(st, "prompt") ?? "").Contains(label)) && Now - p0 < 2f)
         {
             AngleTo(c, out float y, out float x); Steer(y, x, 60f, 60f);
             yield return null;
+        }
+        // occluded from where the walk ended (a shelf, a bookcase): stand at eight points round it until it can be seen
+        for (int k = 0; k < 8 && !(((string)Get(st, "prompt") ?? "").Contains(label)); k++)
+        {
+            Vector3 dir = Quaternion.Euler(0f, k * 45f, 0f) * Vector3.forward;
+            Vector3 at = c + dir * stop; at.y = player.transform.position.y;
+            if (Physics.CheckCapsule(at + Vector3.up * 0.4f, at + Vector3.up * 1.4f, 0.3f, ~0, QueryTriggerInteraction.Ignore)) continue;
+            PlaceAt(at, 0f, 0f);
+            yield return LookAtPoint(c, 200f);
+            for (int i = 0; i < 10 && !(((string)Get(st, "prompt") ?? "").Contains(label)); i++) yield return null;
+            if (((string)Get(st, "prompt") ?? "").Contains(label)) Note("'" + label + "' seen from the " + (k * 45) + " degree side");
         }
         Check(((string)Get(st, "prompt") ?? "").Contains(label), "the prompt '" + label + "' appears");
         Tap(Key.E);
@@ -1518,6 +1530,7 @@ public class PlayRoute : MonoBehaviour
     IEnumerator TypeCode(object st, string code)
     {
         yield return WaitFor(() => GetBool(st, "codeOpen"), 40f, "the code entry opens");
+        if (!GetBool(st, "codeOpen")) yield break;           // (a result from an earlier code must not count for this one)
         for (float t = 0; t < 1.2f; t += Time.deltaTime) yield return null;
         foreach (char ch in code) { InputSystem.QueueTextEvent(vk, ch); yield return null; yield return null; }
         for (float t = 0; t < 0.4f; t += Time.deltaTime) yield return null;
@@ -1715,6 +1728,8 @@ public class PlayRoute : MonoBehaviour
             float grip = Get(a4, "taskGripError") is float ge ? ge : 99f;
             Check(holding > 0 && grip < 0.03f, "the owner's hand stays on the cup while carrying it (" + holding + " frames held, wrist at most " + (grip * 100f).ToString("F1") + " cm off its grip; wrist-to-cup " + ((worst + 0.06f) * 100f).ToString("F1") + " cm)");
             float top = counter != null ? counter.position.y : 0.5f;
+            // the window can end mid-carry (the cup 6 cm up in his hand): judge the cup once he has set it down
+            for (double r0 = Now; GetBool(a4, "taskHolding") && Now - r0 < 6.0;) yield return null;
             Check(!GetBool(a4, "taskHolding") && Mathf.Abs(task.position.y - (Get(a4, "counterTopY") is float cty ? cty : task.position.y)) < 0.01f, "the cup is standing on the counter after release (y " + task.position.y.ToString("F3") + ")");
         }
         else Note("no owner task in this build");
@@ -1749,6 +1764,8 @@ public class PlayRoute : MonoBehaviour
         }
         ScreenCapture.CaptureScreenshot(Path.Combine(outDir, name + ".png"));
         if (calm < 12) Note("still " + name + " taken while the view was still moving");
+        // the capture is taken at the end of this frame: the route must not move the view again until it has been
+        yield return null;
     }
 
     static float Pct(List<float> s, double p) { return s.Count == 0 ? float.NaN : s[Mathf.Clamp((int)Math.Ceiling(s.Count * p) - 1, 0, s.Count - 1)]; }

@@ -655,7 +655,14 @@ public partial class Act4Story
         var rw = GameKit.Box(car, "RearScreen", new Vector3(0f, 1.2f, -1.08f), new Vector3(1.25f, 0.38f, 0.03f), glass); rw.transform.localRotation = Quaternion.Euler(30f, 0f, 0f);
         foreach (float x in new[] { -0.735f, 0.735f })
         {
-            GameKit.Box(car, "SideGlass", new Vector3(x, 1.22f, -0.2f), new Vector3(0.02f, 0.34f, 1.4f), glass);
+            // the side windows sit in the cabin's upright band (y 1.12-1.45, where its soft-box section is 0.69-0.72 m
+            // half-wide), framed in chrome and split by the door pillar; lower down the section narrows, and a pane
+            // reaching there stood 12 cm off the body like a black slab
+            float gx = Mathf.Sign(x) * 0.727f;
+            GameKit.Box(car, "SideGlass", new Vector3(gx, 1.285f, -0.2f), new Vector3(0.02f, 0.33f, 1.22f), glass);
+            GameKit.Box(car, "BPillar", new Vector3(gx * 1.003f, 1.285f, -0.17f), new Vector3(0.02f, 0.34f, 0.08f), paint);
+            GameKit.Box(car, "GlassTrimTop", new Vector3(gx * 1.004f, 1.452f, -0.2f), new Vector3(0.02f, 0.018f, 1.24f), chrome);
+            GameKit.Box(car, "GlassTrimSill", new Vector3(gx * 1.004f, 1.118f, -0.2f), new Vector3(0.02f, 0.018f, 1.24f), chrome);
             GameKit.Box(car, "Rubbing", new Vector3(x * 1.13f, 0.72f, 0f), new Vector3(0.02f, 0.04f, 3.6f), chrome);
             foreach (float z in new[] { 1.38f, -1.32f }) VehicleKit.Wheel(car, new Vector3(x * 1.0f, r, z), r, 0.19f);
             GameKit.Sphere(car, "Headlamp", new Vector3(x * 0.72f, 0.82f, 2.17f), 0.19f, GameKit.Lit(new Color(0.75f, 0.75f, 0.7f), 0.9f));
