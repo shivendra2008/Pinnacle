@@ -7,9 +7,9 @@ using UnityEngine.InputSystem;
 /// conversations speak through. A small brass dial sits low in the frame so the witness's eyes stay clear; short
 /// intentions sit at its four bearings (index 0 left, 1 right, 2 up, 3 down: "leave" is always down), the needle
 /// follows relative mouse or trackpad movement, the arrow keys, a stick or the d-pad, and the focused bearing previews
-/// the line Arjun will actually say. Click, E, Enter, Space or the pad's south button commits the focused bearing;
-/// 1-4 commit directly. Story coroutines own the choice indices and their consequences: this class only reports which
-/// index was committed, so every reply keeps its original index, line and trust result.
+/// the line Arjun will actually say. Click, E, Enter, Space, the pad's south button or the Arduino's D4 button
+/// commits the focused bearing; 1-4 commit directly. Story coroutines own the choice indices and their consequences:
+/// this class only reports which index was committed, so every reply keeps its original index, line and trust result.
 /// </summary>
 public sealed class StoryCompass
 {
@@ -116,6 +116,7 @@ public sealed class StoryCompass
             }
         }
         bool confirm = GameInput.InteractPressed || (mouse != null && mouse.leftButton.wasPressedThisFrame)
+            || GameInput.OptionPressed                    // the Arduino's D4 button, which only ever confirms an option
             || (pad != null && pad.buttonSouth.wasPressedThisFrame)
             || (kb != null && (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame));
         return confirm && Available(selected) ? Commit(selected) : -1;
