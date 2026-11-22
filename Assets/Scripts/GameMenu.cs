@@ -149,7 +149,12 @@ public class GameMenu : IDisposable
             case Screen.Main: DrawMain(W, H); break;
             case Screen.ConfirmReset: DrawConfirm(W, H); break;
         }
+        // which build this is (written into scripted builds by BuildPlayer; absent from Editor play and other builds)
+        if (stamp == null) { var ta = Resources.Load<TextAsset>("BuildStamp"); stamp = ta != null ? ta.text.Trim() : ""; }
+        if (stamp.Length > 0)
+            GUI.Label(new Rect(16, H - 30, W - 32, 22), stamp, new GUIStyle(sBody) { fontSize = 13, alignment = TextAnchor.LowerLeft, normal = { textColor = new Color(UiKit.Muted.r, UiKit.Muted.g, UiKit.Muted.b, 0.85f) } });
     }
+    static string stamp;
 
     void DrawName(float W, float H)
     {

@@ -959,13 +959,12 @@ public partial class CharacterNPC : MonoBehaviour
             wantPitch = Mathf.Clamp(-Mathf.Atan2(l.y, new Vector2(l.x, l.z).magnitude) * Mathf.Rad2Deg, -22f, 25f);
         }
         lookYaw = Mathf.Lerp(lookYaw, wantYaw, dt * 4f); lookPitch = Mathf.Lerp(lookPitch, wantPitch, dt * 4f);
-        float nod = talk * Mathf.Sin(Time.time * 6.5f) * 3.5f + Mathf.Sin(time * 0.7f) * 0.8f;
+        float nod = SpeechNod(dt) + Mathf.Sin(time * 0.7f) * 0.8f;      // stressed words and a slow drift, not the loudness
         if (rNeck != null) rNeck.rotation = Quaternion.AngleAxis(lookYaw * 0.35f, transform.up) * rNeck.rotation;
         if (rHead != null)
             rHead.rotation = Quaternion.AngleAxis(lookYaw * 0.65f, transform.up) * Quaternion.AngleAxis(lookPitch + nod, rHead.parent != null ? Vector3.Cross(transform.up, HeadForward()).normalized : transform.right) * rHead.rotation;
-        // jaw follows the loudness of the voice
-        if (rJaw != null && talk > 0.01f)
-            rJaw.rotation = Quaternion.AngleAxis(Mathf.Clamp01(talk * 1.6f) * 11f, Vector3.Cross(transform.up, HeadForward()).normalized) * rJaw.rotation;
+        // the jaw starts from rest every frame; the face layer opens it (visemes, or the voice's loudness without them)
+        if (rJaw != null) rJaw.localRotation = jawRest;
         ApplyHolds(dt);
         ApplyFace(dt);
     }
@@ -981,6 +980,16 @@ public partial class CharacterNPC : MonoBehaviour
 
     Transform[] fEye = new Transform[2], fLidTop = new Transform[2], fLidBot = new Transform[2], fBrowIn = new Transform[2], fBrowOut = new Transform[2];
     Transform fBrowMid, fLipUp, fLipLow;
+    // the mouth: visemes from the line actually playing (VisemeTrack), on the jaw, the lips and the mouth corners
+    readonly Transform[] fUl = new Transform[2], fLl = new Transform[2], fCorner = new Transform[2];
+    readonly float[] vis = new float[VisemeTrack.Count], visS = new float[VisemeTrack.Count];
+    float faceMm = 0.001f, nodSpring, nodVel; int nextAccentIdx; AudioClip faceClip; VisemeTrack faceTrack;
+    /// <summary>For tests: how the mouth is driven this frame (2 visemes, 1 loudness fallback, 0 at rest or no rig),
+    /// the jaw's opening in degrees and the viseme weights.</summary>
+    public int MouthMode { get; private set; }
+    public float MouthDegrees { get; private set; }
+    public float[] MouthWeights { get { return visS; } }
+    public bool HasMouthRig { get { return rJaw != null && fLipLow != null; } }
     readonly List<Transform> fBones = new List<Transform>();
     readonly List<Vector3> fRestPos = new List<Vector3>();
     readonly List<Quaternion> fRestRot = new List<Quaternion>();
@@ -1011,6 +1020,13 @@ public partial class CharacterNPC : MonoBehaviour
         fBrowMid = FaceBone(all, "Bip01 MMiddleEyebrow");
         fLipUp = FaceBone(all, "Bip01 MUpperLip");
         fLipLow = FaceBone(all, "Bip01 MBottomLip");
+        for (int i = 0; i < 2; i++)
+        {
+            fUl[i] = FaceBone(all, "Bip01 " + sd[i] + "Upperlip");
+            fLl[i] = FaceBone(all, "Bip01 " + sd[i] + "MouthBottom");
+            fCorner[i] = FaceBone(all, "Bip01 " + sd[i] + "MouthCorner");
+        }
+        if (fEye[0] != null && fEye[1] != null) faceMm = 0.001f * Vector3.Distance(fEye[0].position, fEye[1].position) / 0.064f;
         hasFace = rHead != null && (fEye[0] != null || fLidTop[0] != null);
         if (rHead != null)
         {
@@ -1097,8 +1113,67 @@ public partial class CharacterNPC : MonoBehaviour
             if (fBrowOut[i] != null) fBrowOut[i].position += hUp * browMm * 0.6f;
         }
         if (fBrowMid != null) fBrowMid.position += hUp * browMm * 0.8f;
-        if (fLipUp != null) fLipUp.position += hUp * 0.0018f * Mathf.Clamp01(talk * 1.4f);
-        if (fLipLow != null) fLipLow.position -= hUp * 0.0012f * Mathf.Clamp01(talk * 1.4f);
+        SpeechMouth(dt, hUp, hFwd);
+    }
+
+    /// <summary>
+    /// The mouth from the line actually playing. With a viseme track (Tools/lipsync) the shapes follow the clip's own
+    /// playback time, so pausing, skipping or cutting a line keeps them in step, and lips close on P/B/M; with no track
+    /// the jaw opens with the voice's loudness (the fallback); silent, the mouth settles to rest within ~0.1 s. A rig
+    /// without jaw and lip bones keeps a still mouth (and the voice and subtitles still play). Nods come from the
+    /// line's stressed words, not from the loudness, so the head does not bob with every syllable.
+    /// </summary>
+    void SpeechMouth(float dt, Vector3 hUp, Vector3 hFwd)
+    {
+        MouthMode = 0; MouthDegrees = 0f;
+        if (rJaw == null || fLipLow == null || dt <= 0f) return;
+        bool live = voice != null && voice.isPlaying && voice.clip != null;
+        if (live && voice.clip != faceClip) { faceClip = voice.clip; faceTrack = VisemeTrack.For(faceClip); nextAccentIdx = 0; }
+        float at = live ? voice.time + 0.03f : -1f;                    // the mouth leads the sound by a frame
+        if (live && faceTrack != null) faceTrack.Weights(at, vis);
+        else for (int i = 0; i < vis.Length; i++) vis[i] = 0f;
+        float k = 1f - Mathf.Exp(-dt / 0.022f);
+        for (int i = 0; i < vis.Length; i++) visS[i] += (vis[i] - visS[i]) * k;
+        // accents: a small nod on each stressed word
+        if (live && faceTrack != null)
+            while (nextAccentIdx < faceTrack.accentT.Length && faceTrack.accentT[nextAccentIdx] <= at)
+            {
+                if (faceTrack.accentS[nextAccentIdx] > 0.15f) nodVel += 28f + 40f * faceTrack.accentS[nextAccentIdx];
+                nextAccentIdx++;
+            }
+        var m = new float[9];
+        for (int v = 0; v < VisemeTrack.Count; v++)
+        {
+            float w = visS[v];
+            if (w < 0.0005f) continue;
+            for (int c = 0; c < 9; c++) m[c] += HeroFace.Pose[v, c] * w;
+        }
+        for (int c = 0; c < 9; c++) m[c] *= HeroFace.Articulation;
+        float jawDeg = m[0];
+        if (live && faceTrack == null) jawDeg = Mathf.Clamp01(talk * 1.6f) * 9f;          // no track: the loudness fallback
+        MouthMode = live ? (faceTrack != null ? 2 : 1) : 0;
+        Vector3 right = Vector3.Cross(hUp, hFwd).normalized;
+        if (Mathf.Abs(jawDeg) > 0.01f) rJaw.rotation = Quaternion.AngleAxis(jawDeg, right) * rJaw.rotation;
+        MouthDegrees = jawDeg;
+        void Move(Transform b, Vector3 mmOffset) { if (b != null && mmOffset.sqrMagnitude > 1e-10f) b.position += mmOffset * faceMm; }
+        Move(fLipUp, hUp * m[1] + hFwd * m[2]);
+        for (int i = 0; i < 2; i++) Move(fUl[i], hUp * m[1] * 0.8f + hFwd * m[2] * 0.8f);
+        Move(fLipLow, hUp * m[3] + hFwd * m[4]);
+        for (int i = 0; i < 2; i++) Move(fLl[i], hUp * m[3] * 0.8f + hFwd * m[4] * 0.8f);
+        for (int i = 0; i < 2; i++)
+        {
+            Vector3 outward = i == 0 ? -right : right;
+            Move(fCorner[i], outward * m[5] + hUp * m[6] + hFwd * m[7]);
+        }
+    }
+
+    /// <summary>The nod spring: impulses from stressed words, settling in about half a second (degrees, down positive).</summary>
+    float SpeechNod(float dt)
+    {
+        if (dt <= 0f) return nodSpring;
+        nodVel += (-140f * nodSpring - 15f * nodVel) * dt;
+        nodSpring += nodVel * dt;
+        return nodSpring;
     }
 
     // ------------------------------------------------ holding things (a candle, a book) and leaning
@@ -1352,15 +1427,11 @@ public partial class CharacterNPC : MonoBehaviour
             wantPitch = Mathf.Clamp(-Mathf.Atan2(l.y, new Vector2(l.x, l.z).magnitude) * Mathf.Rad2Deg, -22f, 25f);
         }
         lookYaw = Mathf.Lerp(lookYaw, wantYaw, dt * 4f); lookPitch = Mathf.Lerp(lookPitch, wantPitch, dt * 4f);
-        float nod = talk * Mathf.Sin(Time.time * 6.5f) * 3.5f;
+        float nod = SpeechNod(dt);                                     // stressed words, not the loudness
         Vector3 rightAxis = Vector3.Cross(transform.up, HeadForward()).normalized;
         if (rNeck != null) rNeck.rotation = Quaternion.AngleAxis(lookYaw * 0.35f, transform.up) * rNeck.rotation;
         if (rHead != null) rHead.rotation = Quaternion.AngleAxis(lookYaw * 0.65f, transform.up) * Quaternion.AngleAxis(lookPitch + nod, rightAxis) * rHead.rotation;
-        if (rJaw != null)
-        {
-            rJaw.localRotation = jawRest;
-            if (talk > 0.01f) rJaw.rotation = Quaternion.AngleAxis(Mathf.Clamp01(talk * 1.6f) * 11f, rightAxis) * rJaw.rotation;
-        }
+        if (rJaw != null) rJaw.localRotation = jawRest;                // the mouth is posed in the face layer (SpeechMouth)
         ApplyHolds(dt);
         ApplyFace(dt);
     }

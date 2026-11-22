@@ -5,6 +5,8 @@ Run from the project root:   python3 Tools/acts_dialogue.py          (only missi
                              python3 Tools/acts_dialogue.py --all    (re-record everything)
 Writes  Assets/Resources/VO/<id>.wav   (macOS `say` + ffmpeg)
 and     Assets/Scripts/DialogueDB.cs   (id -> speaker + subtitle text, used by the game)
+Arjun's recorded lines (Tools/arjun_recordings.py) are never re-recorded, even with --all: change their text only to
+match the recording, then re-run that tool to check it and re-time the subtitles.
 """
 import os, subprocess, sys, tempfile
 
@@ -42,14 +44,14 @@ LINES = [
  ("a3_arjun_backup", "ARJUN", ARJUN, "Priya kept a backup of her research on this machine. She would have locked it."),
  ("a3_arjun_pass", "ARJUN", ARJUN, "Encrypted. Her diary said: where it all began for us, the year Nani told us stories. Kamala-ji sent me a photo of the children at their grandmother's house."),
  ("a3_audio", "RECORDING", RECORDING, "the hearing is Thursday... make sure the originals are destroyed... Reddy is getting too close..."),
- ("a3_arjun_unlock", "ARJUN", ARJUN, "This is it. The smoking gun. The Renewal Project is built on a lie. And someone named Reddy is involved. The same Reddy who has been following me?"),
+ ("a3_arjun_unlock", "ARJUN", ARJUN, "This is it. The smoking gun. The Renewal Project is built on a lie. And someone named Reddy is involved. The same Reddy whose ID I found in the market."),
  ("a3_arjun_basement", "ARJUN", ARJUN, "Block C, Shelf 14, the years 1940 to 1945. That is where Priya said the original deed would be."),
  ("a3_arjun_cage", "ARJUN", ARJUN, "Locked. A wire cage and a padlock. The key has to be somewhere in this building."),
  ("a3_arjun_calendar", "ARJUN", ARJUN, "Three dates circled in red. Independence Day, Republic Day, Gandhi Jayanti. Someone wanted to remember 1947. Backwards, maybe."),
  ("a3_arjun_desk", "ARJUN", ARJUN, "The librarian's desk. A four digit lock on the drawer."),
  ("a3_arjun_key", "ARJUN", ARJUN, "A small brass key. The cage key, I would bet."),
  ("a3_arjun_empty", "ARJUN", ARJUN, "The 1942 folder. It's empty. Just a sign-out sheet."),
- ("a3_arjun_reddy", "ARJUN", ARJUN, "Last accessed two weeks ago, by S. Reddy. Inspector Reddy took the original deed. Is she destroying evidence for Deshpande? Or building a case of her own?"),
+ ("a3_arjun_reddy", "ARJUN", ARJUN, "Inspector Reddy took the original deed. Is she destroying evidence for Deshpande? Or is she building a case of her own? I need to find out."),
  ("a3_vo_temple", "ARJUN (V.O.)", ARJUN, "The Kali Temple. Priya told Vikram that Kali Ma would protect the truth. Maybe she meant it more literally than he thought."),
  ("a3_pandit_1", "PANDIT HARISHANKAR", PANDIT, "You are looking for Priya. I can see it in your eyes. You have the same look she had when she came to me. Desperate, and determined."),
  ("a3_arjun_q", "ARJUN", ARJUN, "She left something with you?"),
@@ -96,7 +98,7 @@ LINES = [
  ("a4b_arjun_laptop", "ARJUN", ARJUN, "Rohan's laptop. Still logged into his Municipal Office email. An intern shouldn't be able to see these."),
  ("a4b_arjun_confront", "ARJUN", ARJUN, "Rohan. These emails. How do you have them?"),
  ("a4b_rohan_1", "ROHAN KAPOOR", ROHAN, "It's my fault. All of it. I found the forged documents. I was filing papers at the office and I saw the acquisition order. The dates didn't match, the signatures were different. The whole thing was fake."),
- ("a4b_arjun_told", "ARJUN", ARJUN, "And you told Priya."),
+ ("a4b_arjun_told", "ARJUN", ARJUN, "And you told Priya?"),
  ("a4b_rohan_2", "ROHAN KAPOOR", ROHAN, "She's my sister. I told her where the Municipal Office keeps the 1965 file. I thought she'd file a complaint. I didn't think she'd walk in and take the original herself. And now they're hunting her, because of me."),
  ("a4b_q_a", "ARJUN", ARJUN, "Can you take me to her?"),
  ("a4b_rohan_a", "ROHAN KAPOOR", ROHAN, "Yes. I've been in contact with her. She's at the old NGO shelter near the river. She made me promise not to tell anyone, but she needs help now. I'll take you."),
@@ -110,7 +112,7 @@ LINES = [
  # ---------------- ACT IV C: INSPECTOR REDDY
  ("a4c_vo", "ARJUN (V.O.)", ARJUN, "Chandnipur Police Station. Half the city's secrets end up here. The other half start here."),
  ("a4c_reddy_1", "INSPECTOR REDDY", REDDY, "Mister Mehra. I was wondering when you'd figure out I was following you. You're better than I expected."),
- ("a4c_arjun_id", "ARJUN", ARJUN, "You've been one step behind me all night. Not very undercover."),
+ ("a4c_arjun_id", "ARJUN", ARJUN, "You dropped your ID in the market. Not very undercover."),
  ("a4c_reddy_2", "INSPECTOR REDDY", REDDY, "Maybe I wanted you to notice. Sit down. We need to talk."),
  ("a4c_reddy_r1", "INSPECTOR REDDY", REDDY, "I don't know any Priya Kapoor. I'm a crime branch officer. Organised crime, not missing persons."),
  ("a4c_reddy_r1ok", "INSPECTOR REDDY", REDDY, "Alright. You've done your homework. Yes, I know the Kapoor case. It's connected to an ongoing investigation. I can't share details."),
@@ -118,7 +120,7 @@ LINES = [
  ("a4c_reddy_r2", "INSPECTOR REDDY", REDDY, "My investigation is classified. You're seeing a fraction of the picture. Stay out of it."),
  ("a4c_reddy_r2ok", "INSPECTOR REDDY", REDDY, "Where did you get that? Never mind. I can see you're not going to stop. Fine. Let me tell you what you don't know."),
  ("a4c_reddy_r3", "INSPECTOR REDDY", REDDY, "You think I took the original deed to destroy it for Deshpande. That's what it looks like, isn't it?"),
- ("a4c_q_a", "ARJUN", ARJUN, "I have something you don't. A letter, in Priya's own hand."),
+ ("a4c_q_a", "ARJUN", ARJUN, "I have evidence you don't."),
  ("a4c_reddy_a", "INSPECTOR REDDY", REDDY, "She's braver than all of us. Alright, Mister Mehra. Cards on the table."),
  ("a4c_q_b", "ARJUN", ARJUN, "Are you protecting Deshpande, or investigating her?"),
  ("a4c_reddy_b", "INSPECTOR REDDY", REDDY, "Investigating her. For six months. I'm undercover. I took the original deed as evidence. It's locked in a secure evidence room right now."),
@@ -135,6 +137,9 @@ LINES = [
  ("a5_priya_2", "PRIYA KAPOOR", PRIYA, "Maa... I called her. I told her I loved her. I thought it might be the last time I could say it."),
  ("a5_priya_3", "PRIYA KAPOOR", PRIYA, "Five hundred families, Arjun. Children, grandparents, people who've lived in Basti Nagar for generations. The courts, the police, the politicians. They're all part of the same machine. I had to do this myself."),
  ("a5_priya_4", "PRIYA KAPOOR", PRIYA, "I have the original 1965 file. The forged one, with their signatures on it. The hearing is in six hours. But if I walk into that courtroom, Deshpande will have me arrested for stealing government property. So tell me, Mister Mehra. You've seen the evidence. What should I do?"),
+ ("a5_arjun_justice", "ARJUN", ARJUN, "Walk into that courtroom yourself. Show them the truth. I'll be right beside you, and I'll make sure the whole city sees what happens."),
+ ("a5_arjun_sacrifice", "ARJUN", ARJUN, "Let me take the evidence in. You stay hidden until it's safe. Your life matters more than any hearing."),
+ ("a5_arjun_revolution", "ARJUN", ARJUN, "We release everything to the press. Every document, every recording, every email. Let the people of Chandnipur decide."),
 
  # ---------------- THE CURATOR'S GALLERY
  ("gal_1", "THE CURATOR", CURATOR, "Ah. There you are. I was beginning to wonder if you'd lost your way in all those narrow lanes, and narrower consciences."),
@@ -297,10 +302,12 @@ public static class DialogueDB
 
 
 def record(only_new):
+    from arjun_recordings import recorded_ids
+    recorded = recorded_ids()
     os.makedirs(OUT, exist_ok=True)
     for lid, _, (voice, rate, pitch, extra), text in LINES:
         out = os.path.join(OUT, lid + ".wav")
-        if only_new and os.path.exists(out):
+        if lid in recorded or (only_new and os.path.exists(out)):
             continue
         with tempfile.TemporaryDirectory() as d:
             aiff = os.path.join(d, "x.aiff")

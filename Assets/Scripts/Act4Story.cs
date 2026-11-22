@@ -12,7 +12,7 @@ using UnityEngine.Rendering.Universal;
 ///   C  Inspector Reddy: a conversation puzzle at a chai stall by the police station - present the right
 ///      evidence in the right order to win her over.
 /// </summary>
-public class Act4Story : ActStoryBase
+public partial class Act4Story : ActStoryBase
 {
     protected override int ActNumber { get { return 4; } }
     protected override string ActTitle { get { return "ACT IV  -  THE WEB"; } }
@@ -21,6 +21,9 @@ public class Act4Story : ActStoryBase
         get { return variant == 0 ? "Café Irani   |   11:05 PM" : variant == 1 ? "The Kapoor house   |   11:10 PM" : "Chandnipur Police Station   |   11:15 PM"; }
     }
     protected override LookPreset Look { get { return variant == 2 ? LookPreset.Market : LookPreset.Apartment; } }
+    // the café (the branch Act III's compass leads to first) keeps the compass; the Kapoor house and the police station
+    // keep their numbered panels unchanged
+    protected override bool UseCompass { get { return variant == 0; } }
 
     int variant;
     readonly List<Transform> fans = new List<Transform>();
@@ -164,26 +167,36 @@ public class Act4Story : ActStoryBase
         // patio of old checkered tiles, cobbled street beyond the low wall
         var floor = B("Cafe_Floor", new Vector3(0, -0.05f, 0), new Vector3(10.6f, 0.1f, 8.6f), Color.white, true, 0.3f);
         GameKit.Surface(floor, "checker", 1.5f, 1f, 1f, Color.white);
-        var street = B("Street", new Vector3(-6.5f, -0.11f, 0), new Vector3(24f, 0.1f, 30f), Color.white, false, 0.3f);
-        GameKit.Surface(street, "cobble", 2.4f, 1f, 1f, new Color(0.9f, 0.88f, 0.85f));
+        // the lane round the terrace's other sides (the kerbed street to the west is built in BuildStreet)
+        var street = B("Street", new Vector3(0f, -0.11f, 0), new Vector3(10.8f, 0.1f, 30f), Color.white, false, 0.3f);
+        GameKit.Surface(street, "cobble", 2.4f, 1f, 1f, new Color(0.62f, 0.6f, 0.58f));
 
         // the café building along the east side: plastered front, door to the kitchen, windows, signboard
         var front = B("CafeFront", new Vector3(5.2f, 2.5f, 0), new Vector3(0.4f, 5f, 11.5f), cream, true, 0.1f);
         GameKit.SurfaceZY(front, "plaster", 2.2f, cream);
         B("Cornice", new Vector3(5.05f, 5.05f, 0), new Vector3(0.7f, 0.18f, 11.7f), new Color(0.8f, 0.75f, 0.64f), false, 0.2f);
         GameKit.Surface(B("FrontPlinth", new Vector3(4.98f, 0.3f, 0), new Vector3(0.1f, 0.6f, 11.5f), new Color(0.55f, 0.2f, 0.16f), false, 0.2f), "plaster", 2f, 1f, 1f, new Color(0.55f, 0.2f, 0.16f));
-        B("SignBoard", new Vector3(4.97f, 3.75f, -1f), new Vector3(0.05f, 0.8f, 5.6f), new Color(0.42f, 0.08f, 0.07f), false, 0.3f);
-        GameKit.Text(transform, "CAFÉ IRANI  -  SINCE 1932", new Vector3(4.93f, 3.75f, -1f), Quaternion.Euler(0, 90f, 0), 0.26f, new Color(0.95f, 0.88f, 0.7f));
+        // the signboard hangs over the counter window, clear of the pergola (slats z -1.95..1.75): once its lettering was
+        // depth-tested (it used to draw through everything) the 5.6 m board running under the pergola's roof lost most of
+        // its letters behind the slats as seen from the entrance
+        B("SignBoard", new Vector3(4.97f, 3.75f, -3.4f), new Vector3(0.05f, 0.8f, 2.9f), new Color(0.42f, 0.08f, 0.07f), false, 0.3f);
+        GameKit.Solid(GameKit.Text(transform, "CAFÉ IRANI", new Vector3(4.94f, 3.87f, -3.4f), Quaternion.Euler(0, 90f, 0), 0.3f, new Color(0.95f, 0.88f, 0.7f)));
+        GameKit.Solid(GameKit.Text(transform, "SINCE 1932", new Vector3(4.94f, 3.53f, -3.4f), Quaternion.Euler(0, 90f, 0), 0.13f, new Color(0.95f, 0.88f, 0.7f)));
         foreach (float wz in new[] { -3.0f, 3.2f })
         {
             GameKit.Surface(B("WindowFrame", new Vector3(4.98f, 1.9f, wz), new Vector3(0.08f, 1.7f, 1.5f), wood, false, 0.4f), "wood", 0.9f, 1f, 1f, wood);
-            Glow("WindowGlass", new Vector3(4.95f, 1.9f, wz), new Vector3(0.04f, 1.5f, 1.3f), new Color(1f, 0.72f, 0.42f), 1.1f);     // lamps still on inside
-            PL(new Vector3(4.2f, 1.9f, wz), new Color(1f, 0.7f, 0.42f), 1.4f, 5f);
+            // lamps still on inside, behind half-drawn curtains: at 1.1 the glass clipped to a white slab
+            Glow("WindowGlass", new Vector3(4.95f, 1.9f, wz), new Vector3(0.04f, 1.5f, 1.3f), new Color(1f, 0.7f, 0.42f), 0.42f);
+            foreach (float cs in new[] { -1f, 1f })
+                B("WindowCurtain", new Vector3(4.92f, 1.95f, wz + cs * 0.42f), new Vector3(0.02f, 1.35f, 0.42f), new Color(0.42f, 0.1f, 0.08f), false, 0.1f);
+            // the lamp inside: by the counter it stays at the glass (at 0.9 m from the old case it burnt it to white)
+            if (wz < 0f) PL(new Vector3(4.78f, 1.9f, wz), new Color(1f, 0.7f, 0.42f), 0.55f, 2.4f);
+            else PL(new Vector3(4.2f, 1.9f, wz), new Color(1f, 0.7f, 0.42f), 1.4f, 5f);
             B("WindowBar", new Vector3(4.93f, 1.9f, wz), new Vector3(0.03f, 1.5f, 0.04f), wood);
             B("WindowSill", new Vector3(4.9f, 1.02f, wz), new Vector3(0.22f, 0.06f, 1.7f), new Color(0.8f, 0.75f, 0.64f));
         }
         GameKit.Surface(B("BackDoor", new Vector3(4.97f, 1.05f, 0.5f), new Vector3(0.05f, 2.1f, 1f), wood), "wood", 0.9f, 1f, 1f, wood);
-        GameKit.Text(transform, "STAFF ONLY", new Vector3(4.93f, 2.3f, 0.5f), Quaternion.Euler(0, 90f, 0), 0.1f, new Color(0.9f, 0.85f, 0.7f));
+        GameKit.Solid(GameKit.Text(transform, "STAFF ONLY", new Vector3(4.94f, 2.3f, 0.5f), Quaternion.Euler(0, 90f, 0), 0.1f, new Color(0.9f, 0.85f, 0.7f)));
 
         // low garden wall round the other three sides, with planters
         foreach (var w in new[] { new Vector4(-5.25f, 0, 0.3f, 8.9f), new Vector4(0, -4.25f, 10.8f, 0.3f), new Vector4(0, 4.25f, 10.8f, 0.3f) })
@@ -219,10 +232,8 @@ public class Act4Story : ActStoryBase
             }
             for (int k = 0; k < 3; k++) PL(new Vector3(-2.8f + k * 3f, 3.0f, bz), new Color(1f, 0.72f, 0.42f), 1.6f, 6f);
         }
-        // the street lamp across the road, sodium orange
-        Cy("LampPost", new Vector3(-7.4f, 2.6f, -2.5f), 0.06f, 5.2f, new Color(0.15f, 0.15f, 0.16f), 0.5f, 0.6f);
-        Glow("LampHead", new Vector3(-7.0f, 5.15f, -2.5f), new Vector3(0.6f, 0.12f, 0.25f), new Color(1f, 0.62f, 0.25f), 3f);
-        PL(new Vector3(-6.8f, 4.6f, -2.5f), new Color(1f, 0.6f, 0.28f), 3.2f, 13f);
+        // the street outside: kerbs, road, the opposite frontage, its lamps, a parked car and a scooter
+        BuildStreet();
 
         // tables and chairs
         Vector3[] tables = { new Vector3(-2.5f, 0, -2f), new Vector3(0.5f, 0, -2f), new Vector3(-2.5f, 0, 1.5f), new Vector3(0.5f, 0, 1.5f), new Vector3(3.2f, 0, 2.6f) };
@@ -247,15 +258,9 @@ public class Act4Story : ActStoryBase
             else B("ChaiGlass", t + new Vector3(0.1f, 0.80f, 0.05f), new Vector3(0.055f, 0.09f, 0.055f), new Color(0.6f, 0.38f, 0.2f), false, 0.85f);
             ti++;
         }
-        // counter with the glass case of Osmania biscuits, kettle and brassware; the owner behind it
-        GameKit.Surface(B("Counter", new Vector3(3.3f, 0.5f, -2.8f), new Vector3(2.6f, 1f, 0.8f), wood, true, 0.4f), "wood", 0.9f, 1f, 1f, wood);
-        B("CounterTop", new Vector3(3.3f, 1.02f, -2.8f), new Vector3(2.7f, 0.04f, 0.9f), new Color(0.85f, 0.83f, 0.78f), false, 0.6f);
-        B("DisplayCase", new Vector3(3.0f, 1.24f, -2.8f), new Vector3(1.5f, 0.4f, 0.6f), new Color(0.75f, 0.85f, 0.88f), false, 0.95f, 0.1f);
-        for (int i = 0; i < 12; i++) Cy("Biscuit", new Vector3(2.45f + (i % 6) * 0.2f, 1.07f + (i / 6) * 0.03f, -2.62f - (i / 6) * 0.2f), 0.06f, 0.02f, new Color(0.85f, 0.65f, 0.35f));
-        PropKit.Place(transform, "vintage_electric_kettle", new Vector3(4.2f, 1.04f, -2.75f), 200f);
-        PropKit.Place(transform, "brass_goblets", new Vector3(4.15f, 1.04f, -3.05f), 20f, 0.6f);
-        PropKit.Place(transform, "metal_jug", new Vector3(3.95f, 1.04f, -2.55f), 90f);
-        owner = Npc(new Vector3(3.3f, 0f, -3.6f), 0f, Cast.Owner(), "Owner", false);
+        // the counter: panelled teak, a marble top, the glass biscuit case, kettle, jug and cups; the owner behind it
+        BuildCounter();
+        owner = Npc(new Vector3(3.95f, 0f, -3.42f), 0f, Cast.Owner(), "Owner", false);
         // ceiling fans hang from the pergola
         foreach (var t in new[] { new Vector3(-1f, 0, -0.3f), new Vector3(2.5f, 0, -0.3f) })
         {
@@ -376,6 +381,7 @@ public class Act4Story : ActStoryBase
     IEnumerator CafeRun()
     {
         AddSpot(rajSpot, Vector3.up * 1.5f, "Sit down with Raj Malhotra", () => phase == Phase.Free && stageA == 0, () => StartCoroutine(RajTalk()));
+        StartCoroutine(OwnerWork());
         yield return OpenAct();
         Teleport(new Vector3(-3.6f, 0.1f, -3.4f), 40f);
         yield return Narrate("a4a_vo");
@@ -499,7 +505,8 @@ public class Act4Story : ActStoryBase
         {
             var show = new string[3]; var dis = new bool[3];
             for (int i = 0; i < 3; i++) { show[i] = q[i] + (asked[i] ? "   (asked)" : ""); dis[i] = asked[i]; }
-            yield return Choose(show, dis);
+            // on the compass the asked questions carry a tick instead of "(asked)"
+            yield return Choose(new[] { "Trust him?", "Priya", "His price" }, UseCompass ? (string[])q.Clone() : show, dis, (bool[])asked.Clone());
             int c = menuResult; asked[c] = true;
             yield return Talk(c == 0 ? "a4a_q_a" : c == 1 ? "a4a_q_b" : "a4a_q_c");
             yield return Talk(c == 0 ? "a4a_raj_a" : c == 1 ? "a4a_raj_b" : "a4a_raj_c", raj);

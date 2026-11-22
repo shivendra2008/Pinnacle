@@ -3,7 +3,8 @@
 Run:  python3 Tools/make_voices.py   (from the project root)
 Edit the LINES table to change dialogue, then update the matching subtitle text in
 Assets/Scripts/PriyaRoomStory.cs. Swap any .wav in Assets/Resources/VO for a real
-recording with the same file name and the game will use it automatically."""
+recording with the same file name and the game will use it automatically. Arjun's recorded lines
+(Tools/arjun_recordings.py) are skipped here, even with --all."""
 import os, subprocess, tempfile
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "Assets", "Resources", "VO")
@@ -32,6 +33,9 @@ LINES = {
  "arjun_clue_8_Diary": (ARJUN, "She found something in the land records. Something big enough to tear pages out of her own diary to protect."),
  "arjun_clue_9_BrokenWindowLatch": (ARJUN, "Someone broke in. Recently. The rust on the broken metal is fresh. This wasn't Priya. She would have used the door."),
  "kamala_ask": (KAMALA, "Have you found anything?"),
+ "q_k_a": (ARJUN, "Did she mention anyone threatening her?"),
+ "q_k_b": (ARJUN, "Was she working on anything dangerous?"),
+ "q_k_c": (ARJUN, "Did the police search this place?"),
  "kamala_a": (KAMALA, "Not directly. But two weeks ago, she stopped coming home for dinner. I could hear her on the phone, arguing with someone. She used words like forgery, and original documents. I didn't understand, but I understood her voice. She was scared."),
  "kamala_b": (KAMALA, "Priya's work is always dangerous, Mr. Mehra. She fights for people who have no one else. She told me, Maa, if I can prove the land belongs to them, no one can touch them. She was so hopeful. And then, suddenly, she wasn't."),
  "kamala_c": (KAMALA, "An inspector came. A woman. She looked around for ten minutes, asked me a few questions, and left. She said Priya probably went to visit a friend. But Priya's phone is here. Her wallet is here. What kind of person leaves without their phone?"),
@@ -102,9 +106,12 @@ LINES.update({
 os.makedirs(OUT, exist_ok=True)
 import sys
 only_new = "--all" not in sys.argv   # skip files that already exist unless --all is passed
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from arjun_recordings import recorded_ids
+recorded = recorded_ids()               # the voice actor's lines: never replaced by `say`
 for name, (cfg, text) in LINES.items():
     out = os.path.join(OUT, name + ".wav")
-    if only_new and os.path.exists(out):
+    if name in recorded or (only_new and os.path.exists(out)):
         continue
     voice, rate = cfg[0], cfg[1]
     pitch = cfg[2] if len(cfg) > 2 else 1.0

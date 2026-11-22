@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Text;
 using Unity.Collections;
@@ -28,7 +29,20 @@ using UnityEngine.Rendering.Universal;
 ///   act1intro A new game: the prologue skipped, Act I's opening timed, its voices checked over free movement.
 ///   signs    Stills at eye height of the stall boards (front, side, behind, the strap) and of shop signs on both sides.
 ///   act1     Act I resumed in Priya's room: slow pans past the window latch and through the door to the stairwell
-///            window, stop, back away (light and glazing stability).
+///            window, stop, back away (light and glazing stability); then a sidestep along the sill at eye height, the
+///            stairwell window from the far end of the landing, and pans past every flat's nameplate from Priya's room
+///            and from the landing (labels must stay on their walls and hide behind them).
+///   act1door Act I with every clue found: the steps on the landing, the door that swings shut, a pause and resume in the
+///            middle, opening it, the folded note, a skipped line of the finale (door sounds, double triggers, cuts).
+///   kamala   Act I resumed with two clues found: walk to a third and examine it, wait for Mrs. Kapoor, then her
+///            question, the compass, the needle swung with a virtual mouse, a click, Arjun asking, her answer.
+///   act3     Act III from a saved game at the temple: the Pandit's question on the compass (PINNACLE_ROUTE_PANDIT=0|1|2),
+///            the letter, the gate, the call, the crossroads (PINNACLE_ROUTE_BRANCH=0|1|2), the Curator's visit skipped,
+///            and Act IV loading the chosen place; with branch 0 it walks on into the café (as the cafe route).
+///   act3full Act III fresh from chapter select: the guard, the computer password, the basement, the cage, the calendar,
+///            the librarian's drawer code, the key, the cage, the temple, the Pandit and the crossroads.
+///   cafe     Act IV at Café Irani from chapter select: cold entry, the walk from the entrance to the counter, the
+///            biscuit case from the side, the owner at work, the street from the terrace and the counter, timed.
 /// Options: PINNACLE_ROUTE_TRUST=note|appeal|threat (Vikram's first challenge), PINNACLE_ROUTE_OUTCOME=hide|walk|plate|
 ///   timeout (the SUV), PINNACLE_ROUTE_RESUME=1 (enter Act II from a saved game: Bhaskar and Vikram already done),
 ///   PINNACLE_ROUTE_CURATOR=1 (carry on into the Curator's post-market visit and stop at its callback to Act III;
@@ -36,7 +50,8 @@ using UnityEngine.Rendering.Universal;
 ///   PINNACLE_ROUTE_CAPTURE=1 or a list of segments: approach,suv,curator for the market, act1 for Act I (footage: fixed
 ///   30 fps while a segment records (approach, suv, curator; act1; prologue), every frame with its UI as JPEG, the mix rendered offline to WAV, one folder per
 ///   segment; the stretches between run in real time; Tools/route_video.py makes the MP4), PINNACLE_ROUTE_SHOTS=1 (a few PNG stills; not for timing runs),
-///   PINNACLE_ROUTE_INPUTTESTS=1 (Bhaskar's gated questions with keys and a virtual gamepad, a held key, pausing in the
+///   PINNACLE_ROUTE_POINTER=mouse (answer the dials by swinging the needle with a virtual mouse and clicking, instead of
+///   the number keys), PINNACLE_ROUTE_INPUTTESTS=1 (Bhaskar's gated questions with keys and a virtual gamepad, a held key, pausing in the
 ///   SUV choice), PINNACLE_ROUTE_CENSUS=1 (census.txt: triangles and shadow casters per mesh once the market is built),
 ///   PINNACLE_ROUTE_EXP=a,b,... (A/B switches applied once the market is built: cascades=N, shadowdist=M, shadowres=N,
 ///   msaa=N, smaa=0, renderscale=X, softshadows=0, noshadows, propshadows=0, hideprops, hidecrowd).
@@ -51,8 +66,10 @@ public class PlayRoute : MonoBehaviour
     const BindingFlags Any = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
 
     string route, outDir, trustPick, outcome;
-    bool resumeRun, curatorAfter, capture, shots, census, inputTests;
+    bool resumeRun, curatorAfter, capture, shots, census, inputTests, mousePointer;
     Gamepad pad;
+    Mouse vm;                              // a virtual mouse that swings the compass needle (PINNACLE_ROUTE_POINTER=mouse)
+    Vector2 mouseDelta; bool mouseClick, mouseDirty;
     string experiments;
     readonly HashSet<string> segments = new HashSet<string>();      // footage segments to record (PINNACLE_ROUTE_CAPTURE)
 
@@ -118,6 +135,7 @@ public class PlayRoute : MonoBehaviour
         shots = Env("PINNACLE_ROUTE_SHOTS", "") == "1";
         census = Env("PINNACLE_ROUTE_CENSUS", "") == "1";
         inputTests = Env("PINNACLE_ROUTE_INPUTTESTS", "") == "1";
+        mousePointer = Env("PINNACLE_ROUTE_POINTER", "") == "mouse" || route == "kamala" || route == "act3" || route == "act3full";
         experiments = Env("PINNACLE_ROUTE_EXP", "");
         UnityEngine.Random.InitState(20261121);       // the crowd's and the traffic's dice roll the same way every run
 
@@ -125,6 +143,7 @@ public class PlayRoute : MonoBehaviour
         InputSystem.settings.backgroundBehavior = InputSettings.BackgroundBehavior.IgnoreFocus;
         vk = InputSystem.AddDevice<Keyboard>("RouteKeyboard");
         vk.MakeCurrent();
+        if (mousePointer) { vm = InputSystem.AddDevice<Mouse>("RouteMouse"); vm.MakeCurrent(); }
 
         foreach (var n in CounterNames)
         {
@@ -177,6 +196,9 @@ public class PlayRoute : MonoBehaviour
         return null;
     }
     static object Get(object o, string n) { if (o == null) return null; var f = FieldOf(o.GetType(), n); return f != null ? f.GetValue(o) : null; }
+    static object Prop(object o, string n) { if (o == null) return null; var p = o.GetType().GetProperty(n, Any); return p != null ? p.GetValue(o) : null; }
+    static int MouthModeOf(CharacterNPC c) { return Prop(c, "MouthMode") is int i ? i : -1; }
+    static float MouthDegOf(CharacterNPC c) { return Prop(c, "MouthDegrees") is float f ? f : 0f; }
     static bool Has(object o, string n) { return o != null && FieldOf(o.GetType(), n) != null; }
     static bool GetBool(object o, string n) { var v = Get(o, n); return v is bool b && b; }
     static object Call(object o, string n, params object[] a)
@@ -205,6 +227,19 @@ public class PlayRoute : MonoBehaviour
 
     void Update()
     {
+        // the virtual mouse: one delta (and click) per update, then back to rest
+        if (vm != null)
+        {
+            if (Mouse.current != vm) vm.MakeCurrent();
+            if (mouseDirty || mouseDelta != Vector2.zero || mouseClick)
+            {
+                var ms = new MouseState { delta = mouseDelta };
+                if (mouseClick) ms = ms.WithButton(MouseButton.Left);
+                InputSystem.QueueStateEvent(vm, ms);
+                mouseDirty = mouseDelta != Vector2.zero || mouseClick;
+                mouseDelta = Vector2.zero; mouseClick = false;
+            }
+        }
         // keyboard state for the next input update: held keys, plus a tapped key for exactly one update
         if (vk == null) return;
         if (Keyboard.current != vk) vk.MakeCurrent();
@@ -321,6 +356,34 @@ public class PlayRoute : MonoBehaviour
         if (t >= timeout) Note("walk to " + goal.ToString("F1") + " timed out at " + player.transform.position.ToString("F1"));
     }
 
+    /// <summary>WalkTo for any act: it walks whenever the player is free to move (WalkTo waits on the market's phase).</summary>
+    IEnumerator WalkFree(Vector3 goal, float stopDist, float timeout)
+    {
+        SyncLook();
+        float t = 0, checkAt = 1.2f, dodge = 0f; int dodges = 0;
+        Vector3 last = player.transform.position;
+        while (t < timeout)
+        {
+            if (PriyaRoomPlayer.Locked || GameState.Paused) { ReleaseAll(); yield return null; t += Time.deltaTime; continue; }
+            Vector3 d = goal - player.transform.position; d.y = 0;
+            if (d.magnitude < stopDist) break;
+            float want = Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg;
+            Steer(want, 3f, 140f, 40f);
+            float off = Mathf.Abs(Mathf.DeltaAngle(yaw, want));
+            Hold(Key.W, off < 55f);
+            if (dodge > 0f) { dodge -= Time.deltaTime; Hold(dodges % 2 == 0 ? Key.D : Key.A, dodge > 0f); }
+            if (t > checkAt)
+            {
+                if ((player.transform.position - last).magnitude < 0.3f && off < 55f) { dodge = 0.8f; dodges++; }
+                last = player.transform.position; checkAt = t + 1.2f;
+            }
+            t += Time.deltaTime;
+            yield return null;
+        }
+        ReleaseAll();
+        if (t >= timeout) Note("walk to " + goal.ToString("F1") + " timed out at " + player.transform.position.ToString("F1"));
+    }
+
     IEnumerator WaitFor(Func<bool> cond, float timeout, string what)
     {
         double t0 = Now;
@@ -345,6 +408,11 @@ public class PlayRoute : MonoBehaviour
         SaveSystem.Profile.playerName = "Route";
         if (segments.Contains("route")) StartCapture("route");
         if (route == "act1") yield return ActOne();
+        else if (route == "act1door") yield return ActOneDoor();
+        else if (route == "kamala") yield return Kamala();
+        else if (route == "act3") yield return ActThree(false);
+        else if (route == "act3full") yield return ActThree(true);
+        else if (route == "cafe") yield return Cafe(true);
         else if (route == "act1intro") yield return ActOneIntro();
         else if (route == "signs") yield return Signs();
         else yield return Market(route == "walk");
@@ -443,10 +511,12 @@ public class PlayRoute : MonoBehaviour
         // --------------------------------------------------------- look back through the crowd
         section = "lookback";
         Stamp("lookback");
+        Segment("lookback", true);                       // footage of the turn, to look for anything that flickers or pops
         yield return TurnBy(180f, 120f);
         if (shots) Shot("05_lookback");
         for (float t = 0; t < 2.5f; t += Time.deltaTime) yield return null;
         yield return TurnBy(-120f, 120f);
+        Segment("lookback", false);
 
         // --------------------------------------------------------- the watching woman
         section = "reddy";
@@ -630,8 +700,15 @@ public class PlayRoute : MonoBehaviour
         var vikram = Npc<CharacterNPC>("vikram");
         var voice = Get(market, "voice") as AudioSource;
         bool wasTalking = false; double lastSpeechEnd = -1;
+        bool fastWatched = false;
         while (Phase() == "Dialogue" && Now - t0 < 240f)
         {
+            if (!fastWatched && vikram != null && vikram.IsTalking && Get(vikram, "voice") is AudioSource vs && vs.clip != null && vs.clip.name == "v_t2_intro")
+            {
+                fastWatched = true;
+                yield return MouthWatch(vikram, "lip-sync, Vikram's long fast line (v_t2_intro)", () => !vikram.IsTalking, 30f);
+                Check(lastMouth.x > 200 && lastMouth.z >= 5, "lip-sync: a fast 19 s line keeps the visemes going with lip closures (" + lastMouth.z + ")");
+            }
             bool talking = (vikram != null && vikram.IsTalking) || (voice != null && voice.isPlaying);
             if (wasTalking && !talking) lastSpeechEnd = Now;
             wasTalking = talking;
@@ -651,12 +728,21 @@ public class PlayRoute : MonoBehaviour
                 if (shots && menus == 1) Shot("04_choice");
                 Key k = Key.Digit4;
                 if (menus == 1) k = trustPick == "appeal" ? Key.Digit2 : trustPick == "threat" ? Key.Digit3 : Key.Digit1;
-                Tap(k);
+                if (menus == 1 && mousePointer && CompassOf(market) != null)
+                    yield return Dial(market, k == Key.Digit2 ? 1 : k == Key.Digit3 ? 2 : 0, "Vikram's first challenge", vikram);
+                else Tap(k);
                 yield return null; yield return null; yield return null;
                 if (menus == 1)
                 {
+                    // his answer is the voice actor's recording, with the word timing its subtitles follow
+                    string want = trustPick == "appeal" ? "q_v_1b" : trustPick == "threat" ? "q_v_1c" : "q_v_1a";
+                    for (int i = 0; i < 240 && !(voice != null && voice.isPlaying && voice.clip != null && voice.clip.name == want); i++) yield return null;
+                    var vt = voice != null && voice.clip != null ? VoTiming.Get(voice.clip.name) : null;
+                    Check(voice != null && voice.clip != null && voice.clip.name == want && vt != null && vt.times[vt.times.Length - 1] <= voice.clip.length + 0.05f,
+                          "Arjun's answer plays his recording (" + want + ", " + (voice != null && voice.clip != null ? voice.clip.length.ToString("F2") : "-") + " s)");
                     string tr = Get(market, "trust") as string;
-                    for (int i = 0; i < 600 && (tr == "COLD"); i++) { yield return null; tr = Get(market, "trust") as string; }
+                    double tw0 = Now;          // his line, the reaction beat and Vikram's reply come first (up to ~15 s)
+                    while (tr == "COLD" && Now - tw0 < 25.0) { yield return null; tr = Get(market, "trust") as string; }
                     Note("trust after the first answer (" + trustPick + "): " + tr);
                     for (float t = 0; t < 1.5f; t += Time.deltaTime) yield return null;
                     Segment("approach", false);
@@ -900,15 +986,146 @@ public class PlayRoute : MonoBehaviour
         StartSampling();
         Segment("act1", true);
         var latch = FindDeep(builder.Root, "CLUE_9_BrokenWindowLatch");
-        var stair = FindDeep(builder.Root, "StairWindowGlow");
+        // the stairwell window: a real opening with a pane now, a self-lit board before
+        var stair = FindDeep(builder.Root, "StairWindowPane") ?? FindDeep(builder.Root, "StairWindowGlow");
         Note("latch " + (latch != null ? latch.position.ToString("F2") : "not found") + ", stair window " + (stair != null ? stair.position.ToString("F2") : "not found"));
         // the broken latch, from 1.9 m inside Priya's room
         if (latch != null) { Place(new Vector3(0.7f, 0.1f, 0.7f), 0f, 0f); yield return Pan(latch, "latch"); }
         // the stairwell window at the end of the landing, from just outside Priya's door
         if (stair != null) { Place(new Vector3(-2.0f, 0.1f, -3.7f), -90f, 0f); yield return Pan(stair, "stair"); }
         Segment("act1", false);
+        // at Arjun's eye height, a sidestep along the sill looking out (the neighbour's wall must slide against the skyline)
+        Segment("window", true);
+        section = "sill";
+        Place(new Vector3(0.45f, 0.1f, 1.55f), 0f, 2f);
+        for (int i = 0; i < 25; i++) yield return null;
+        if (shots) yield return StillShot("act1_sill_left");
+        Hold(Key.D, true);
+        for (float t = 0; t < 0.85f; t += Time.deltaTime) { player.SetLook(0f, 2f); yield return null; }
+        Hold(Key.D, false);
+        for (float t = 0; t < 0.8f; t += Time.deltaTime) { player.SetLook(0f, 2f); yield return null; }
+        if (shots) yield return StillShot("act1_sill_right");
+        // the latch up close, as evidence
+        if (latch != null) { Place(new Vector3(1.55f, 0.1f, 1.7f), 0f, 0f); AngleTo(latch.position, out float ly, out float lx); yaw = ly; pitch = lx; player.SetLook(yaw, pitch); for (int i = 0; i < 25; i++) yield return null; if (shots) yield return StillShot("act1_latch_close"); }
+        // from the far end of the landing, turning back to the stairwell window and the door
+        section = "landing_far";
+        Place(new Vector3(5.2f, 0.1f, -4.6f), 90f, 0f);
+        for (int i = 0; i < 20; i++) yield return null;
+        for (float t = 0; t < 180f / 45f; t += Time.deltaTime) { yaw -= 45f * Time.deltaTime; player.SetLook(yaw, 0f); yield return null; }
+        for (float t = 0; t < 1.5f; t += Time.deltaTime) yield return null;
+        if (shots) yield return StillShot("act1_landing_far");
+        Segment("window", false);
+        // the nameplates: from inside Priya's room (the Kapoor plate is on the other side of the wall and must not show),
+        // then walking the landing past all four flats
+        Segment("labels", true);
+        section = "labels_room";
+        Place(new Vector3(-0.6f, 0.1f, -0.4f), 150f, 0f);
+        for (int i = 0; i < 20; i++) yield return null;
+        for (float t = 0; t < 70f / 20f; t += Time.deltaTime) { yaw += 20f * Time.deltaTime; player.SetLook(yaw, 4f); yield return null; }
+        if (shots) yield return StillShot("act1_labels_from_room");
+        section = "labels_landing";
+        Place(new Vector3(-3.4f, 0.1f, -4.4f), 60f, 0f);
+        for (int i = 0; i < 20; i++) yield return null;
+        // walk east along the landing, looking at the front-wall plates (301 Kapoor, 302 Verma), then turn to the back wall (303 Joshi, 304 Iyer)
+        Hold(Key.D, true);
+        for (float t = 0; t < 3.2f; t += Time.deltaTime) { player.SetLook(Mathf.Lerp(60f, 0f, t / 3.2f), 4f); yield return null; }
+        Hold(Key.D, false);
+        if (shots) yield return StillShot("act1_labels_landing_front");
+        for (float t = 0; t < 180f / 40f; t += Time.deltaTime) { yaw = Mathf.Lerp(0f, 180f, t / (180f / 40f)); player.SetLook(yaw, 4f); yield return null; }
+        Hold(Key.A, true);
+        for (float t = 0; t < 3.0f; t += Time.deltaTime) { player.SetLook(180f, 4f); yield return null; }
+        Hold(Key.A, false);
+        if (shots) yield return StillShot("act1_labels_landing_back");
+        // and back through Priya's door, looking at her plate as he passes it
+        Place(new Vector3(-1.1f, 0.1f, -4.0f), 20f, 0f);
+        for (float t = 0; t < 2.5f; t += Time.deltaTime) { player.SetLook(Mathf.Lerp(20f, -10f, t / 2.5f), 3f); yield return null; }
+        Segment("labels", false);
+        // a census of the labels: each plate and its lettering sit on their wall, the lettering uses the depth-tested material
+        foreach (var tm in builder.Root.GetComponentsInChildren<TextMesh>(true))
+        {
+            if (!(tm.text == "KAPOOR" || tm.text == "VERMA" || tm.text == "JOSHI" || tm.text == "IYER" || (tm.text.Length == 3 && tm.text.StartsWith("30") && tm.transform.position.y > 1.4f))) continue;
+            var mr = tm.GetComponent<MeshRenderer>();
+            string sh = mr != null && mr.sharedMaterial != null ? mr.sharedMaterial.shader.name : "-";
+            Check(sh == "Pinnacle/WorldText", "label " + tm.text + " is depth-tested (" + sh + ")");
+        }
         sampling = false;
         WriteTiming();
+    }
+
+    /// <summary>
+    /// Act I's ending: every clue found, so the steps come up the landing, the door swings shut, the light under it, a pause
+    /// and resume in the middle of the steps, the door opened by hand, the folded note, one line of the finale skipped.
+    /// Reads the door's sound log (newer builds) to check what played, where, and that nothing played twice.
+    /// </summary>
+    IEnumerator ActOneDoor()
+    {
+        SaveSystem.ResetAct(1);
+        foreach (var id in new[] { "1_Laptop", "2_StickyNote", "3_NewspaperClippings", "4_HalfPackedSuitcase", "5_TwoChaiCups", "6_TornPhotograph", "7_BurnerPhone", "8_Diary", "9_BrokenWindowLatch" })
+            SaveSystem.AddClue(id);
+        SaveSystem.Data.dlgDone = true;
+        SaveSystem.Save();
+        tRequest = Now;
+        Call(story, "OnMenuPlay", 1, true);
+        yield return WaitFor(() => (Get(story, "phase") ?? "").ToString() == "Explore", 20f, "Act I resumes with every clue found");
+        PlaceAt(builder.Root.TransformPoint(new Vector3(-1.2f, 0.1f, -0.6f)), 200f, 2f);
+        Segment("door", true);
+        section = "hook";
+        yield return WaitFor(() => (Get(story, "phase") ?? "").ToString() == "Hook", 20f, "the hook begins once every clue is in");
+        var hinge = builder.DoorHinge;
+        // pause in the middle of the steps, then resume
+        for (float t = 0; t < 4.6f; t += Time.deltaTime) yield return null;
+        float before = hinge.localEulerAngles.y;
+        Tap(Key.Escape);
+        for (int i = 0; i < 4; i++) yield return null;
+        Check(GameState.Paused, "Escape pauses during the steps");
+        double p0 = Time.realtimeSinceStartupAsDouble;
+        while (Time.realtimeSinceStartupAsDouble - p0 < 2.0) yield return null;
+        Check(Mathf.Abs(Mathf.DeltaAngle(before, hinge.localEulerAngles.y)) < 0.5f, "the door does not move while paused");
+        Tap(Key.Escape);
+        for (int i = 0; i < 4; i++) yield return null;
+        Check(!GameState.Paused, "Escape resumes");
+        yield return WaitFor(() => (Get(story, "phase") ?? "").ToString() == "DoorReady", 40f, "someone stands outside: the door can be opened");
+        float shut = hinge.localEulerAngles.y; if (shut > 180f) shut -= 360f;
+        Check(Mathf.Abs(shut) < 1f, "the door has swung shut (" + shut.ToString("F1") + " deg)");
+        section = "open";
+        var doorCentre = builder.Root.TransformPoint(new Vector3(-2f, 1.1f, -2.5f));
+        yield return WalkFree(builder.Root.TransformPoint(new Vector3(-1.9f, 0.1f, -1.35f)), 0.3f, 8f);
+        yield return LookAtPoint(doorCentre, 70f);
+        yield return WaitFor(() => ((string)Get(story, "prompt") ?? "").Contains("Open the door"), 4f, "the open-door prompt appears");
+        Tap(Key.E);
+        yield return null;
+        Tap(Key.E);                                                          // a second press straight after must not open it twice
+        yield return WaitFor(() => (Get(story, "phase") ?? "").ToString() == "NoteReady", 3f, "E opens the door");
+        for (float t = 0; t < 1.8f; t += Time.deltaTime) yield return null;
+        float open = hinge.localEulerAngles.y; if (open > 180f) open -= 360f;
+        Check(Mathf.Abs(open + 100f) < 1f, "the door swings open to its stop (" + open.ToString("F1") + " deg)");
+        section = "note";
+        var note = builder.HookNote != null ? builder.HookNote.transform.position : doorCentre;
+        yield return WalkFree(new Vector3(note.x, player.transform.position.y, note.z) + (player.transform.position - note).normalized * 1.1f, 0.3f, 8f);
+        yield return LookAtPoint(note, 60f);
+        yield return WaitFor(() => ((string)Get(story, "prompt") ?? "").Contains("note"), 4f, "the note prompt appears");
+        Tap(Key.E);
+        yield return WaitFor(() => (Get(story, "phase") ?? "").ToString() == "Ending", 3f, "E picks up the note");
+        section = "finale";
+        for (float t = 0; t < 1.2f; t += Time.deltaTime) yield return null;
+        Tap(Key.Space);                                                      // skip the first line of the finale
+        for (float t = 0; t < 5f; t += Time.deltaTime) yield return null;
+        Segment("door", false);
+        var logList = Get(story, "doorLog") as System.Collections.IList;
+        if (logList != null)
+        {
+            var counts = new Dictionary<string, int>();
+            foreach (var e in logList)
+            {
+                string k = e.ToString(); Note("door sound: " + k);
+                string kind = k.Split(' ')[1];
+                counts[kind] = counts.TryGetValue(kind, out int c) ? c + 1 : 1;
+            }
+            int Count(string k) => counts.TryGetValue(k, out int c) ? c : 0;
+            Check(Count("latch") == 2 && Count("hinge_start") == 2 && Count("hinge_stop") == 2 && Count("frame") == 1,
+                  "door sounds: two latch sounds (catching on the swing shut, released by hand), the hinge only while it turns (twice), one frame contact (the shut); counts " + string.Join(", ", counts));
+        }
+        else Note("no door sound log in this build");
     }
 
     /// <summary>A new game: the prologue is skipped, then Act I's opening is timed and its voices checked.</summary>
@@ -932,10 +1149,593 @@ public class PlayRoute : MonoBehaviour
         var voice = Get(story, "voice") as AudioSource;
         for (float t = 0; t < 2.5f; t += Time.deltaTime) yield return null;
         Check(voice != null && voice.isPlaying, "Arjun's narration is audible while the player looks around");
+        // the opening is the voice actor's recording, its subtitle phrases timed on his words (VoTiming)
+        yield return WaitFor(() => voice != null && voice.isPlaying && voice.clip != null && voice.clip.name == "arjun_intro2", 15f, "the second opening line plays");
+        for (int i = 0; i < 3; i++) yield return null;
+        var ends = Get(Get(story, "narration"), "phraseEnds") as List<float>;
+        var timing = VoTiming.Get("arjun_intro2");
+        float len = voice != null && voice.clip != null ? voice.clip.length : 0f;
+        bool timed = timing != null && ends != null && ends.Count > 1 && Array.Exists(timing.times, x => Mathf.Abs(x - ends[0] * len) < 0.02f);
+        Check(timed, "the opening plays Arjun's recording, its subtitle changing phrase on his words (first phrase ends at "
+              + (ends != null && ends.Count > 0 ? (ends[0] * len).ToString("F2") : "-") + " s of " + len.ToString("F2") + " s)");
         Tap(Key.Enter);
         for (int i = 0; i < 6; i++) yield return null;
         Check(!GetBool(story, "openingVoices") && (voice == null || !voice.isPlaying) && Get(story, "sub") == null, "Enter stops the opening voices and their subtitle at once");
         Segment("prologue", false);
+
+        // Mrs. Kapoor's questions: Arjun asks the chosen one aloud, in his recorded voice, and then she answers
+        var kamala = Get(story, "kamala") as CharacterNPC;
+        story.StartCoroutine((IEnumerator)Call(story, "KamalaDialogue"));
+        yield return WaitFor(() => Get(story, "dlgOptions") != null, 40f, "Mrs. Kapoor's questions open");
+        for (float t = 0; t < 0.5f; t += Time.deltaTime) yield return null;
+        Tap(Key.Digit1);
+        yield return WaitFor(() => (Get(story, "dlgSpeaker") as string) == "ARJUN", 3f, "choosing a question makes Arjun ask it");
+        double asked = Now;
+        Check(voice != null && voice.isPlaying && voice.clip != null && voice.clip.name == "q_k_a" && (Get(story, "dlgText") as string) == "Did she mention anyone threatening her?",
+              "he asks it in his recorded voice, the question as the subtitle (" + (voice != null && voice.clip != null ? voice.clip.name + ", " + voice.clip.length.ToString("F2") + " s" : "no clip") + ")");
+        yield return WaitFor(() => (Get(story, "dlgSpeaker") as string) == "KAMALA KAPOOR" && kamala != null && kamala.IsTalking, 8f, "Mrs. Kapoor answers after him");
+        Note("Mrs. Kapoor's answer began " + (Now - asked).ToString("F2") + " s after Arjun began asking");
+        for (float t = 0; t < 1.5f; t += Time.deltaTime) yield return null;
+        Tap(Key.Space);
+        yield return WaitFor(() => Get(story, "dlgOptions") != null, 8f, "the questions come back after her answer");
+        for (float t = 0; t < 0.5f; t += Time.deltaTime) yield return null;
+        Tap(Key.Digit4);
+        yield return WaitFor(() => GetBool(story, "dlgDone"), 12f, "\"That's all for now\" ends the conversation");
+    }
+
+    // ================================================================== the compass, by hand
+    // read by reflection, so the same route runs on builds made before the compass changed
+    static object CompassOf(object story) { return Get(story, "compass"); }
+    static bool DialOpen(object c) { return c != null && Get(c, "labels") != null; }
+    static int DialFocus(object c) { return DialOpen(c) && Get(c, "selected") is int i ? i : -1; }
+    static float DialNeedle(object c) { return Get(c, "needle") is float f ? f : float.NaN; }
+    static int DialCommitted(object c) { return Get(c, "committed") is int i ? i : -1; }
+
+    static Transform HeadOf(CharacterNPC n) { return n == null ? null : (n.HeadForFace != null ? n.HeadForFace : n.transform); }
+
+    /// <summary>Where a witness's eyes sit in the frame (viewport, y up) and whether they are above the dial's top.</summary>
+    string FaceCheck(CharacterNPC witness, out bool inFrame, out bool aboveDial)
+    {
+        inFrame = aboveDial = false;
+        var h = HeadOf(witness);
+        if (h == null) return "no witness";
+        var cam = player.cam.GetComponent<Camera>();
+        Vector3 eyes = h.position + Vector3.up * 0.06f;
+        var vp = cam.WorldToViewportPoint(eyes);
+        inFrame = vp.z > 0f && vp.x > 0.08f && vp.x < 0.92f && vp.y > 0.1f && vp.y < 0.92f;
+        // the compass cluster's top edge (StoryCompass: centre 0.705 of the height, minus the up label) is at 0.605 from
+        // the top, i.e. viewport y 0.395; the eyes must sit clearly above it
+        aboveDial = vp.y > 0.395f + 0.04f;
+        return "eyes at viewport " + vp.ToString("F2");
+    }
+
+    /// <summary>
+    /// Answers an open compass the way a player would with a mouse or trackpad: with the needle still at rest, swings it to
+    /// each other bearing (it must follow and pick that bearing), then to the wanted one, dwells so the full line reads,
+    /// and clicks. Without a compass (an older build) it presses the number.
+    /// </summary>
+    IEnumerator Dial(object story, int want, string what, CharacterNPC witness, bool stateTests = false)
+    {
+        object c = CompassOf(story);
+        double w0 = Now;
+        // the decision opens when its question has been spoken: wait for its options (every build has them) or the dial
+        while (!(Get(story, "dlgOptions") is string[]) && !(c != null && DialOpen(c)) && Now - w0 < 90f) yield return null;
+        while (c != null && !DialOpen(c) && Now - w0 < 92f) yield return null;
+        if (c == null || !DialOpen(c))
+        {
+            Note(what + ": no compass in this build, answered with the number key");
+            for (float t = 0; t < 0.8f; t += Time.deltaTime) yield return null;
+            Tap(want == 0 ? Key.Digit1 : want == 1 ? Key.Digit2 : want == 2 ? Key.Digit3 : Key.Digit4);
+            yield break;
+        }
+        Stamp(what.Replace(' ', '_') + "_open");
+        for (int i = 0; i < 6; i++) yield return null;
+        var labels = Get(c, "labels") as string[];
+        var replies = Get(c, "replies") as string[];
+        float rest = DialNeedle(c);
+        Check(DialFocus(c) < 0 && !float.IsNaN(rest) && Mathf.Abs(Mathf.DeltaAngle(rest, 225f)) < 12f,
+              what + ": the dial opens with its needle at rest on the empty lower-left diagonal and no answer picked (needle " + rest.ToString("F0") + " deg)");
+        if (witness != null)
+        {
+            string where = FaceCheck(witness, out bool inFrame, out bool above);
+            Check(inFrame && above, what + ": the witness's face stays in frame above the dial (" + where + ")");
+        }
+        Note(what + ": bearings " + (labels != null ? string.Join(" | ", labels) : "?"));
+        for (float t = 0; t < 0.6f; t += Time.deltaTime) yield return null;      // the dial at rest, as the player first sees it
+        if (stateTests)
+        {
+            // the gameplay cursor stays captured (the needle follows relative mouse movement)
+            Check(Cursor.lockState == CursorLockMode.Locked && !Cursor.visible, what + ": the cursor stays captured while the dial is open (" + Cursor.lockState + ")");
+            // the journal key does nothing over a decision
+            Tap(Key.J);
+            for (int i = 0; i < 4; i++) yield return null;
+            Check(!GetBool(story, "journalOpen") && DialOpen(c), what + ": J does not open the journal over the decision");
+            // pause: a number is ignored behind the pause menu, and the dial is back, unanswered, after resuming
+            Tap(Key.Escape);
+            for (int i = 0; i < 4; i++) yield return null;
+            Check(GameState.Paused, what + ": Escape pauses over the dial");
+            Tap(Key.Digit2);
+            for (int i = 0; i < 4; i++) yield return null;
+            Check(DialOpen(c) && DialCommitted(c) != 1, what + ": a number pressed while paused does not answer");
+            double pz = Time.realtimeSinceStartupAsDouble;
+            while (Time.realtimeSinceStartupAsDouble - pz < 1.0) yield return null;
+            Tap(Key.Escape);
+            for (int i = 0; i < 4; i++) yield return null;
+            Check(!GameState.Paused && DialOpen(c) && Cursor.lockState == CursorLockMode.Locked, what + ": resuming returns to the open dial with the cursor captured again");
+            for (float t = 0; t < 0.4f; t += Time.deltaTime) yield return null;
+        }
+        var order = new List<int>();
+        if (labels != null) { for (int i = 0; i < labels.Length; i++) if (i != want) order.Add(i); }
+        order.Add(want);
+        Vector2[] dirs = { Vector2.left, Vector2.right, Vector2.up, Vector2.down };
+        foreach (int b in order)
+        {
+            // move the mouse so the pointer travels to 85% of the radius toward the bearing over ~0.3 s
+            for (int f = 0; f < 10; f++)
+            {
+                var ptr = Get(c, "pointer") is Vector2 pv ? pv : Vector2.zero;
+                Vector2 goal = dirs[b] * 0.85f;
+                mouseDelta = (goal - ptr) * 36f / Mathf.Max(1, 10 - f);
+                yield return null;
+            }
+            for (float t = 0; t < (b == want ? 1.1f : 0.65f); t += Time.deltaTime) yield return null;      // settle; the line reads
+            float needle = DialNeedle(c);
+            float off = float.IsNaN(needle) ? 0f : Mathf.Abs(Mathf.DeltaAngle(needle, Mathf.Atan2(dirs[b].y, dirs[b].x) * Mathf.Rad2Deg));
+            Check(DialFocus(c) == b && off < 15f, what + ": the needle swings to '" + (labels != null && b < labels.Length ? labels[b] : b.ToString()) + "' and picks it (needle " + needle.ToString("F0") + " deg, " + off.ToString("F0") + " deg off)"
+                  + (replies != null && b < replies.Length ? "; preview: " + replies[b] : ""));
+        }
+        mouseClick = true;
+        Stamp(what.Replace(' ', '_') + "_commit");
+        double c0 = Now;
+        while (DialOpen(c) && Now - c0 < 2f) yield return null;
+        Check(!DialOpen(c) && DialCommitted(c) == want, what + ": the click commits '" + (labels != null && want < labels.Length ? labels[want] : want.ToString()) + "' (index " + DialCommitted(c) + ")");
+    }
+
+    void PlaceAt(Vector3 world, float yawDeg, float pitchDeg)
+    {
+        var cc = player.GetComponent<CharacterController>();
+        cc.enabled = false; player.transform.position = world; cc.enabled = true;
+        yaw = yawDeg; pitch = pitchDeg; player.SetLook(yaw, pitch);
+    }
+
+    // ================================================================== lip-sync, measured
+    /// <summary>
+    /// Samples a character's mouth every frame while <paramref name="until"/> is false: how it was driven (visemes or the
+    /// loudness fallback), the jaw's range, how often the lips closed (PP weight peaks) and whether it was speaking.
+    /// </summary>
+    IEnumerator MouthWatch(CharacterNPC n, string what, Func<bool> until, float maxSeconds)
+    {
+        if (n == null || !Has(n, "visS")) { Note(what + ": no mouth layer in this build"); yield break; }
+        int frames = 0, speaking = 0, visemeFrames = 0, closures = 0; float jawMax = 0f, jawMin = 99f; bool closed = false;
+        double t0 = Now;
+        while (!until() && Now - t0 < maxSeconds)
+        {
+            var w = Get(n, "visS") as float[];
+            int mode = MouthModeOf(n);
+            frames++;
+            if (n.IsTalking) speaking++;
+            if (mode == 2) visemeFrames++;
+            if (n.IsTalking) { jawMax = Mathf.Max(jawMax, MouthDegOf(n)); jawMin = Mathf.Min(jawMin, MouthDegOf(n)); }
+            bool pp = w != null && w.Length > 1 && w[1] > 0.45f;
+            if (pp && !closed) closures++;
+            closed = pp;
+            yield return null;
+        }
+        Note(what + ": " + frames + " frames, speaking " + speaking + ", visemes " + visemeFrames + ", jaw " + (jawMin > 98f ? 0f : jawMin).ToString("F1") + ".." + jawMax.ToString("F1") + " deg, lip closures " + closures);
+        lastMouth = new Vector3(visemeFrames, jawMax, closures);
+    }
+    Vector3 lastMouth;
+
+    // ================================================================== Act I: Mrs. Kapoor after the third clue
+    IEnumerator Kamala()
+    {
+        SaveSystem.ResetAct(1);
+        SaveSystem.AddClue("1_Laptop");
+        SaveSystem.AddClue("2_StickyNote");
+        SaveSystem.Save();
+        tRequest = Now;
+        Call(story, "OnMenuPlay", 1, true);
+        yield return WaitFor(() => (Get(story, "phase") ?? "").ToString() == "Explore" && !PriyaRoomPlayer.Locked, 20f, "Act I resumes with two clues found");
+        for (int i = 0; i < 40; i++) yield return null;
+        section = "act1";
+        // the nearest clue not yet found: walk up to it, put the crosshair on it, press E
+        ClueTag pick = null; float best = 99f;
+        foreach (var t in builder.ClueTags)
+        {
+            if (t == null || t.found || t.id.StartsWith("Hook") || !t.gameObject.activeInHierarchy) continue;
+            float d = Vector3.Distance(t.transform.position, player.transform.position);
+            if (d < best) { best = d; pick = t; }
+        }
+        Check(pick != null, "a third clue to find (" + (pick != null ? pick.id : "none") + ")");
+        if (pick == null) yield break;
+        var rend = pick.GetComponentInChildren<Renderer>();
+        Vector3 cc = rend != null ? rend.bounds.center : pick.transform.position;
+        Vector3 toward = player.transform.position - cc; toward.y = 0;
+        Vector3 stand = cc + toward.normalized * 1.25f; stand.y = player.transform.position.y;
+        yield return WalkFree(stand, 0.3f, 12f);
+        yield return LookAtPoint(cc, 70f);
+        yield return WaitFor(() => ((string)Get(story, "prompt") ?? "").Contains("Examine"), 4f, "the examine prompt appears on the third clue");
+        Tap(Key.E);
+        yield return WaitFor(() => pick.found, 3f, "E examines the third clue");
+        // Mrs. Kapoor comes to the doorway once the clue card is read
+        Segment("kamala", true);
+        section = "kamala_walk";
+        yield return WaitFor(() => (Get(story, "phase") ?? "").ToString() == "Dialogue", 40f, "Mrs. Kapoor comes to talk after the third clue");
+        var kamala = Get(story, "kamala") as CharacterNPC;
+        // her question, then the dial
+        yield return WaitFor(() => (Get(story, "dlgText") as string) == "Have you found anything?", 20f, "she asks her question");
+        section = "kamala_question";
+        double qAt = Now;
+        // a quiet, short line in close-up: the mouth follows its viseme track and settles when it ends
+        yield return MouthWatch(kamala, "lip-sync, her quiet question", () => kamala == null || (!kamala.IsTalking && Now - qAt > 0.3), 10f);
+        Check(lastMouth.x > 10 && lastMouth.y > 2f, "lip-sync: her question drives the mouth from its viseme track (" + lastMouth.x + " frames, jaw to " + lastMouth.y.ToString("F1") + " deg)");
+        for (int i = 0; i < 6; i++) yield return null;
+        Check(kamala != null && MouthModeOf(kamala) == 0 && Mathf.Abs(MouthDegOf(kamala)) < 0.3f, "lip-sync: the mouth is at rest once her question has ended (jaw " + (kamala != null ? MouthDegOf(kamala).ToString("F2") : "-") + " deg)");
+        double qEnd = Now;
+        yield return WaitFor(() => Get(story, "dlgOptions") != null, 10f, "the compass opens after her question");
+        Note("question to compass: " + (Now - qEnd).ToString("F2") + " s after her voice ended (" + (qEnd - qAt).ToString("F2") + " s of question)");
+        section = "kamala_dial";
+        yield return Dial(story, 0, "Mrs. Kapoor's questions", kamala, true);
+        // Arjun asks it aloud, then she reacts
+        section = "kamala_answer";
+        yield return WaitFor(() => (Get(story, "dlgSpeaker") as string) == "ARJUN", 3f, "Arjun asks the chosen question");
+        var voice = Get(story, "voice") as AudioSource;
+        Check(voice != null && voice.isPlaying && voice.clip != null && voice.clip.name == "q_k_a", "he asks it in his recorded voice (" + (voice != null && voice.clip != null ? voice.clip.name : "-") + ")");
+        // the listener stays silent while he speaks
+        float listenerJaw = 0f; int listenerMoving = 0;
+        while (voice != null && voice.isPlaying && kamala != null && !kamala.IsTalking) { listenerJaw = Mathf.Max(listenerJaw, Mathf.Abs(MouthDegOf(kamala))); if (MouthModeOf(kamala) != 0) listenerMoving++; yield return null; }
+        Check(listenerJaw < 0.3f && listenerMoving == 0, "lip-sync: Mrs. Kapoor's mouth stays still while Arjun asks (jaw at most " + listenerJaw.ToString("F2") + " deg)");
+        yield return WaitFor(() => kamala != null && kamala.IsTalking && (Get(story, "dlgSpeaker") as string) == "KAMALA KAPOOR", 8f, "Mrs. Kapoor answers");
+        double aAt = Now;
+        yield return MouthWatch(kamala, "lip-sync, her answer (first 4.5 s)", () => Now - aAt > 4.5, 5f);
+        Check(lastMouth.x > 60 && lastMouth.z >= 1, "lip-sync: her answer moves the mouth from its track and closes the lips on P/B/M (" + lastMouth.z + " closures in 4.5 s)");
+        Segment("kamala", false);
+        // a held Space that skips her answer must not answer the next dial; the cut line must leave the mouth at rest
+        Hold(Key.Space, true);
+        double cutAt = Now; float settle = -1f;
+        while (Now - cutAt < 1.0)
+        {
+            if (kamala != null && !kamala.IsTalking && settle < 0f) { }
+            if (kamala != null && !kamala.IsTalking && MouthDegOf(kamala) < 0.5f && (Get(kamala, "visS") as float[] ?? new float[1]).Max() < 0.1f) { settle = (float)(Now - cutAt); break; }
+            yield return null;
+        }
+        Check(settle >= 0f && settle < 0.25f, "lip-sync: cut off mid-line, her mouth settles to rest in " + (settle < 0 ? "more than 1" : settle.ToString("F2")) + " s");
+        yield return WaitFor(() => Get(story, "dlgOptions") != null, 30f, "the questions come back after her answer");
+        for (float t = 0; t < 0.8f; t += Time.deltaTime) yield return null;
+        Check(Get(story, "dlgOptions") != null, "Space held through the end of her answer does not answer the next question");
+        Hold(Key.Space, false);
+        for (int i = 0; i < 4; i++) yield return null;
+        Tap(Key.Digit4);
+        yield return WaitFor(() => GetBool(story, "dlgDone"), 12f, "'That's all for now' ends the conversation");
+    }
+
+    /// <summary>Turns the view onto a point at a mouse-like rate and keeps it there (any act; no phase check).</summary>
+    IEnumerator LookHold(Vector3 p, float rate, float hold)
+    {
+        yield return LookAtPoint(p, rate);
+        for (float h = 0; h < hold; h += Time.deltaTime) { AngleTo(p, out float y, out float x); Steer(y, x, rate, rate); yield return null; }
+    }
+
+    /// <summary>A steady turn on the spot (any act; no phase check).</summary>
+    IEnumerator TurnSteady(float degrees, float rate)
+    {
+        SyncLook();
+        float turned = 0f;
+        while (Mathf.Abs(turned) < Mathf.Abs(degrees) - 0.01f)
+        {
+            float step = Mathf.Sign(degrees) * Mathf.Min(rate * Time.deltaTime, Mathf.Abs(degrees) - Mathf.Abs(turned));
+            turned += step; yaw += step;
+            pitch = Mathf.MoveTowards(pitch, 2f, 30f * Time.deltaTime);
+            player.SetLook(yaw, pitch);
+            yield return null;
+        }
+    }
+
+    IEnumerator LookAtPoint(Vector3 p, float rate)
+    {
+        SyncLook();
+        for (float t = 0; t < 3f; t += Time.deltaTime)
+        {
+            AngleTo(p, out float y, out float x);
+            Steer(y, x, rate, rate * 0.7f);
+            if (Mathf.Abs(Mathf.DeltaAngle(yaw, y)) < 0.4f && Mathf.Abs(pitch - x) < 0.4f) break;
+            yield return null;
+        }
+        for (int i = 0; i < 8; i++) { AngleTo(p, out float y, out float x); Steer(y, x, rate, rate); yield return null; }
+    }
+
+    // ================================================================== Act III: the Pandit, the crossroads, Act IV
+    string StoryPhase(object st) { var p = Get(st, "phase"); return p != null ? p.ToString() : ""; }
+    bool FreeIn(object st) => StoryPhase(st) == "Free" && !PriyaRoomPlayer.Locked && !GameState.Paused;
+
+    /// <summary>Walks up to an interaction spot (by its label), puts the crosshair on it and presses E.</summary>
+    IEnumerator Use(object st, string label, float stop = 1.5f)
+    {
+        var list = Get(st, "spots") as System.Collections.IList;
+        object spot = null;
+        if (list != null) foreach (var s in list) { var l = Get(s, "label") as string; if (l != null && l.Contains(label)) { spot = s; break; } }
+        Check(spot != null, "the spot '" + label + "' exists");
+        if (spot == null) yield break;
+        var t = Get(spot, "t") as Transform;
+        Vector3 off = Get(spot, "offset") is Vector3 o ? o : Vector3.zero;
+        yield return WaitFor(() => FreeIn(st), 60f, "control before '" + label + "'");
+        Vector3 c = t.position + off;
+        Vector3 from = player.transform.position;
+        Vector3 d = c - from; d.y = 0;
+        Vector3 goal = c - d.normalized * stop; goal.y = from.y;
+        yield return WalkToIn(st, goal, 0.35f, 25f);
+        Vector3 pd = c - player.transform.position; pd.y = 0;
+        if (pd.magnitude > stop + 1.2f)
+        {
+            Note("walk to '" + label + "' stopped " + pd.magnitude.ToString("F1") + " m short: placed beside it");
+            PlaceAt(new Vector3(goal.x, player.transform.position.y, goal.z), 0f, 0f);
+        }
+        yield return LookAtPoint(c, 80f);
+        double p0 = Now;
+        while (!(((string)Get(st, "prompt") ?? "").Contains(label)) && Now - p0 < 2f)
+        {
+            AngleTo(c, out float y, out float x); Steer(y, x, 60f, 60f);
+            yield return null;
+        }
+        // occluded from where the walk ended (a shelf, a bookcase): stand at eight points round it until it can be seen
+        for (int k = 0; k < 8 && !(((string)Get(st, "prompt") ?? "").Contains(label)); k++)
+        {
+            Vector3 dir = Quaternion.Euler(0f, k * 45f, 0f) * Vector3.forward;
+            Vector3 at = c + dir * stop; at.y = player.transform.position.y;
+            if (Physics.CheckCapsule(at + Vector3.up * 0.4f, at + Vector3.up * 1.4f, 0.3f, ~0, QueryTriggerInteraction.Ignore)) continue;
+            PlaceAt(at, 0f, 0f);
+            yield return LookAtPoint(c, 200f);
+            for (int i = 0; i < 10 && !(((string)Get(st, "prompt") ?? "").Contains(label)); i++) yield return null;
+            if (((string)Get(st, "prompt") ?? "").Contains(label)) Note("'" + label + "' seen from the " + (k * 45) + " degree side");
+        }
+        Check(((string)Get(st, "prompt") ?? "").Contains(label), "the prompt '" + label + "' appears");
+        Tap(Key.E);
+        for (int i = 0; i < 4; i++) yield return null;
+    }
+
+    IEnumerator WalkToIn(object st, Vector3 goal, float stopDist, float timeout)
+    {
+        SyncLook();
+        float t = 0, checkAt = 1.2f, dodge = 0f; int dodges = 0;
+        Vector3 last = player.transform.position;
+        while (t < timeout)
+        {
+            if (!FreeIn(st)) { ReleaseAll(); yield return null; t += Time.deltaTime; continue; }
+            Vector3 d = goal - player.transform.position; d.y = 0;
+            if (d.magnitude < stopDist) break;
+            float want = Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg;
+            Steer(want, 3f, 140f, 40f);
+            float off = Mathf.Abs(Mathf.DeltaAngle(yaw, want));
+            Hold(Key.W, off < 55f);
+            if (dodge > 0f) { dodge -= Time.deltaTime; Hold(dodges % 2 == 0 ? Key.D : Key.A, dodge > 0f); }
+            if (t > checkAt)
+            {
+                if ((player.transform.position - last).magnitude < 0.3f && off < 55f) { dodge = 0.8f; dodges++; }
+                if (dodges > 6) break;
+                last = player.transform.position; checkAt = t + 1.2f;
+            }
+            t += Time.deltaTime;
+            yield return null;
+        }
+        ReleaseAll();
+    }
+
+    IEnumerator CloseCard(object st, float read)
+    {
+        yield return WaitFor(() => GetBool(st, "cardOpen"), 30f, "a document card opens");
+        for (float t = 0; t < read; t += Time.deltaTime) yield return null;
+        Tap(Key.E);
+        yield return WaitFor(() => !GetBool(st, "cardOpen"), 3f, "E closes the card");
+    }
+
+    IEnumerator TypeCode(object st, string code)
+    {
+        yield return WaitFor(() => GetBool(st, "codeOpen"), 40f, "the code entry opens");
+        if (!GetBool(st, "codeOpen")) yield break;           // (a result from an earlier code must not count for this one)
+        for (float t = 0; t < 1.2f; t += Time.deltaTime) yield return null;
+        foreach (char ch in code) { InputSystem.QueueTextEvent(vk, ch); yield return null; yield return null; }
+        for (float t = 0; t < 0.4f; t += Time.deltaTime) yield return null;
+        Tap(Key.Enter);
+        yield return WaitFor(() => !GetBool(st, "codeOpen"), 4f, "the code " + code + " opens it");
+        Check(GetBool(st, "codeResult"), "the code " + code + " is accepted");
+    }
+
+    IEnumerator ActThree(bool fresh)
+    {
+        int wantPandit = int.Parse(Env("PINNACLE_ROUTE_PANDIT", "2"), CultureInfo.InvariantCulture);
+        int wantBranch = int.Parse(Env("PINNACLE_ROUTE_BRANCH", "0"), CultureInfo.InvariantCulture);
+        var d = SaveSystem.Data;
+        d.actsCompleted = Mathf.Max(d.actsCompleted, 2);
+        SaveSystem.ResetAct(3);
+        d.hasUsb = true;
+        if (!fresh) d.act3Stage = 2;
+        SaveSystem.Save();
+        tRequest = Now;
+        Call(story, "OnMenuPlay", 3, !fresh);
+        Act3Story a3 = null;
+        while (a3 == null && Now - tRequest < 30f) { a3 = FindAnyObjectByType<Act3Story>(); yield return null; }
+        Check(a3 != null, "Act III starts " + (fresh ? "fresh from chapter select" : "from a saved game at the temple"));
+        if (a3 == null) yield break;
+        section = "act3";
+        if (fresh)
+        {
+            // the night guard lets Arjun in (lines are skipped with Space like a player in a hurry would not: they play out)
+            yield return WaitFor(() => FreeIn(a3) && (((string)Get(a3, "objective")) ?? "").Contains("computer"), 120f, "the guard's lines end and the computer is the objective");
+            yield return Use(a3, "Use the computer");
+            yield return TypeCode(a3, "NANI1987");
+            yield return CloseCard(a3, 2.5f);
+            yield return WaitFor(() => GetBool(a3, "usbDone"), 60f, "Priya's files are read");
+            yield return Use(a3, "Go down to the Record Room");
+            yield return WaitFor(() => (Get(a3, "area") is int ar && ar == 1) && FreeIn(a3), 30f, "down in the Record Room");
+            if (shots) yield return StillShot("act3_basement");
+            yield return Use(a3, "Inspect the cage", 1.6f);
+            yield return WaitFor(() => GetBool(a3, "cageSeen") && FreeIn(a3), 30f, "the cage is locked");
+            yield return Use(a3, "Look at the calendar", 1.4f);
+            yield return CloseCard(a3, 2.5f);
+            yield return WaitFor(() => GetBool(a3, "calendarSeen") && FreeIn(a3), 30f, "the calendar is read");
+            yield return Use(a3, "Go back upstairs");
+            yield return WaitFor(() => (Get(a3, "area") is int ar2 && ar2 == 0) && FreeIn(a3), 30f, "back in the reading room");
+            yield return Use(a3, "Try the desk drawer", 1.3f);
+            yield return TypeCode(a3, "7491");
+            yield return WaitFor(() => GetBool(a3, "keyFound") && FreeIn(a3), 30f, "the cage key is found");
+            yield return Use(a3, "Go down to the Record Room");
+            yield return WaitFor(() => (Get(a3, "area") is int ar3 && ar3 == 1) && FreeIn(a3), 30f, "down again");
+            yield return Use(a3, "Open the cage with the key", 1.6f);
+            yield return CloseCard(a3, 2.5f);
+            yield return WaitFor(() => GetBool(a3, "cageOpen"), 30f, "the cage is opened and the sign-out sheet read");
+        }
+        // ---- the temple
+        yield return WaitFor(() => (Get(a3, "area") is int ar4 && ar4 == 2), 60f, "Arjun reaches the Kali Temple");
+        yield return WaitFor(() => FreeIn(a3) && (((string)Get(a3, "objective")) ?? "").Contains("priest"), 60f, "the priest is the objective");
+        if (shots) yield return StillShot("act3_temple");
+        var pandit = Get(a3, "pandit") as CharacterNPC;
+        Segment("pandit", true);
+        section = "pandit";
+        yield return Use(a3, "Talk to Pandit Harishankar", 1.7f);
+        yield return WaitFor(() => StoryPhase(a3) == "Busy", 3f, "E starts the Pandit's talk");
+        yield return Dial(a3, wantPandit, "the Pandit's question", pandit);
+        int got = Get(a3, "menuResult") is int mr ? mr : -9;
+        Check(got == wantPandit, "the Pandit's question answered with index " + got);
+        yield return WaitFor(() => pandit != null && pandit.IsTalking, 20f, "the Pandit answers back");
+        for (float t = 0; t < 3.5f; t += Time.deltaTime) yield return null;
+        Segment("pandit", false);
+        yield return CloseCard(a3, 3f);
+        for (int i = 0; i < 60 && SaveSystem.Data.act3Stage < 3; i++) yield return null;      // saved as the letter closes
+        Check(SaveSystem.Data.panditAnswer == wantPandit && SaveSystem.Data.act3Stage == 3, "the answer and the envelope are saved (answer " + SaveSystem.Data.panditAnswer + ", stage " + SaveSystem.Data.act3Stage + ")");
+        // ---- the gate, the call, the crossroads
+        section = "gate";
+        var gate = Get(a3, "gate") as Transform;
+        yield return WaitFor(() => FreeIn(a3), 20f, "control after the letter");
+        if (gate != null) yield return WalkToIn(a3, gate.position, 2.4f, 40f);
+        yield return CloseCard(a3, 2f);                     // Kamala's text message
+        Segment("crossroads", true);
+        section = "crossroads";
+        yield return Dial(a3, wantBranch, "the crossroads", null);
+        var prev = CompassOf(a3) != null ? Get(CompassOf(a3), "replies") as string[] : null;
+        if (prev != null) Check(prev.Length == 3 && prev[0].Contains("Café Irani") && prev[1].Contains("Kapoor house") && prev[2].Contains("Inspector Reddy"), "the crossroads previews name each destination");
+        for (int i = 0; i < 60 && SaveSystem.Data.branch < 0; i++) yield return null;           // saved once the dial has closed
+        Check(SaveSystem.Data.branch == wantBranch, "the branch is saved as " + SaveSystem.Data.branch);
+        for (float t = 0; t < 2.5f; t += Time.deltaTime) yield return null;
+        Segment("crossroads", false);
+        // ---- the Curator, then Act IV at the chosen place
+        section = "curator2";
+        CuratorInterlude inter = null;
+        double i0 = Now;
+        while (inter == null && Now - i0 < 60f) { inter = FindAnyObjectByType<CuratorInterlude>(); yield return null; }
+        Check(inter != null, "the Curator's visit follows Act III");
+        for (float t = 0; t < 5f && inter != null; t += Time.deltaTime) yield return null;
+        Tap(Key.Enter);
+        Act4Story a4 = null;
+        double a0 = Now;
+        while (a4 == null && Now - a0 < 90f) { a4 = FindAnyObjectByType<Act4Story>(); yield return null; }
+        Check(a4 != null, "Act IV loads after the Curator");
+        if (a4 == null) yield break;
+        int variant = Get(a4, "variant") is int v ? v : -9;
+        string sub = Call(a4, "get_ActSubtitle") as string;
+        string[] where = { "Café Irani", "Kapoor house", "Police Station" };
+        Check(variant == wantBranch && sub != null && sub.Contains(where[wantBranch]), "Act IV opens at the chosen place: variant " + variant + ", \"" + sub + "\"");
+        if (wantBranch == 0) yield return Cafe(false);
+    }
+
+    // ================================================================== Act IV: Café Irani
+    IEnumerator Cafe(bool fromMenu)
+    {
+        Act4Story a4;
+        if (fromMenu)
+        {
+            var d = SaveSystem.Data;
+            d.actsCompleted = Mathf.Max(d.actsCompleted, 3);
+            d.branch = 0;
+            SaveSystem.Save();
+            section = "entry";
+            tRequest = Now;
+            StartSampling();
+            Call(story, "OnMenuPlay", 4, false);
+            Stamp("request");
+        }
+        a4 = null;
+        while (a4 == null) { a4 = FindAnyObjectByType<Act4Story>(); yield return null; }
+        double t0 = Now;
+        while (!FreeIn(a4) && Now - t0 < 60f)
+        {
+            var f = Get(a4, "fade");
+            if (f is float ff && ff < 0.5f) Stamp("first_visible");
+            yield return null;
+        }
+        Stamp("first_control");
+        Check(FreeIn(a4), "the café hands over control");
+        Log("café entry: control after " + (stamps.ContainsKey("first_control") ? stamps["first_control"].ToString("F2") : "?") + " s");
+        if (census) Census(a4.transform, "census_cafe.txt");
+        var owner = Get(a4, "owner") as CharacterNPC;
+        var raj = Get(a4, "raj") as CharacterNPC;
+        Transform counter = FindDeep(a4.transform, "Counter");
+        Transform caseT = FindDeep(a4.transform, "DisplayCase");
+        Vector3 cpos = counter != null ? counter.position : new Vector3(3.3f, 0.5f, -2.8f);
+        Vector3 casePos = caseT != null ? caseT.position : cpos + Vector3.up * 0.7f;
+        Note("counter at " + cpos.ToString("F2") + ", case at " + casePos.ToString("F2") + ", owner at " + (owner != null ? owner.transform.position.ToString("F2") : "-"));
+        // ---- the approach: from the entrance to the counter (the test: walking up to the counter)
+        section = "cafe_approach";
+        Segment("cafe", true);
+        yield return LookHold(cpos + Vector3.up * 0.9f, 80f, 0.8f);
+        if (shots) yield return StillShot("cafe_01_entrance");
+        Vector3 front = cpos + new Vector3(-0.2f, 0f, 1.45f);
+        yield return WalkToIn(a4, new Vector3(front.x, 0f, front.z), 0.35f, 20f);
+        yield return LookHold(casePos + Vector3.up * 0.05f, 60f, 1.5f);
+        if (shots) yield return StillShot("cafe_02_counter");
+        if (owner != null) yield return LookHold(HeadOf(owner).position, 50f, 2.5f);
+        if (shots) yield return StillShot("cafe_03_owner");
+        // ---- the street: from the counter, the terrace and the entrance
+        section = "cafe_street";
+        yield return TurnSteady(-150f, 70f);
+        for (float t = 0; t < 1.5f; t += Time.deltaTime) yield return null;
+        if (shots) yield return StillShot("cafe_04_street_from_counter");
+        yield return WalkToIn(a4, new Vector3(-3.6f, 0f, -0.2f), 0.4f, 20f);
+        yield return LookHold(new Vector3(-14f, 2.2f, -1f), 60f, 2f);
+        if (shots) yield return StillShot("cafe_05_street_from_terrace");
+        yield return TurnSteady(70f, 40f);
+        yield return TurnSteady(-120f, 40f);
+        Segment("cafe", false);
+        // ---- stills from fixed places: the case from the side, the street from behind the owner
+        section = "cafe_views";
+        if (caseT != null)
+        {
+            PlaceAt(new Vector3(casePos.x - 1.55f, 0.08f, casePos.z + 0.35f), 0f, 0f);
+            yield return LookAtPoint(casePos, 200f);
+            for (int i = 0; i < 20; i++) yield return null;
+            if (shots) yield return StillShot("cafe_06_case_side");
+        }
+        if (owner != null)
+        {
+            var op = owner.transform.position;
+            PlaceAt(new Vector3(op.x + 0.35f, 0.08f, op.z - 0.55f), 0f, 0f);
+            yield return LookAtPoint(new Vector3(-12f, 1.8f, 2f), 200f);
+            for (int i = 0; i < 20; i++) yield return null;
+            if (shots) yield return StillShot("cafe_07_outward_behind_owner");
+        }
+        // ---- the owner's task: hands on the cup, and the cup left standing on the counter
+        var task = Get(a4, "taskCup") as Transform;
+        if (task != null)
+        {
+            float worst = 0f; int holding = 0; double w0 = Now;
+            while (Now - w0 < 14f)
+            {
+                if (GetBool(a4, "taskHolding"))
+                {
+                    holding++;
+                    worst = Mathf.Max(worst, Vector3.Distance(owner.HandPosition(1), task.position) - 0.06f);
+                }
+                yield return null;
+            }
+            float grip = Get(a4, "taskGripError") is float ge ? ge : 99f;
+            Check(holding > 0 && grip < 0.03f, "the owner's hand stays on the cup while carrying it (" + holding + " frames held, wrist at most " + (grip * 100f).ToString("F1") + " cm off its grip; wrist-to-cup " + ((worst + 0.06f) * 100f).ToString("F1") + " cm)");
+            float top = counter != null ? counter.position.y : 0.5f;
+            // the window can end mid-carry (the cup 6 cm up in his hand): judge the cup once he has set it down
+            for (double r0 = Now; GetBool(a4, "taskHolding") && Now - r0 < 6.0;) yield return null;
+            Check(!GetBool(a4, "taskHolding") && Mathf.Abs(task.position.y - (Get(a4, "counterTopY") is float cty ? cty : task.position.y)) < 0.01f, "the cup is standing on the counter after release (y " + task.position.y.ToString("F3") + ")");
+        }
+        else Note("no owner task in this build");
+        sampling = false;
+        WriteTiming();
     }
 
     static Transform FindDeep(Transform t, string n)
@@ -948,6 +1748,26 @@ public class PlayRoute : MonoBehaviour
 
     // ================================================================== output
     void Shot(string name) { ScreenCapture.CaptureScreenshot(Path.Combine(outDir, name + ".png")); }
+
+    /// <summary>A still once the view has stopped moving (camera-only motion blur smeared stills taken while the player
+    /// was still settling after a turn or a placement): up to 2 s for 12 frames without movement, then the capture.</summary>
+    IEnumerator StillShot(string name)
+    {
+        Transform c = player != null ? player.cam : null;
+        int calm = 0; double t0 = Now;
+        Vector3 lastP = c != null ? c.position : Vector3.zero; Quaternion lastR = c != null ? c.rotation : Quaternion.identity;
+        while (c != null && calm < 12 && Now - t0 < 2.0)
+        {
+            yield return null;
+            bool still = (c.position - lastP).sqrMagnitude < 1e-6f && Quaternion.Angle(c.rotation, lastR) < 0.02f;
+            calm = still ? calm + 1 : 0;
+            lastP = c.position; lastR = c.rotation;
+        }
+        ScreenCapture.CaptureScreenshot(Path.Combine(outDir, name + ".png"));
+        if (calm < 12) Note("still " + name + " taken while the view was still moving");
+        // the capture is taken at the end of this frame: the route must not move the view again until it has been
+        yield return null;
+    }
 
     static float Pct(List<float> s, double p) { return s.Count == 0 ? float.NaN : s[Mathf.Clamp((int)Math.Ceiling(s.Count * p) - 1, 0, s.Count - 1)]; }
 

@@ -359,6 +359,9 @@ public class Act5Story : ActStoryBase
         for (int i = 0; i < 3; i++) if (i != chosen) StartCoroutine(Crumble(i));
         yield return new WaitForSeconds(2.2f);
         for (float t = 0; t < 1.5f; t += Time.deltaTime) { white = t / 1.5f; yield return null; }
+        // Arjun's answer to Priya's question, in his recorded voice, over the white as the Gallery lets go
+        skipAll = false;
+        yield return Narrate(chosen == 0 ? "a5_arjun_justice" : chosen == 1 ? "a5_arjun_sacrifice" : "a5_arjun_revolution");
         // the ending is recorded when its credits roll (RollCredits), so quitting half-way through it does not count it
 
         inGallery = false;

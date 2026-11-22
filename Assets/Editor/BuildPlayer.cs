@@ -22,12 +22,20 @@ public static class BuildPlayer
     {
         string outDir = Environment.GetEnvironmentVariable("PINNACLE_BUILD_OUT");
         if (string.IsNullOrEmpty(outDir)) outDir = "Builds/macOS";
+        // PINNACLE_BUILD_NAME names the .app (the executable inside stays Contents/MacOS/Pinnacle); PINNACLE_BUILD_STAMP is
+        // shown small on the title menu so a player can tell which build they are running
+        string appName = Environment.GetEnvironmentVariable("PINNACLE_BUILD_NAME");
+        if (string.IsNullOrEmpty(appName)) appName = "Pinnacle";
+        string stamp = Environment.GetEnvironmentVariable("PINNACLE_BUILD_STAMP");
+        const string stampPath = "Assets/Resources/BuildStamp.txt";
+        if (!string.IsNullOrEmpty(stamp)) { File.WriteAllText(stampPath, stamp); AssetDatabase.ImportAsset(stampPath); }
+        else if (File.Exists(stampPath)) AssetDatabase.DeleteAsset(stampPath);
         EnsureVariantMaterials();
         PlayerSettings.enableFrameTimingStats = true;
         var opts = new BuildPlayerOptions
         {
             scenes = new[] { "Assets/Scenes/SampleScene.unity" },
-            locationPathName = Path.Combine(outDir, "Pinnacle.app"),
+            locationPathName = Path.Combine(outDir, appName + ".app"),
             target = BuildTarget.StandaloneOSX,
             // PINNACLE_BUILD_DEV=1: a development player, so the route can read Profiler markers (Docs/PLAYTEST.md)
             options = Environment.GetEnvironmentVariable("PINNACLE_BUILD_DEV") == "1" ? BuildOptions.Development : BuildOptions.None,
@@ -62,6 +70,9 @@ public static class BuildPlayer
         if (lit != null)
             foreach (var set in litSets) made += Make(lit, "Lit_" + (set.Length == 0 ? "plain" : string.Join("_", set)), set, false, Array.IndexOf(set, "_ALPHATEST_ON") >= 0, flatNormal, mask);
         if (lit != null) made += Make(lit, "Lit_transparent", new string[0], true, false, flatNormal, mask);
+        // clear glass that keeps its highlights (Act IV's biscuit case): transparent, premultiplied, "preserve specular"
+        if (lit != null) made += Make(lit, "Lit_transparent_premul", new[] { "_ALPHAPREMULTIPLY_ON" }, true, false, flatNormal, mask);
+        if (lit != null) made += Make(lit, "Lit_transparent_premul_noenv", new[] { "_ALPHAPREMULTIPLY_ON", "_ENVIRONMENTREFLECTIONS_OFF" }, true, false, flatNormal, mask);
         if (unlit != null) { made += Make(unlit, "Unlit_plain", new string[0], false, false, flatNormal, mask); made += Make(unlit, "Unlit_transparent", new string[0], true, false, flatNormal, mask); }
         if (particles != null) made += Make(particles, "Particles_transparent", new string[0], true, false, flatNormal, mask);
         AssetDatabase.SaveAssets();
@@ -95,6 +106,7 @@ public static class BuildPlayer
         if (isNew) m = new Material(sh);
         foreach (var k in keywords)
         {
+            if (k == "_ENVIRONMENTREFLECTIONS_OFF" && m.HasProperty("_EnvironmentReflections")) m.SetFloat("_EnvironmentReflections", 0f);
             if (k == "_NORMALMAP" && m.HasProperty("_BumpMap")) m.SetTexture("_BumpMap", flatNormal);
             if (k == "_METALLICSPECGLOSSMAP" && m.HasProperty("_MetallicGlossMap")) m.SetTexture("_MetallicGlossMap", mask);
             if (k == "_EMISSION" && m.HasProperty("_EmissionColor")) { m.SetColor("_EmissionColor", Color.white); m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive; }
@@ -104,6 +116,9 @@ public static class BuildPlayer
         if (transparent)
         {
             m.SetFloat("_Surface", 1f); m.SetFloat("_Blend", 0f); m.SetFloat("_ZWrite", 0f);
+            bool premul = Array.IndexOf(keywords, "_ALPHAPREMULTIPLY_ON") >= 0;
+            if (m.HasProperty("_BlendModePreserveSpecular")) m.SetFloat("_BlendModePreserveSpecular", premul ? 1f : 0f);
+            if (premul) { m.SetFloat("_SrcBlend", (float)BlendMode.One); m.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha); }
             m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
             m.renderQueue = (int)RenderQueue.Transparent;
         }

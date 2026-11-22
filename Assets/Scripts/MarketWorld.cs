@@ -881,7 +881,7 @@ public class MarketWorld : MonoBehaviour
     /// shadows and the fog fall on the paint as they fall on the board around it. (The shared sign helper draws a
     /// self-lit, double-sided sprite: it glowed at full strength at night, ignored the fog and read mirrored from behind.)
     /// </summary>
-    GameObject Paint(Transform parent, string english, string hindi, Vector3 pos, Quaternion rot, float maxHeight, float maxWidth, Color ink)
+    public GameObject Paint(Transform parent, string english, string hindi, Vector3 pos, Quaternion rot, float maxHeight, float maxWidth, Color ink)
     {
         var go = GameKit.Sign(parent, english, hindi, pos, rot, maxHeight, maxWidth, ink);
         var r = go.GetComponent<MeshRenderer>();
@@ -1225,14 +1225,22 @@ public class MarketWorld : MonoBehaviour
         float top = 0.9f;
         // big dented kettle on a kerosene stove
         B(st, "Stove", new Vector3(-0.55f, top + 0.06f, 0.0f), new Vector3(0.6f, 0.1f, 0.6f), Rgb(0.1f, 0.1f, 0.1f), false, 0.4f, 0.6f);
-        Cy(st, "Kettle", new Vector3(-0.55f, top + 0.35f, 0.0f), 0.24f, 0.46f, Rgb(0.75f, 0.76f, 0.78f), 0.85f, 0.9f);
-        Cy(st, "Spout", new Vector3(-0.25f, top + 0.45f, 0.0f), 0.03f, 0.3f, Rgb(0.75f, 0.76f, 0.78f), 0.85f, 0.9f).transform.localRotation = Quaternion.Euler(0, 0, -55f);
+        // a big dented aluminium kettle turned on a lathe: dull, soot-dark at the base (it was a polished metallic cylinder
+        // that mirrored the stove and the stall bulb and read as a white block beside Vikram)
+        var alu = GameKit.Lit(Rgb(0.5f, 0.5f, 0.48f), 0.42f, 0.8f);
+        var soot = GameKit.Lit(Rgb(0.09f, 0.08f, 0.07f), 0.25f, 0.4f);
+        var kettle = VehicleKit.Part(st, "Kettle", VehicleKit.Lathe(new[] { new Vector2(0f, 0.17f), new Vector2(0.04f, 0.225f), new Vector2(0.2f, 0.24f), new Vector2(0.32f, 0.215f), new Vector2(0.39f, 0.13f), new Vector2(0.41f, 0.07f), new Vector2(0.42f, 0.0f) }, 22), alu, new Vector3(-0.55f, top + 0.11f, 0.0f));
+        kettle.transform.localRotation = Quaternion.Euler(0, 0, 90f);
+        var base_ = VehicleKit.Part(st, "KettleSoot", VehicleKit.Lathe(new[] { new Vector2(0f, 0.0f), new Vector2(0.0f, 0.172f), new Vector2(0.045f, 0.228f) }, 22), soot, new Vector3(-0.55f, top + 0.108f, 0.0f));
+        base_.transform.localRotation = Quaternion.Euler(0, 0, 90f);
+        Cy(st, "KettleKnob", new Vector3(-0.55f, top + 0.55f, 0.0f), 0.03f, 0.04f, Rgb(0.08f, 0.07f, 0.06f), 0.3f);
+        Cy(st, "Spout", new Vector3(-0.25f, top + 0.33f, 0.0f), 0.025f, 0.28f, Rgb(0.5f, 0.5f, 0.48f), 0.42f, 0.8f).transform.localRotation = Quaternion.Euler(0, 0, -55f);
         Gl(st, "Flame", new Vector3(-0.55f, top + 0.12f, 0.0f), new Vector3(0.4f, 0.03f, 0.4f), Rgb(1f, 0.4f, 0.1f), 3f);
         AddLight(st.TransformPoint(new Vector3(-0.55f, 1.05f, 0.62f)), Rgb(1f, 0.55f, 0.2f), 1.3f, 4f, true);   // the stove's glow, off the kettle's skin
         Steam(st.TransformPoint(new Vector3(-0.28f, top + 0.75f, 0f)), 1f);
         Steam(st.TransformPoint(new Vector3(-0.55f, top + 0.75f, 0f)), 1.2f);
         // steel glasses in a tray, biscuit jars, a bunch of bananas
-        for (int i = 0; i < 8; i++) Cy(st, "Glass", new Vector3(0.1f + (i % 4) * 0.1f, top + 0.07f, -0.1f + (i / 4) * 0.12f), 0.035f, 0.1f, Rgb(0.88f, 0.92f, 0.92f), 0.9f);
+        for (int i = 0; i < 8; i++) Cy(st, "Glass", new Vector3(0.1f + (i % 4) * 0.1f, top + 0.07f, -0.1f + (i / 4) * 0.12f), 0.035f, 0.1f, Rgb(0.6f, 0.61f, 0.6f), 0.6f, 0.9f);     // dull steel tumblers
         for (int i = 0; i < 3; i++) Cy(st, "Jar", new Vector3(0.65f + i * 0.2f, top + 0.15f, 0.15f), 0.08f, 0.28f, Rgb(0.85f, 0.55f, 0.2f), 0.6f);
         for (int i = 0; i < 6; i++) Cy(st, "Banana", new Vector3(0.0f + i * 0.04f, 1.9f - i * 0.02f, 0.4f), 0.03f, 0.22f, Rgb(0.98f, 0.85f, 0.2f), 0.4f);
         StallSign(st, "VIKRAM CHAI", "विक्रम चाय", 0.3f, 2.0f, Rgb(1f, 0.9f, 0.5f));

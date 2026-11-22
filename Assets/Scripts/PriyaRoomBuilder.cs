@@ -256,37 +256,8 @@ public class PriyaRoomBuilder : MonoBehaviour
         for (float x = wx0 + 0.25f; x < wx1; x += 0.25f)
             Strip(Box("Bar", new Vector3(x, cy, z + 0.02f), new Vector3(0.02f, wy1 - wy0, 0.02f), new Color(0.1f, 0.1f, 0.1f)));
 
-        // sunset sky seen through window: emissive quad outside
-        var sky = GameObject.CreatePrimitive(PrimitiveType.Quad);
-        sky.name = "SunsetView";
-        sky.transform.SetParent(root, false);
-        sky.transform.localPosition = new Vector3(cx, cy + 8f, z + 32f);
-        sky.transform.localRotation = Quaternion.identity;
-        sky.transform.localScale = new Vector3(110, 60, 1);
-        Destroy(sky.GetComponent<Collider>());
-        sky.GetComponent<Renderer>().sharedMaterial = SkyGradientMat();
-
-        // distant terracotta rooftops silhouettes
-        var rnd = new System.Random(7);
-        for (int i = 0; i < 16; i++)
-        {
-            float w = 2f + (float)rnd.NextDouble() * 3f, h = 1.5f + (float)rnd.NextDouble() * 3.5f;
-            float x = -20f + i * 2.9f;
-            var b = Box("Rooftop" + i, new Vector3(cx + x, cy - 5f + h / 2f, z + 20f), new Vector3(w, h, 2f),
-                new Color(0.18f, 0.09f, 0.08f), null, 0f);
-            Strip(b);
-            if (rnd.NextDouble() > 0.55)
-            {
-                var tank = Cyl("WaterTank", new Vector3(cx + x, cy - 5f + h + 0.4f, z + 20f), 0.5f, 0.8f, new Color(0.14f, 0.08f, 0.08f));
-                Strip(tank);
-            }
-        }
-        // glass towers in the distance (the Renewal Project)
-        for (int i = 0; i < 4; i++)
-        {
-            var t = Box("Tower" + i, new Vector3(cx + 10f + i * 4f, cy + 3f, z + 26f), new Vector3(2.5f, 14f + i * 3f, 2.5f), new Color(0.55f, 0.6f, 0.68f), null, 0.9f, 0.6f);
-            Strip(t);
-        }
+        // the view: the same Chandnipur, at three depths (BuildWindowView)
+        BuildWindowView(cx, cy, z);
 
         // curtains
         var curtainC = new Color(0.72f, 0.35f, 0.18f);
@@ -306,6 +277,234 @@ public class PriyaRoomBuilder : MonoBehaviour
         MakeClue(latch, "9_BrokenWindowLatch");
         // rust flakes
         Strip(Box("Rust", new Vector3(cx + 0.6f, cy - 0.24f, z - 0.09f), new Vector3(0.05f, 0.02f, 0.02f), new Color(0.55f, 0.22f, 0.08f)));
+    }
+
+    // ------------------------------------------------------------- THE VIEWS
+    static Material Backdrop(Texture2D tex, Color tint)
+    {
+        var sh = Shader.Find("Pinnacle/Backdrop");
+        if (sh == null) sh = Shader.Find("Universal Render Pipeline/Unlit");
+        var m = new Material(sh) { name = "Backdrop" };
+        m.mainTexture = tex;
+        if (m.HasProperty("_BaseMap")) m.SetTexture("_BaseMap", tex);
+        m.color = tint;
+        if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", tint);
+        return m;
+    }
+
+    GameObject Flat(string name, Vector3 pos, Vector3 size, Material m)
+    {
+        var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        go.name = name;
+        go.transform.SetParent(root, false);
+        go.transform.localPosition = pos;
+        go.transform.localScale = size;
+        Destroy(go.GetComponent<Collider>());
+        var r = go.GetComponent<Renderer>();
+        r.sharedMaterial = m; r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; r.receiveShadows = false;
+        return go;
+    }
+
+    static Material dusty;
+    /// <summary>Old glass with a little dust on it: transparent, faintly warm, its highlights kept.</summary>
+    static Material DustyGlass()
+    {
+        if (dusty != null) return dusty;
+        var m = new Material(Shader.Find("Universal Render Pipeline/Lit")) { name = "DustyGlass" };
+        m.SetFloat("_Surface", 1f); m.SetFloat("_Blend", 0f); m.SetFloat("_BlendModePreserveSpecular", 1f);
+        m.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.One); m.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+        m.SetFloat("_SrcBlendAlpha", (float)UnityEngine.Rendering.BlendMode.One); m.SetFloat("_DstBlendAlpha", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+        m.SetFloat("_ZWrite", 0f);
+        m.SetOverrideTag("RenderType", "Transparent");
+        m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT"); m.EnableKeyword("_ALPHAPREMULTIPLY_ON");
+        m.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+        var c = new Color(0.74f, 0.66f, 0.56f, 0.2f);
+        m.color = c; m.SetColor("_BaseColor", c);
+        m.SetFloat("_Smoothness", 0.82f);
+        dusty = m;
+        return m;
+    }
+
+    Renderer StairWindowPaneRenderer() { var t = root.Find("StairWindowPane"); return t != null ? t.GetComponent<Renderer>() : null; }
+
+    /// <summary>
+    /// The sky for a window: a vertical gradient with its brightest band at the viewer's horizon (eye height) and, when
+    /// <paramref name="sunUV"/> is inside it, a soft glow where the sun is going down. Painted, so the room's fog
+    /// (meant for 5 m) does not turn a sky 150 m away into brown.
+    /// </summary>
+    static Texture2D SkyTexture(float horizonV, Vector2 sunUV, Color top, Color mid, Color low, Color sun)
+    {
+        const int W = 256, H = 256;
+        var tex = new Texture2D(W, H, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, name = "WindowSky" };
+        var px = new Color[W * H];
+        for (int y = 0; y < H; y++)
+        {
+            float v = (y + 0.5f) / H;
+            float above = (v - horizonV) / (1f - horizonV);
+            Color c = v < horizonV ? Color.Lerp(low * 0.85f, low, v / horizonV)
+                    : above < 0.18f ? Color.Lerp(low, mid, above / 0.18f) : Color.Lerp(mid, top, Mathf.Pow((above - 0.18f) / 0.82f, 0.8f));
+            for (int x = 0; x < W; x++)
+            {
+                float u = (x + 0.5f) / W;
+                Vector2 d = new Vector2((u - sunUV.x) * 2f, (v - sunUV.y) * 1f);
+                float g = Mathf.Exp(-d.sqrMagnitude * 140f) * 1.0f + Mathf.Exp(-d.sqrMagnitude * 12f) * 0.35f;
+                px[y * W + x] = c + sun * g;
+            }
+        }
+        tex.SetPixels(px); tex.Apply();
+        return tex;
+    }
+
+    static Texture2D flatWhite;
+    static Texture2D White() { if (flatWhite == null) { flatWhite = new Texture2D(1, 1); flatWhite.SetPixel(0, 0, Color.white); flatWhite.Apply(); } return flatWhite; }
+
+    /// <summary>
+    /// What Priya's window looks onto, at the scale of a third floor: across an 8 m lane the neighbours' row (its roofs
+    /// just under the eye, with water tanks, a stair head, a lit window and a bulb over a terrace door), old-quarter roofs
+    /// 30-60 m out, then the far city and the Renewal Project's towers in the haze, and the sunset sky. The sky's glow sits
+    /// where the room's sunlight comes from (12 degrees up, 10 degrees right of the window's axis), its horizon at eye
+    /// height. Real depth, so the near roofline slides across the skyline when Arjun moves.
+    /// </summary>
+    void BuildWindowView(float cx, float cy, float z)
+    {
+        const float eye = 1.6f, ground = -9.3f;                   // three floors up
+        // ---- sky, 150 m out, 600 x 300 m
+        float skyZ = z + 150f, y0 = -60f, y1 = 240f, x0 = cx - 300f;
+        Vector3 toSun = new Vector3(0.17f, 0.21f, 0.96f);
+        float t = (skyZ - z) / toSun.z;
+        Vector2 sunAt = new Vector2(cx + toSun.x * t, eye + toSun.y * t);
+        var sky = SkyTexture((eye - y0) / (y1 - y0), new Vector2((sunAt.x - x0) / 600f, (sunAt.y - y0) / (y1 - y0)),
+                             new Color(0.2f, 0.17f, 0.34f), new Color(0.88f, 0.44f, 0.26f), new Color(1f, 0.7f, 0.38f), new Color(1f, 0.82f, 0.5f));
+        var q = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        q.name = "View_Sky";
+        Destroy(q.GetComponent<Collider>());
+        q.transform.SetParent(root, false);
+        q.transform.localPosition = new Vector3(cx, (y0 + y1) * 0.5f, skyZ);
+        q.transform.localScale = new Vector3(600f, y1 - y0, 1f);
+        var qr = q.GetComponent<Renderer>(); qr.sharedMaterial = Backdrop(sky, Color.white); qr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+
+        // ---- the far city and the towers: painted in haze (lighter and warmer with distance), in front of the sky
+        var rnd = new System.Random(11);
+        var farHaze = Backdrop(White(), new Color(0.6f, 0.36f, 0.27f));
+        var midHaze = Backdrop(White(), new Color(0.42f, 0.24f, 0.2f));
+        for (int i = 0; i < 46; i++)
+        {
+            float w = 6f + (float)rnd.NextDouble() * 16f, h = 8f + (float)rnd.NextDouble() * 22f;
+            float x = cx - 160f + i * 7.2f + (float)rnd.NextDouble() * 3f;
+            Flat("View_FarCity", new Vector3(x, ground + h * 0.5f, z + 125f + (float)rnd.NextDouble() * 10f), new Vector3(w, h, 1f), farHaze);
+        }
+        // a temple's shikhara on the far skyline, left of the sun
+        Flat("View_Shikhara", new Vector3(cx - 34f, ground + 24f, z + 118f), new Vector3(6f, 24f, 1f), midHaze);
+        Flat("View_ShikharaTop", new Vector3(cx - 34f, ground + 38f, z + 118f), new Vector3(2.4f, 4f, 1f), midHaze);
+        // the Renewal Project: four glass towers going up out of the old city, a few floors lit
+        var towerC = Backdrop(White(), new Color(0.46f, 0.38f, 0.4f));
+        var towerLit = Backdrop(White(), new Color(1f, 0.82f, 0.55f));
+        for (int i = 0; i < 4; i++)
+        {
+            // distant: 8-15 degrees above the horizon from the room (at 52-79 m tall they towered over the window)
+            float tx = cx + 34f + i * 7f, th = 26f + i * 4f;
+            Flat("View_Tower", new Vector3(tx, ground + th * 0.5f, z + 110f), new Vector3(4.2f, th, 1f), towerC);
+            for (int f = 0; f < 6; f++)
+                if (rnd.NextDouble() < 0.45) Flat("View_TowerLight", new Vector3(tx + ((float)rnd.NextDouble() - 0.5f) * 2.2f, ground + 6f + f * (th - 9f) / 6f, z + 109.4f), new Vector3(0.9f, 0.5f, 0.2f), towerLit);
+            // a crane over the newest one
+            if (i == 3) { Flat("View_Crane", new Vector3(tx, ground + th + 4f, z + 109.6f), new Vector3(0.4f, 8f, 0.2f), midHaze); Flat("View_CraneJib", new Vector3(tx - 4f, ground + th + 7.6f, z + 109.6f), new Vector3(11f, 0.35f, 0.2f), midHaze); }
+        }
+
+        // ---- old-quarter roofs 30-60 m out: lit like the scene (the sun is behind them, so they read dark against the sky)
+        for (int i = 0; i < 26; i++)
+        {
+            float w = 5f + (float)rnd.NextDouble() * 7f, h = 10f + (float)rnd.NextDouble() * 9f;
+            float x = cx - 60f + i * 4.9f;
+            float zz = z + 30f + (float)rnd.NextDouble() * 28f;
+            var b = Box("View_Roofs", new Vector3(x, ground + h * 0.5f, zz), new Vector3(w, h, 6f), new Color(0.3f, 0.17f, 0.13f), null, 0.1f);
+            Strip(b); b.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            if (rnd.NextDouble() > 0.5) { var tk = Cyl("View_Tank", new Vector3(x + w * 0.2f, ground + h + 0.6f, zz), 0.6f, 1.2f, new Color(0.08f, 0.07f, 0.07f)); Strip(tk); tk.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; }
+            if (rnd.NextDouble() > 0.7) { var sh = Box("View_StairHead", new Vector3(x - w * 0.25f, ground + h + 1.2f, zz), new Vector3(2.2f, 2.4f, 2.4f), new Color(0.28f, 0.16f, 0.12f), null, 0.1f); Strip(sh); }
+            if (rnd.NextDouble() > 0.78) { var lw = Box("View_RoofWindow", new Vector3(x, ground + h - 1.6f, zz - 3.01f), new Vector3(0.9f, 1.1f, 0.02f), Color.black, null); Strip(lw); lw.GetComponent<Renderer>().sharedMaterial = GameKit.Glow(new Color(0.3f, 0.2f, 0.1f), new Color(1f, 0.7f, 0.4f), 0.9f); }
+        }
+
+        // ---- the neighbours' row across the lane, 8 m out: three houses of different heights, fronts facing the window
+        float nz = z + 8f;
+        BuildNeighbour(new Vector3(cx - 6.5f, ground, nz), 7f, 4, new Color(0.72f, 0.6f, 0.44f), true, false);
+        BuildNeighbour(new Vector3(cx + 1.5f, ground, nz + 0.6f), 8f, 3, new Color(0.62f, 0.64f, 0.6f), false, true);
+        BuildNeighbour(new Vector3(cx + 9f, ground, nz - 0.4f), 6f, 3, new Color(0.76f, 0.56f, 0.5f), false, false);
+    }
+
+    /// <summary>One house of the row opposite: front facing the room (-z), storeys of 3.1 m, a parapet, and on the roof a
+    /// water tank and a stair head with a bulb over its door (the practical light); one top-floor window lit, curtained.</summary>
+    void BuildNeighbour(Vector3 baseCentre, float width, int floors, Color plaster, bool tall, bool litTop)
+    {
+        float h = floors * 3.1f;
+        var front = Box("NeighbourFront", baseCentre + new Vector3(0f, h * 0.5f, 3f), new Vector3(width, h, 6f), plaster, null, 0.1f);
+        Strip(front);
+        GameKit.Surface(front, "facade", 2.4f, 1f, 1f, plaster);
+        var par = Box("NeighbourParapet", baseCentre + new Vector3(0f, h + 0.45f, 0.1f), new Vector3(width, 0.9f, 0.2f), plaster * 0.95f, null, 0.1f);
+        Strip(par); GameKit.Surface(par, "facade", 2.4f, 1f, 1f, plaster * 0.95f);
+        Strip(Box("NeighbourCoping", baseCentre + new Vector3(0f, h + 0.93f, 0.1f), new Vector3(width + 0.06f, 0.06f, 0.3f), new Color(0.5f, 0.48f, 0.45f), null, 0.2f));
+        // windows on the floors that can be seen from up here: recessed, sills and sunshades
+        for (int f = floors - 2; f < floors; f++)
+        {
+            if (f < 0) continue;
+            float wy = baseCentre.y + f * 3.1f + 1.5f;
+            int n = Mathf.Max(2, Mathf.RoundToInt(width / 2.6f));
+            for (int i = 0; i < n; i++)
+            {
+                float wx = baseCentre.x - width * 0.5f + (i + 0.5f) * width / n;
+                bool lit = litTop && f == floors - 1 && i == n / 2;
+                var rec = Box("NeighbourWindow", new Vector3(wx, wy, baseCentre.z - 0.01f), new Vector3(1.1f, 1.3f, 0.06f), new Color(0.04f, 0.035f, 0.035f), null, 0.6f);
+                Strip(rec);
+                if (lit)
+                {
+                    rec.GetComponent<Renderer>().sharedMaterial = GameKit.Glow(new Color(0.4f, 0.25f, 0.12f), new Color(1f, 0.72f, 0.42f), 1.1f);
+                    Strip(Box("NeighbourCurtain", new Vector3(wx - 0.22f, wy, baseCentre.z - 0.05f), new Vector3(0.6f, 1.25f, 0.02f), new Color(0.55f, 0.16f, 0.1f), null, 0.1f));
+                }
+                Strip(Box("NeighbourSill", new Vector3(wx, wy - 0.7f, baseCentre.z - 0.07f), new Vector3(1.3f, 0.06f, 0.16f), new Color(0.55f, 0.53f, 0.5f), null, 0.2f));
+                Strip(Box("NeighbourChajja", new Vector3(wx, wy + 0.85f, baseCentre.z - 0.22f), new Vector3(1.5f, 0.07f, 0.46f), new Color(0.52f, 0.5f, 0.47f), null, 0.2f));
+            }
+        }
+        // the roof: a water tank, and on the taller house a stair head with a bulb over its door
+        var tank = Cyl("NeighbourTank", baseCentre + new Vector3(width * 0.28f, h + 0.7f, 3.4f), 0.65f, 1.4f, new Color(0.06f, 0.06f, 0.07f));
+        Strip(tank);
+        if (tall)
+        {
+            var head = Box("NeighbourStairHead", baseCentre + new Vector3(-width * 0.2f, h + 1.25f, 3.2f), new Vector3(2.4f, 2.5f, 2.6f), plaster * 0.92f, null, 0.1f);
+            Strip(head); GameKit.Surface(head, "facade", 2.4f, 1f, 1f, plaster * 0.92f);
+            Strip(Box("NeighbourStairDoor", baseCentre + new Vector3(-width * 0.2f, h + 1.0f, 1.89f), new Vector3(0.9f, 2.0f, 0.04f), new Color(0.22f, 0.14f, 0.08f), null, 0.3f));
+            Strip(GameKit.Sphere(root, "NeighbourBulb", baseCentre + new Vector3(-width * 0.2f, h + 2.2f, 1.82f), 0.08f, GameKit.Glow(new Color(1f, 0.85f, 0.6f), new Color(1f, 0.76f, 0.46f), 4f)));
+            var l = new GameObject("NeighbourBulbLight").AddComponent<Light>();
+            l.transform.SetParent(root, false);
+            l.transform.localPosition = baseCentre + new Vector3(-width * 0.2f, h + 2.0f, 1.4f);
+            l.type = LightType.Point; l.range = 4.5f; l.intensity = 1.4f; l.color = new Color(1f, 0.74f, 0.46f); l.shadows = LightShadows.None;
+            // a washing line across the terrace
+            Strip(Box("NeighbourLine", baseCentre + new Vector3(width * 0.05f, h + 1.7f, 2.2f), new Vector3(width * 0.6f, 0.01f, 0.01f), new Color(0.2f, 0.2f, 0.2f), null));
+            for (int k = 0; k < 4; k++)
+                Strip(Box("NeighbourWashing", baseCentre + new Vector3(width * (-0.18f + k * 0.12f), h + 1.35f, 2.2f), new Vector3(0.5f, 0.7f, 0.01f), k % 2 == 0 ? new Color(0.75f, 0.7f, 0.6f) : new Color(0.3f, 0.4f, 0.6f), null, 0.05f));
+        }
+    }
+
+    /// <summary>
+    /// Through the stair window: a lower neighbour 3.5 m away (its parapet under the window's sight line, one window lit,
+    /// a drain pipe), and the dusk sky over it. Without it the window was a self-lit orange board on a solid wall.
+    /// </summary>
+    void BuildStairView(float outsideX)
+    {
+        float nx = outsideX - 3.4f;                                // the neighbour's wall, facing the window (+x)
+        var wall = Box("StairViewWall", new Vector3(nx - 1f, -2.6f, -4.6f), new Vector3(2f, 8.8f, 16f), new Color(0.6f, 0.52f, 0.42f), null, 0.1f);
+        Strip(wall); GameKit.Surface(wall, "facade", 2.2f, 1f, 1f, new Color(0.6f, 0.52f, 0.42f));
+        Strip(Box("StairViewParapet", new Vector3(nx + 0.05f, 2.05f, -4.6f), new Vector3(0.2f, 0.5f, 16f), new Color(0.56f, 0.48f, 0.4f), null, 0.1f));
+        var win = Box("StairViewWindow", new Vector3(nx + 0.02f, 0.6f, -3.9f), new Vector3(0.05f, 1.2f, 1.0f), Color.black, null);
+        Strip(win); win.GetComponent<Renderer>().sharedMaterial = GameKit.Glow(new Color(0.35f, 0.22f, 0.1f), new Color(1f, 0.7f, 0.4f), 0.8f);
+        Strip(Box("StairViewSill", new Vector3(nx + 0.08f, -0.03f, -3.9f), new Vector3(0.16f, 0.05f, 1.2f), new Color(0.5f, 0.48f, 0.45f), null, 0.2f));
+        Strip(Cyl("StairViewDrainPipe", new Vector3(nx + 0.1f, -1f, -5.6f), 0.05f, 6f, new Color(0.2f, 0.2f, 0.22f)));
+        var sky = SkyTexture(0.18f, new Vector2(-1f, -1f), new Color(0.16f, 0.15f, 0.3f), new Color(0.78f, 0.4f, 0.26f), new Color(0.95f, 0.62f, 0.34f), Color.clear);
+        var q = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        q.name = "StairView_Sky";
+        Destroy(q.GetComponent<Collider>());
+        q.transform.SetParent(root, false);
+        q.transform.localPosition = new Vector3(outsideX - 40f, 10f, -4.6f);
+        q.transform.localRotation = Quaternion.Euler(0f, -90f, 0f);           // faces +x, into the window
+        q.transform.localScale = new Vector3(120f, 60f, 1f);
+        var qr = q.GetComponent<Renderer>(); qr.sharedMaterial = Backdrop(sky, Color.white); qr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
     }
 
     Material SkyGradientMat()
@@ -384,7 +583,14 @@ public class PriyaRoomBuilder : MonoBehaviour
         Box("HallFloor", new Vector3((LStair + LXR) / 2f, -0.05f, zc), new Vector3(LXR - LStair + 0.4f, 0.1f, depth + 0.3f), new Color(0.82f, 0.78f, 0.7f), null, 0.5f);
         Box("Hall_Ceiling", new Vector3(0, 3.05f, zc), new Vector3(12.6f, 0.1f, depth + 0.3f), Cream, null, 0.05f);
         Box("Hall_WallBack", new Vector3(0, 1.5f, LZ1 - 0.15f), new Vector3(12.6f, 3f, 0.3f), paint, null, 0.05f);
-        Box("Hall_WallLeft", new Vector3(LXL - 0.15f, 1.5f, zc), new Vector3(0.3f, 3f, depth + 0.3f), paint, null, 0.05f);
+        // the end wall has the stair window cut through it (z -5.05..-4.15, y 1.35..2.45): four pieces round the opening
+        {
+            float wz0 = -5.05f, wz1 = -4.15f, wy0 = 1.35f, wy1 = 2.45f, z0 = zc - (depth + 0.3f) * 0.5f, z1 = zc + (depth + 0.3f) * 0.5f;
+            Box("Hall_WallLeft", new Vector3(LXL - 0.15f, wy0 * 0.5f, zc), new Vector3(0.3f, wy0, depth + 0.3f), paint, null, 0.05f);
+            Box("Hall_WallLeftTop", new Vector3(LXL - 0.15f, (wy1 + 3f) * 0.5f, zc), new Vector3(0.3f, 3f - wy1, depth + 0.3f), paint, null, 0.05f);
+            Box("Hall_WallLeftA", new Vector3(LXL - 0.15f, (wy0 + wy1) * 0.5f, (z0 + wz0) * 0.5f), new Vector3(0.3f, wy1 - wy0, wz0 - z0), paint, null, 0.05f);
+            Box("Hall_WallLeftB", new Vector3(LXL - 0.15f, (wy0 + wy1) * 0.5f, (wz1 + z1) * 0.5f), new Vector3(0.3f, wy1 - wy0, z1 - wz1), paint, null, 0.05f);
+        }
         Box("Hall_WallRight", new Vector3(LXR + 0.15f, 1.5f, zc), new Vector3(0.3f, 3f, depth + 0.3f), paint, null, 0.05f);
         float fz = -HalfD - Wall / 2f;
         Box("Hall_FrontL", new Vector3((-6.3f + -3f) / 2f, 1.5f, fz), new Vector3(3.3f, 3f, Wall), paint, null, 0.05f);
@@ -521,9 +727,21 @@ public class PriyaRoomBuilder : MonoBehaviour
         float sg = front ? -1f : 1f;
         float zf = zw + sg * 0.04f;
         Quaternion face = front ? Quaternion.identity : Quaternion.Euler(0, 180f, 0);
-        Strip(Box("Nameplate", new Vector3(x + 0.86f, 1.55f, zf + sg * 0.0f), new Vector3(0.42f, 0.24f, 0.03f), new Color(0.93f, 0.9f, 0.8f), null, 0.4f));
-        GameKit.Text(root, family, new Vector3(x + 0.86f, 1.52f, zf + sg * 0.025f), face, 0.06f, new Color(0.1f, 0.06f, 0.04f));
-        GameKit.Text(root, num, new Vector3(x + 0.86f, 1.62f, zf + sg * 0.025f), face, 0.075f, new Color(0.6f, 0.1f, 0.08f));
+        // The plate is screwed flat to the plaster (it floated 2.5 cm off the wall), clear of the frame and the door's swing,
+        // and its lettering sits 1 mm proud of its face in the depth-tested text material: the default font material drew
+        // the name through the wall into Priya's room whenever the on-screen UI was up. Both hang from one parent, so the
+        // lettering cannot drift off its plate.
+        var plate = new GameObject("NameplateMount").transform;
+        plate.SetParent(root, false);
+        plate.localPosition = new Vector3(x + 0.86f, 1.55f, zw + sg * 0.015f);
+        plate.localRotation = face;
+        var board = Box("Nameplate", Vector3.zero, new Vector3(0.42f, 0.24f, 0.03f), new Color(0.93f, 0.9f, 0.8f), plate, 0.4f);
+        Strip(board);
+        board.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        Strip(Box("NameplateScrew", new Vector3(-0.18f, 0.09f, -0.016f), new Vector3(0.012f, 0.012f, 0.004f), new Color(0.55f, 0.5f, 0.4f), plate, 0.6f, 0.8f));
+        Strip(Box("NameplateScrew", new Vector3(0.18f, -0.09f, -0.016f), new Vector3(0.012f, 0.012f, 0.004f), new Color(0.55f, 0.5f, 0.4f), plate, 0.6f, 0.8f));
+        GameKit.Solid(GameKit.Text(plate, family, new Vector3(0f, -0.03f, -0.016f), Quaternion.identity, 0.06f, new Color(0.1f, 0.06f, 0.04f)));
+        GameKit.Solid(GameKit.Text(plate, num, new Vector3(0f, 0.07f, -0.016f), Quaternion.identity, 0.075f, new Color(0.6f, 0.1f, 0.08f)));
         Strip(Box("Doormat", new Vector3(x, 0.012f, zf + sg * 0.5f), new Vector3(0.9f, 0.02f, 0.55f), matColor, null, 0.05f));
         // shoe rack beside the door
         float rx = x - 1.0f;
@@ -553,13 +771,18 @@ public class PriyaRoomBuilder : MonoBehaviour
             Strip(Box("Riser", new Vector3(-5.1f, -0.18f * (i + 1) + 0.04f, LZ0 - 0.1f - i * 0.4f), new Vector3(1.7f, 0.18f, 0.03f), new Color(0.45f, 0.43f, 0.4f), null, 0.4f));
         }
         Strip(Box("LowerFloor", new Vector3(-5.1f, -1.8f, zc), new Vector3(1.8f, 0.1f, depth), new Color(0.3f, 0.28f, 0.26f), null, 0.3f));
-        // window in the end wall: the evening sky leaking in
-        float wx = LXL + 0.03f;
-        // One visible pane in front of its backing. The old pane and the trim shared the same front plane.
-        Strip(Box("StairWindowFrame", new Vector3(wx + 0.01f, 1.9f, -4.6f), new Vector3(0.06f, 1.25f, 1.05f), new Color(0.2f, 0.12f, 0.07f), null, 0.2f));
-        // evening sky through dusty glass: orange, not clipped to white (it bloomed into a halo round the bars)
-        Strip(GameKit.Box(root, "StairWindowGlow", new Vector3(wx + 0.049f, 1.9f, -4.6f), new Vector3(0.01f, 1.1f, 0.9f), GameKit.Glow(new Color(0.85f, 0.42f, 0.16f), new Color(1f, 0.48f, 0.18f), 0.62f)));
-        for (int i = 0; i < 4; i++) Strip(Box("StairWindowBar", new Vector3(wx + 0.073f, 1.9f, -4.95f + i * 0.23f), new Vector3(0.02f, 1.1f, 0.02f), rail, null, 0.4f, 0.6f));
+        // the window in the end wall: a real opening with a frame round its reveal, dusty glass, bars, and the dusk outside
+        float wx = LXL - 0.15f;                                   // the wall's centre plane (it runs from x -6.3 to -6.0)
+        var frameC = new Color(0.2f, 0.12f, 0.07f);
+        foreach (float sz in new[] { -1f, 1f })
+            Strip(Box("StairWindowFrameJamb", new Vector3(wx, 1.9f, -4.6f + sz * 0.47f), new Vector3(0.3f, 1.14f, 0.05f), frameC, null, 0.2f));
+        Strip(Box("StairWindowFrameHead", new Vector3(wx, 2.47f, -4.6f), new Vector3(0.3f, 0.05f, 0.99f), frameC, null, 0.2f));
+        Strip(Box("StairWindowFrameSill", new Vector3(wx + 0.03f, 1.325f, -4.6f), new Vector3(0.38f, 0.05f, 1.05f), frameC, null, 0.2f));
+        // the old pane was a self-lit orange board on a solid wall; this is glass, so the view behind it moves with the eye
+        Strip(GameKit.Box(root, "StairWindowPane", new Vector3(wx - 0.05f, 1.9f, -4.6f), new Vector3(0.006f, 1.1f, 0.9f), DustyGlass()));
+        StairWindowPaneRenderer().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        for (int i = 0; i < 4; i++) Strip(Box("StairWindowBar", new Vector3(wx + 0.06f, 1.9f, -4.95f + i * 0.23f), new Vector3(0.02f, 1.1f, 0.02f), rail, null, 0.4f, 0.6f));
+        BuildStairView(wx - 0.15f);
         var wl = new GameObject("StairWindowLight").AddComponent<Light>();
         wl.transform.SetParent(root, false);
         wl.transform.localPosition = new Vector3(-5.2f, 1.9f, -4.6f);

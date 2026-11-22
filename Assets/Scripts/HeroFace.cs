@@ -147,7 +147,7 @@ public class HeroFace
 
     // ---------------------------------------------------------------- viseme poses (millimetres / degrees on this face)
     // jaw, upper lip up, upper lip fwd, lower lip up, lower lip fwd, corner out, corner up, corner fwd, tongue
-    static readonly float[,] Pose =
+    internal static readonly float[,] Pose =
     {
         /* sil */ { 0f,   0f,   0f,    0f,   0f,    0f,   0f,   0f,   0f },
         /* PP  */ { 0.3f, -0.8f, 0.7f,  2.0f, 0.8f, -1.2f,  0f,  0.6f,  0f },

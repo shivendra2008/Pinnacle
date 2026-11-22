@@ -67,8 +67,17 @@ PINNACLE_ROUTE=market PINNACLE_PROFILE_OUT=/tmp/run PINNACLE_SAVE_DIR=/tmp/run/s
 |---|---|
 | `market` | Act II from chapter select: cold entry, look at Bhaskar, walk through the bazaar gate to Vikram, talk (first answer as `PINNACLE_ROUTE_TRUST=note/appeal/threat`, then thank him), turn and look back through the crowd, walk at the watching woman until she bolts, follow her ride out, pick up her card, the phone, the SUV, the timed choice (`PINNACLE_ROUTE_OUTCOME=hide/walk/plate/timeout`), the outcome. `PINNACLE_ROUTE_RESUME=1` enters from a mid-act saved game; `PINNACLE_ROUTE_CURATOR=1` carries on into the Curator's visit and its hand-over to Act III |
 | `walk` | The market's entry, walk and look back only (quick A/B runs) |
-| `act1intro` | A new game: the prologue skipped, Act I's opening timed, its voices checked over free movement |
-| `act1` | Act I resumed: slow pans across the broken latch and the stairwell window, a stop, backing away |
+| `act1intro` | A new game: the prologue skipped, Act I's opening timed, its voices checked over free movement (the recorded opening, its subtitles timed on his words), then Mrs. Kapoor's questions: Arjun asks one in his recorded voice before she answers |
+| `act1` | Act I resumed: slow pans across the broken latch and the stairwell window, a stop, backing away; a sidestep along the sill at eye height, the latch up close, the stairwell window from the far end of the landing; pans past every flat's nameplate from inside Priya's room and along the landing (checks every label uses the depth-tested text material) |
+| `act1door` | Act I with all nine clues: the steps up the landing, the door swinging shut, a pause and resume during the steps, opening the door (a second E straight after), the note, a skipped line of the finale; reads the door's sound log (latch, hinge start/stop, frame contact: what played, where, how often) |
+| `kamala` | Act I with two clues: walks to a third and examines it, Mrs. Kapoor comes in; her question, the compass (cursor capture, J, a pause with a number pressed behind it, resume), the needle swung by a virtual mouse to every bearing, a click, Arjun asks, her answer; lip-sync on her question, her silence while he speaks, her answer and its cut-off; a held Space through the end of her answer |
+| `act3` | Act III from a save at the temple: the Pandit's question on the compass (`PINNACLE_ROUTE_PANDIT=0/1/2`), the letter, the gate, the call, the crossroads (`PINNACLE_ROUTE_BRANCH=0/1/2`: Café Irani, the Kapoor house, Inspector Reddy), the Curator's visit skipped, Act IV opening at the chosen place; branch 0 walks on into the café |
+| `act3full` | Act III fresh from chapter select: the guard, the computer password, the basement, the cage, the calendar, the drawer code, the key, the cage, the temple, the Pandit, the crossroads |
+| `cafe` | Act IV at Café Irani from chapter select (cold entry timed): from the entrance to the counter, the biscuit case, the owner, the street from the counter and the terrace; stills of the case from the side and of the street from behind the owner; checks the owner's hand stays on his cup while carrying it and the cup stands on the worktop after |
+
+`PINNACLE_ROUTE_POINTER=mouse` answers the market's dials with the virtual mouse too (the `kamala` and `act3` routes
+always do). `python3 Tools/route_timing.py <run dirs>` prints cold entry and play separately for market and café runs
+(median, p95, p99, worst, frames over 50 ms).
 
 Outputs in `PINNACLE_PROFILE_OUT`: `summary.txt` (cold entry, steady play and the SUV as separate samples: median,
 p95, p99, worst, frames over 50 and 100 ms; CPU main-thread and GPU times; render counters by section), `frames.csv`,

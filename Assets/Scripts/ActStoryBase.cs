@@ -113,6 +113,17 @@ public abstract class ActStoryBase : MonoBehaviour
     string toast; float toastUntil; bool toastBig;
     string titleA, titleB; float titleStart, titleEnd;
     protected string dlgSpeaker, dlgText; string[] dlgOptions; bool[] dlgDisabled; protected int menuResult;
+    // the decision compass and phrase subtitles of Acts I-II, for the acts that switch them on (UseCompass)
+    protected readonly StoryCompass compass = new StoryCompass();
+    readonly StoryCompass narration = new StoryCompass();     // narration and phone calls, in the same phrase subtitles
+    AudioSource talkSource;                 // the voice speaking the current line, for the subtitles' phrase timing
+    string choiceHeading, choiceSituation;  // a decision with no witness in frame states its situation above the dial
+
+    /// <summary>
+    /// Act-scoped: true for the acts whose decisions use the compass and whose lines speak through phrase subtitles
+    /// (Act III, the café in Act IV). The other acts keep the numbered panel exactly as before.
+    /// </summary>
+    protected virtual bool UseCompass { get { return false; } }
     protected bool skipAll;
     bool paused, savedLocked, journalOpen;
     // document card
@@ -147,6 +158,7 @@ public abstract class ActStoryBase : MonoBehaviour
         PriyaRoomPlayer.Locked = true;
         Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false;
         SetupAudio();
+        compass.sfx = sfx;
         CinematicLook.NoSky(camComp, camComp.backgroundColor);      // an earlier act may have left a photographed sky on the shared camera
         BuildWorld();
         TexturePass();
@@ -352,10 +364,11 @@ public abstract class ActStoryBase : MonoBehaviour
         if (skipAll) { yield break; }
         var clip = VO(id);
         float dur = clip != null ? clip.length + 0.35f : Mathf.Max(2.2f, dlgText.Length * 0.06f);
+        talkSource = null;
         if (clip != null)
         {
-            if (npc != null) npc.Say(clip);
-            else { voice.Stop(); voice.clip = clip; voice.Play(); }
+            if (npc != null) { npc.Say(clip); talkSource = npc.VoiceSource; }
+            else { voice.Stop(); voice.clip = clip; voice.Play(); talkSource = voice; }
         }
         yield return null;
         float t = 0;
@@ -396,16 +409,38 @@ public abstract class ActStoryBase : MonoBehaviour
     }
 
     /// <summary>Numbered options under the current line; waits for 1-4. Result in menuResult.</summary>
-    protected IEnumerator Choose(string[] options, bool[] disabled = null)
+    protected IEnumerator Choose(string[] options, bool[] disabled = null) { return Choose(null, options, disabled, null); }
+
+    /// <summary>
+    /// A decision. In an act that uses the compass, <paramref name="intents"/> are the short intentions at its bearings
+    /// (in index order: left, right, up, down) and <paramref name="options"/> the full lines previewed under it; the
+    /// index committed is the option's index, so every reply keeps its line and result. <paramref name="heading"/> and
+    /// <paramref name="situation"/> state a decision that has no witness in frame. Elsewhere: the numbered panel.
+    /// Result in menuResult.
+    /// </summary>
+    protected IEnumerator Choose(string[] intents, string[] options, bool[] disabled, bool[] asked, string heading = null, string situation = null)
     {
         dlgOptions = options; dlgDisabled = disabled;
         if (dlgText == null) { dlgText = " "; }
         skipAll = false;
         menuResult = -1;
+        bool dial = UseCompass && options.Length <= 4;
+        if (dial)
+        {
+            choiceHeading = heading; choiceSituation = situation;
+            compass.Open(intents ?? options, options, disabled, asked);
+        }
         yield return null;
         while (menuResult < 0)
         {
             if (GameState.Paused) { yield return null; continue; }
+            if (dial)
+            {
+                int c = compass.Poll();
+                if (c >= 0) { menuResult = c; sfx.PlayOneShot(clickClip, 0.5f); }
+                yield return null;
+                continue;
+            }
             var kb = Keyboard.current;
             if (kb != null)
             {
@@ -420,6 +455,8 @@ public abstract class ActStoryBase : MonoBehaviour
             yield return null;
         }
         dlgOptions = null; dlgDisabled = null;
+        choiceHeading = null; choiceSituation = null;
+        if (dial) dlgText = null;           // the line before the dial has been answered: it does not come back as a subtitle
     }
 
     protected void EndTalk() { dlgSpeaker = null; dlgText = null; dlgOptions = null; AutoFocus.FocusOn = null; }
@@ -755,7 +792,7 @@ public abstract class ActStoryBase : MonoBehaviour
         GUI.matrix = Matrix4x4.Scale(new Vector3(s, s, 1));
         float W = Screen.width / s, H = Screen.height / s;
 
-        UiKit.Letterbox(W, H, !paused && creditsStart <= 0 && (phase == Phase.Intro || !string.IsNullOrEmpty(dlgText) || cardOpen));
+        UiKit.Letterbox(W, H, !paused && creditsStart <= 0 && (phase == Phase.Intro || !string.IsNullOrEmpty(dlgText) || cardOpen || compass.IsOpen));
         float fl = Mathf.Min(Mathf.Clamp01((Time.time - flashStart) / 0.5f), Mathf.Clamp01((flashEnd - Time.time) / 0.8f + 1f));
         if (fl > 0.001f && !paused)
         {
@@ -789,7 +826,12 @@ public abstract class ActStoryBase : MonoBehaviour
             GUI.Label(new Rect(r.x, r.y + (toastBig ? 10 : 6), r.width, 40), toast, new GUIStyle(sPrompt) { fontSize = toastBig ? 24 : 18 });
         }
 
-        if (Time.time < subUntil && !string.IsNullOrEmpty(sub) && !paused)
+        if (UseCompass && Time.time < subUntil && !string.IsNullOrEmpty(sub) && !paused && (string.IsNullOrEmpty(dlgText) || dlgText.Trim().Length == 0) && !compass.IsOpen)
+        {
+            int cut = sub.IndexOf(":  ");
+            narration.Speak(W, H, cut > 0 ? sub.Substring(0, cut) : null, cut > 0 ? sub.Substring(cut + 3) : sub, voice != null && voice.isPlaying ? voice : null);
+        }
+        else if (!UseCompass && Time.time < subUntil && !string.IsNullOrEmpty(sub) && !paused)
         {
             float h = sSub.CalcHeight(new GUIContent(sub), W * 0.72f) + 16;
             var r = new Rect(W * 0.14f, H - 60 - h, W * 0.72f, h);
@@ -797,7 +839,9 @@ public abstract class ActStoryBase : MonoBehaviour
             GUI.Label(new Rect(r.x + 8, r.y + 8, r.width - 16, h - 8), sub, sSub);
         }
 
-        if (!string.IsNullOrEmpty(dlgText) && !paused) DrawDialogue(W, H);
+        // an open decision draws even when the line before it has cleared
+        if ((compass.IsOpen || !string.IsNullOrEmpty(dlgText)) && !paused && (!UseCompass || (!cardOpen && !codeOpen))) DrawDialogue(W, H);
+        if (UseCompass && !paused) compass.Afterglow(W, H);
         if (cardOpen && !paused) DrawCard(W, H);
         if (codeOpen && !paused) DrawCode(W, H);
         if (journalOpen && !paused) DrawJournal(W, H);
@@ -835,6 +879,16 @@ public abstract class ActStoryBase : MonoBehaviour
 
     void DrawDialogue(float W, float H)
     {
+        if (UseCompass)
+        {
+            if (compass.IsOpen) compass.Draw(W, H, choiceHeading, -1f, choiceSituation);
+            else if (dlgOptions == null && !string.IsNullOrEmpty(dlgText) && dlgText.Trim().Length > 0)
+            {
+                compass.Speak(W, H, dlgSpeaker, dlgText, talkSource != null && talkSource.isPlaying ? talkSource : null);
+                UiKit.Text(new Rect(0, H - 30, W, 22), "E / Space  next line      Enter  skip conversation", new GUIStyle(sSmall) { alignment = TextAnchor.UpperCenter, fontSize = 14 });
+            }
+            return;
+        }
         float textH = sPanel.CalcHeight(new GUIContent(dlgText), W * 0.7f - 40);
         float optH = 34;
         if (dlgOptions != null) { optH = 12; foreach (var o in dlgOptions) optH += sPanel.CalcHeight(new GUIContent("Press 1:   " + o), W * 0.7f - 70) + 6; }

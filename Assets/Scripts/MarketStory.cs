@@ -79,6 +79,7 @@ public class MarketStory : MonoBehaviour
         yield return world.Generate(cam);
         SetupEnvironment();
         SetupAudio();
+        compass.sfx = sfx;                                    // the dial ticks softly as its needle picks a bearing
         SetupPolish();
 
         var cc = player.GetComponent<CharacterController>();
@@ -371,7 +372,8 @@ public class MarketStory : MonoBehaviour
         evidence.Add(e);
         SaveSystem.Data.evidence = new List<string>(evidence); SaveSystem.Save();
         sfx.PlayOneShot(dingClip, 0.5f);
-        Toast(evidence.Count <= 1 ? "Evidence added to your notes (J)" : "Evidence noted", evidence.Count <= 1 ? 3f : 2f);
+        // the notes are taught once and confirmed once; after that the soft chime says it (the toast repeated after every answer)
+        if (evidence.Count <= 2) Toast(evidence.Count <= 1 ? "Evidence added to your notes (J)" : "Evidence noted", evidence.Count <= 1 ? 3f : 2f);
     }
 
     IEnumerator W(float seconds)
@@ -504,9 +506,18 @@ public class MarketStory : MonoBehaviour
             if (!paused && kb != null && (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame)) break;
             yield return null;
         }
-        if (voice.clip == intro) voice.Stop();
+        // a witness (or a skip) takes over: the narration fades in a few hundredths rather than cutting with a click
+        if (voice.clip == intro && voice.isPlaying) StartCoroutine(FadeOutVoice(voice, intro, 0.14f));
         if (sub == opening) sub = null;
         if (phase != Phase.Free) titleEnd = 0f;
+    }
+
+    IEnumerator FadeOutVoice(AudioSource src, AudioClip clip, float dur)
+    {
+        float v0 = src.volume;
+        for (float t = 0; t < dur && src.clip == clip && src.isPlaying; t += Time.unscaledDeltaTime) { src.volume = v0 * (1f - t / dur); yield return null; }
+        if (src.clip == clip) src.Stop();
+        src.volume = v0;
     }
 
     float ambienceLevel, ambienceDuck = 1f; bool rampingAmbience;
@@ -644,6 +655,7 @@ public class MarketStory : MonoBehaviour
         if (goodTrust)
         {
             trust = "WARMING";
+            yield return CheckLane();             // he looks down the lane both ways before he says anything that matters
             yield return Line("VIKRAM", "Priya is like a daughter to me. I've known her since she was this tall. She came to me three weeks ago. She was investigating the Renewal Project, the one that's going to destroy Basti Nagar. My home, brother. I grew up there. My father built our house with his own hands. And now Councilor Deshpande wants to bulldoze it for a shopping mall.", "v_t2_intro", vikram);
         }
         int limit = goodTrust ? 3 : 1;
@@ -707,6 +719,28 @@ public class MarketStory : MonoBehaviour
         vikramDoneAt = Time.time;
         EndDialogue();
         SpawnReddy();
+    }
+
+    /// <summary>Before he confides, Vikram checks the lane: a look toward the far gate, a look back toward the entrance, then
+    /// back to Arjun (his head turns are eased; about 1.4 s in all, skipped with the conversation).</summary>
+    IEnumerator CheckLane()
+    {
+        if (skipAll || vikram == null) yield break;
+        var keep = vikram.lookTarget;
+        var probe = new GameObject("VikramLooks").transform;
+        probe.SetParent(transform, false);
+        dlgText = "..."; dlgSpeaker = "VIKRAM"; dialogueSource = null;
+        foreach (var at in new[] { new Vector3(0.3f, 1.6f, 8f), new Vector3(0.3f, 1.6f, -7f) })
+        {
+            probe.position = vikram.transform.position + at;
+            vikram.lookTarget = probe;
+            float t = 0f, dur = at.z > 0 ? 0.75f : 0.55f;
+            while (t < dur && !skipAll) { if (!GameState.Paused) t += Time.deltaTime; yield return null; }
+        }
+        vikram.lookTarget = keep;
+        Destroy(probe.gameObject);
+        float b = 0f;
+        while (b < 0.15f && !skipAll) { if (!GameState.Paused) b += Time.deltaTime; yield return null; }
     }
 
     /// <summary>
@@ -861,7 +895,9 @@ public class MarketStory : MonoBehaviour
         StartCoroutine(RampSuvAudio());
         float stopZ = 54f;
         yield return MoveSuv(stopZ, 6f, 2f);
-        yield return W(1.2f);
+        // tilt down a little once it has stopped, so the SUV sits above the timed dial instead of under its labels
+        if (world.Suv != null) yield return Turn(new Vector3(world.Suv.position.x, -1.1f, world.Suv.position.z), 0.6f);
+        yield return W(0.6f);
 
         // ----- timed choice (15 s)
         skipAll = false;
@@ -887,9 +923,9 @@ public class MarketStory : MonoBehaviour
         else yield return OutcomePlate();
 
         AutoFocus.FocusOn = null;
-        // the SUV moves on
+        // the SUV moves on (a shorter hold before the closing line: it sat on 3.5 s of nothing)
         StartCoroutine(SuvLeaves());
-        yield return W(3.5f);
+        yield return W(2.4f);
 
         // ----- end of Act II
         var end = VO("arjun_act2_end");
@@ -1109,7 +1145,8 @@ public class MarketStory : MonoBehaviour
                 {
                     blockedFor += Time.deltaTime;
                     // a couple of impatient taps, then the driver just waits: nobody leans on the horn for a minute
-                    if (honks < 2 && blockedFor > 1.2f && Time.time > honkAt)
+                    // ...and not over a conversation: the horn masked the witness (the driver waits for Arjun instead)
+                    if (honks < 2 && blockedFor > 1.2f && Time.time > honkAt && phase == Phase.Free)
                     {
                         horn.PlayOneShot(hornClip, 0.38f); honks++;
                         honkAt = Time.time + UnityEngine.Random.Range(3.5f, 6f);
@@ -1527,7 +1564,7 @@ public class MarketStory : MonoBehaviour
             GUI.matrix = savedMatrix;
             return;
         }
-        UiKit.Letterbox(W, H, !paused && (phase == Phase.Dialogue || phase == Phase.Choice));
+        UiKit.Letterbox(W, H, !paused && (phase == Phase.Dialogue || phase == Phase.Choice || compass.IsOpen));
         if (phase == Phase.Free && !paused) UiKit.Crosshair(W, H);
 
         if (phase == Phase.Free && objectiveTarget.HasValue && !paused) DrawTargetMarker(s);
@@ -1568,7 +1605,8 @@ public class MarketStory : MonoBehaviour
             narration.Speak(W, H, who, what, voice != null && voice.isPlaying ? voice : null);
         }
 
-        if (!string.IsNullOrEmpty(dlgText) && !paused) DrawDialogue(W, H);
+        // an open decision draws even when the line before it has cleared (the SUV's timed dial draws in DrawChoice)
+        if (!choiceActive && (compass.IsOpen || !string.IsNullOrEmpty(dlgText)) && !paused) DrawDialogue(W, H);
         if (!paused) compass.Afterglow(W, H);
         if (phase == Phase.Intro && !paused && fade < 0.9f)
             Shadowed(new Rect(0, H - 44, W, 26), "Enter: skip intro", new GUIStyle(sSmall) { alignment = TextAnchor.UpperCenter, fontSize = 15 });
@@ -1638,8 +1676,8 @@ public class MarketStory : MonoBehaviour
 
     void DrawDialogue(float W, float H)
     {
-        if (dlgOptions != null) compass.Draw(W, H, dlgSpeaker);
-        else compass.Speak(W, H, dlgSpeaker, dlgText, dialogueSource);
+        if (compass.IsOpen) compass.Draw(W, H, dlgSpeaker);
+        else if (dlgOptions == null) compass.Speak(W, H, dlgSpeaker, dlgText, dialogueSource);
     }
 
     /// <summary>A big, readable licence plate while the camera is zoomed on the SUV.</summary>
