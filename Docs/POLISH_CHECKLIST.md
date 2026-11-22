@@ -60,7 +60,7 @@ Docs: audit and production list `POLISH_AUDIT.md` · story `STORY_BIBLE.md` · s
 - [x] Scripted route for player builds, any version of the code (`PlayRoute.cs`, `Docs/PLAYTEST.md`): timing by section, render counters, Profiler markers (dev build), checks, footage with UI and sound
 - [x] Market baseline measured on the original code (3 runs) and compared with interleaved runs (section 7 of `ACTS_1_2.md`)
 - [x] Market GPU cost: dressing props were ~95% of triangles; small props no longer cast moon shadows, distant props simplified or dropped, 2 cascades in the market (A/B measured, after-build measured)
-- [x] Cold entry: control 15.4 s -> 3.1 s; no rendering behind the loading card; probe rendered once (measured)
+- [x] Cold entry: control 15.7-16.0 s -> 2.3-2.9 s (final interleaved runs); no rendering behind the loading card; probe rendered once (measured)
 - [x] Player no longer shoved or lifted during conversations; Vikram in frame at every decision (measured)
 - [x] Stall boards: fitted, hung under the rail on straps, lit paint, single-sided; awnings rest on their rails; bulbs beside the boards (visually checked)
 - [x] Shop frames, hoarding and OM plaque attached; windows, stair pane, window head and latch fixed (visually checked; motion review pending)
