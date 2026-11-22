@@ -82,6 +82,24 @@ Docs: audit and production list `POLISH_AUDIT.md` · story `STORY_BIBLE.md` · s
 - [ ] Reddy's reply to "I have evidence you don't" still says "She's braver than all of us", written for the old line about Priya's letter
 - [ ] Listen to the recorded lines in the game against the other characters' voices
 
+## Session 6 (22 Nov 2026): cinematic pass (`Docs/CINEMATIC_PASS.md`)
+- [x] Compass drawn whenever a decision is open (it was gated on the subtitle text); larger dial below the eyeline, needle at rest, swing, tick, commit ring, full line on focus (measured: `kamala` 20/20 at 1280x720 and 1920x1080)
+- [x] Compass act-scoped into Act III (Pandit, crossroads) and the café; Act IV house/police and Act V keep their panels (measured: Pandit, crossroads x3, Act IV opens at each place)
+- [x] Mrs. Kapoor steps into the room to ask (lit, 1.75 m, eyes above the dial); Vikram in frame at both decisions (measured)
+- [x] Held keys, pause, journal and cursor over a decision (measured)
+- [x] Café Irani counter, biscuit case, owner's hand-IK task, night street (measured: grip within 0.4-2.0 cm, cup on the worktop; seen)
+- [x] Act I window view at three depths, stairwell window opening, nameplates on the wall and depth-tested, door latch/hinge/frame sounds (measured: door log and mix; seen)
+- [x] Act II: no horns over conversations, narration fade, fewer toasts, Vikram checks the lane, kettle (code)
+- [x] Act III props: desk and CRT, drawer, bookcases, shelving, cage, calendar, envelope (seen in part; puzzles re-run)
+- [x] Act III from a fresh start: guard, computer, Record Room, cage, calendar, drawer, key, Pandit, letter, gate, call, crossroads, Curator, Act IV at the café (measured: `act3full` 41/42, the one failure the route's own timing, fixed)
+- [x] Café sign readable from the entrance (two-line board clear of the pergola) and the parked car's windows on its body (seen: `final/cafe_1080` stills)
+- [x] Visemes for Kamala, Bhaskar, Vikram, Sharma-ji, the Pandit, Raj; loudness fallback; nods from stressed words (measured: quiet, fast, interrupted lines, silent listener)
+- [ ] Listen to the door, horns and market mix on headphones and speakers
+- [ ] A person plays the compass with a real mouse, trackpad, gamepad and the Arduino
+- [ ] Foot planting in turns on the spot and on steps; no-rig lip-sync fallback run
+- [x] Frame time measured before/after at 1080p (`CINEMATIC_PASS.md` section 8): market unchanged and café +3 ms on a quiet machine; p95 under 33.3 ms in steady play and the café in every run
+- [ ] SUV chase p95 at or under 33.3 ms on a warm M1 (35-44 ms in three of six warm runs)
+
 ## Next
 - [ ] Justice gate: case conditions instead of `EvidenceCount >= 18`, shown on the casket card
 - [ ] Deduction step: link evidence to questions (fact vs. interpretation), one fair contradiction per act
