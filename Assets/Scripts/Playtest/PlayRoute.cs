@@ -986,7 +986,8 @@ public class PlayRoute : MonoBehaviour
         StartSampling();
         Segment("act1", true);
         var latch = FindDeep(builder.Root, "CLUE_9_BrokenWindowLatch");
-        var stair = FindDeep(builder.Root, "StairWindowGlow");
+        // the stairwell window: a real opening with a pane now, a self-lit board before
+        var stair = FindDeep(builder.Root, "StairWindowPane") ?? FindDeep(builder.Root, "StairWindowGlow");
         Note("latch " + (latch != null ? latch.position.ToString("F2") : "not found") + ", stair window " + (stair != null ? stair.position.ToString("F2") : "not found"));
         // the broken latch, from 1.9 m inside Priya's room
         if (latch != null) { Place(new Vector3(0.7f, 0.1f, 0.7f), 0f, 0f); yield return Pan(latch, "latch"); }
