@@ -72,6 +72,16 @@ Docs: audit and production list `POLISH_AUDIT.md` · story `STORY_BIBLE.md` · s
 - [ ] Recorded door creak, horn, phone and engines (no licensed recordings in the project)
 - [ ] A person plays Act I end to end (nine clues, Kamala, door, note) and the market by hand (control feel)
 
+## Session 5 (22 Nov 2026): Arjun's recorded voice (`Docs/ARJUN_VOICE_CHECK.md`)
+- [x] 50 recordings by the voice actor (`arjun voice overs 2/`) replace 46 of Arjun's text-to-speech lines and voice 6 that had none: his three questions to Mrs. Kapoor were silent, and his three answers to Priya in Act V (one per ending) are new (`Tools/arjun_recordings.py`)
+- [x] Trimmed, the Act I opening split at its pauses, levelled to the rest of the VO (-16 LUFS); every line transcribed on the Mac and compared with its subtitle: 45 of 52 word for word, the other 7 differ only in names the recogniser mishears (measured)
+- [x] Five subtitles changed to the recorded wording (`a3_arjun_unlock`, `a3_arjun_reddy`, `a4b_arjun_told`, `a4c_arjun_id`, `a4c_q_a`)
+- [x] Acts I-II subtitles change phrase on the recorded words (`VoTiming.cs`); Acts III-V show each line for its recording's length
+- [x] The text-to-speech generators never overwrite a recorded line, even with `--all`
+- [ ] 39 Arjun lines still have no recording and stay text-to-speech (listed in `Docs/ARJUN_VOICE_CHECK.md`)
+- [ ] Reddy's reply to "I have evidence you don't" still says "She's braver than all of us", written for the old line about Priya's letter
+- [ ] Listen to the recorded lines in the game against the other characters' voices
+
 ## Next
 - [ ] Justice gate: case conditions instead of `EvidenceCount >= 18`, shown on the casket card
 - [ ] Deduction step: link evidence to questions (fact vs. interpretation), one fair contradiction per act

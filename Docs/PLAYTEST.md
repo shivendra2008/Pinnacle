@@ -67,7 +67,7 @@ PINNACLE_ROUTE=market PINNACLE_PROFILE_OUT=/tmp/run PINNACLE_SAVE_DIR=/tmp/run/s
 |---|---|
 | `market` | Act II from chapter select: cold entry, look at Bhaskar, walk through the bazaar gate to Vikram, talk (first answer as `PINNACLE_ROUTE_TRUST=note/appeal/threat`, then thank him), turn and look back through the crowd, walk at the watching woman until she bolts, follow her ride out, pick up her card, the phone, the SUV, the timed choice (`PINNACLE_ROUTE_OUTCOME=hide/walk/plate/timeout`), the outcome. `PINNACLE_ROUTE_RESUME=1` enters from a mid-act saved game; `PINNACLE_ROUTE_CURATOR=1` carries on into the Curator's visit and its hand-over to Act III |
 | `walk` | The market's entry, walk and look back only (quick A/B runs) |
-| `act1intro` | A new game: the prologue skipped, Act I's opening timed, its voices checked over free movement |
+| `act1intro` | A new game: the prologue skipped, Act I's opening timed, its voices checked over free movement (the recorded opening, its subtitles timed on his words), then Mrs. Kapoor's questions: Arjun asks one in his recorded voice before she answers |
 | `act1` | Act I resumed: slow pans across the broken latch and the stairwell window, a stop, backing away |
 
 Outputs in `PINNACLE_PROFILE_OUT`: `summary.txt` (cold entry, steady play and the SUV as separate samples: median,

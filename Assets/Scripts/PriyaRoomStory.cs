@@ -237,6 +237,26 @@ public class PriyaRoomStory : MonoBehaviour
 
     static AudioClip VO(string file) { return Resources.Load<AudioClip>("VO/" + file); }
 
+    /// <summary>Arjun asks Mrs. Kapoor the chosen question aloud, in his recorded voice, before she answers.
+    /// E or Space skips it; with no recording her answer follows at once, as it did before.</summary>
+    IEnumerator ArjunAsks(string text, string file)
+    {
+        var clip = VO(file);
+        if (clip == null || skipAll) yield break;
+        dlgSpeaker = "ARJUN"; dlgText = text;
+        voice.Stop(); voice.clip = clip; voice.Play();
+        yield return null;                                  // the press that chose the question does not skip it
+        float t = 0f, dur = clip.length + 0.16f;
+        while (t < dur)
+        {
+            if (GameState.Paused) { yield return null; continue; }
+            var kb = Keyboard.current;
+            if (skipAll || GameInput.InteractPressed || (kb != null && kb.spaceKey.wasPressedThisFrame)) { voice.Stop(); break; }
+            t += Time.deltaTime;
+            yield return null;
+        }
+    }
+
     /// <summary>Plays a voice line with a subtitle. Space skips the line.</summary>
     IEnumerator Say(string file, string speaker, string text, bool useKamala = false)
     {
@@ -728,6 +748,7 @@ public class PriyaRoomStory : MonoBehaviour
             "That's all for now, Mrs. Kapoor.",
         };
         string[] files = { "kamala_a", "kamala_b", "kamala_c" };
+        string[] asks = { "q_k_a", "q_k_b", "q_k_c" };          // Arjun's own recordings of the three questions
         string[] replies =
         {
             "Not directly. But two weeks ago, she stopped coming home for dinner. I could hear her on the phone, arguing with someone. She used words like 'forgery' and 'original documents'. I didn't understand, but I understood her voice. She was scared.",
@@ -767,6 +788,8 @@ public class PriyaRoomStory : MonoBehaviour
                 break;
             }
             dlgAsked[choice] = true;
+            yield return ArjunAsks(menu[choice], asks[choice]);
+            dlgSpeaker = "KAMALA KAPOOR";
             dlgText = replies[choice];
             var rc = VO(files[choice]);
             if (rc != null) kamala.Say(rc);
@@ -1510,6 +1533,6 @@ public class PriyaRoomStory : MonoBehaviour
     void DrawDialogue(float W, float H)
     {
         if (dlgOptions != null) compass.Draw(W, H, dlgSpeaker);
-        else compass.Speak(W, H, dlgSpeaker, dlgText, kamala != null ? kamala.VoiceSource : null);
+        else compass.Speak(W, H, dlgSpeaker, dlgText, voice != null && voice.isPlaying ? voice : (kamala != null ? kamala.VoiceSource : null));
     }
 }

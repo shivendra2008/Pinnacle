@@ -655,6 +655,12 @@ public class PlayRoute : MonoBehaviour
                 yield return null; yield return null; yield return null;
                 if (menus == 1)
                 {
+                    // his answer is the voice actor's recording, with the word timing its subtitles follow
+                    string want = trustPick == "appeal" ? "q_v_1b" : trustPick == "threat" ? "q_v_1c" : "q_v_1a";
+                    for (int i = 0; i < 240 && !(voice != null && voice.isPlaying && voice.clip != null && voice.clip.name == want); i++) yield return null;
+                    var vt = voice != null && voice.clip != null ? VoTiming.Get(voice.clip.name) : null;
+                    Check(voice != null && voice.clip != null && voice.clip.name == want && vt != null && vt.times[vt.times.Length - 1] <= voice.clip.length + 0.05f,
+                          "Arjun's answer plays his recording (" + want + ", " + (voice != null && voice.clip != null ? voice.clip.length.ToString("F2") : "-") + " s)");
                     string tr = Get(market, "trust") as string;
                     for (int i = 0; i < 600 && (tr == "COLD"); i++) { yield return null; tr = Get(market, "trust") as string; }
                     Note("trust after the first answer (" + trustPick + "): " + tr);
@@ -932,10 +938,38 @@ public class PlayRoute : MonoBehaviour
         var voice = Get(story, "voice") as AudioSource;
         for (float t = 0; t < 2.5f; t += Time.deltaTime) yield return null;
         Check(voice != null && voice.isPlaying, "Arjun's narration is audible while the player looks around");
+        // the opening is the voice actor's recording, its subtitle phrases timed on his words (VoTiming)
+        yield return WaitFor(() => voice != null && voice.isPlaying && voice.clip != null && voice.clip.name == "arjun_intro2", 15f, "the second opening line plays");
+        for (int i = 0; i < 3; i++) yield return null;
+        var ends = Get(Get(story, "narration"), "phraseEnds") as List<float>;
+        var timing = VoTiming.Get("arjun_intro2");
+        float len = voice != null && voice.clip != null ? voice.clip.length : 0f;
+        bool timed = timing != null && ends != null && ends.Count > 1 && Array.Exists(timing.times, x => Mathf.Abs(x - ends[0] * len) < 0.02f);
+        Check(timed, "the opening plays Arjun's recording, its subtitle changing phrase on his words (first phrase ends at "
+              + (ends != null && ends.Count > 0 ? (ends[0] * len).ToString("F2") : "-") + " s of " + len.ToString("F2") + " s)");
         Tap(Key.Enter);
         for (int i = 0; i < 6; i++) yield return null;
         Check(!GetBool(story, "openingVoices") && (voice == null || !voice.isPlaying) && Get(story, "sub") == null, "Enter stops the opening voices and their subtitle at once");
         Segment("prologue", false);
+
+        // Mrs. Kapoor's questions: Arjun asks the chosen one aloud, in his recorded voice, and then she answers
+        var kamala = Get(story, "kamala") as CharacterNPC;
+        story.StartCoroutine((IEnumerator)Call(story, "KamalaDialogue"));
+        yield return WaitFor(() => Get(story, "dlgOptions") != null, 40f, "Mrs. Kapoor's questions open");
+        for (float t = 0; t < 0.5f; t += Time.deltaTime) yield return null;
+        Tap(Key.Digit1);
+        yield return WaitFor(() => (Get(story, "dlgSpeaker") as string) == "ARJUN", 3f, "choosing a question makes Arjun ask it");
+        double asked = Now;
+        Check(voice != null && voice.isPlaying && voice.clip != null && voice.clip.name == "q_k_a" && (Get(story, "dlgText") as string) == "Did she mention anyone threatening her?",
+              "he asks it in his recorded voice, the question as the subtitle (" + (voice != null && voice.clip != null ? voice.clip.name + ", " + voice.clip.length.ToString("F2") + " s" : "no clip") + ")");
+        yield return WaitFor(() => (Get(story, "dlgSpeaker") as string) == "KAMALA KAPOOR" && kamala != null && kamala.IsTalking, 8f, "Mrs. Kapoor answers after him");
+        Note("Mrs. Kapoor's answer began " + (Now - asked).ToString("F2") + " s after Arjun began asking");
+        for (float t = 0; t < 1.5f; t += Time.deltaTime) yield return null;
+        Tap(Key.Space);
+        yield return WaitFor(() => Get(story, "dlgOptions") != null, 8f, "the questions come back after her answer");
+        for (float t = 0; t < 0.5f; t += Time.deltaTime) yield return null;
+        Tap(Key.Digit4);
+        yield return WaitFor(() => GetBool(story, "dlgDone"), 12f, "\"That's all for now\" ends the conversation");
     }
 
     static Transform FindDeep(Transform t, string n)

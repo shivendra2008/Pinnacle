@@ -378,7 +378,7 @@ public sealed class StoryCompass
         if (text != lastText || clip != lastClip)
         {
             lastText = text; lastClip = clip; phrase = 0;
-            Split(text);
+            Split(text, clip);
         }
         string show = text;
         if (clip != null && phrases.Count > 1 && source != null)
@@ -398,7 +398,7 @@ public sealed class StoryCompass
         Write(r, show, detail, UiKit.Cream);
     }
 
-    void Split(string text)
+    void Split(string text, AudioClip clip)
     {
         phrases.Clear(); phraseEnds.Clear();
         const int Max = 96;
@@ -436,9 +436,30 @@ public sealed class StoryCompass
         }
         if (cur.Length > 0) phrases.Add(cur);
         if (phrases.Count == 0) phrases.Add(text);
-        // each phrase gets the share of the line's length its characters take
+        // a recorded line: each phrase ends where its last word ends in the recording
+        if (TimedEnds(text, clip)) return;
+        // otherwise each phrase gets the share of the line's length its characters take
         float total = 0; foreach (var p in phrases) total += p.Length + 6f;
         float acc = 0;
         foreach (var p in phrases) { acc += p.Length + 6f; phraseEnds.Add(acc / total); }
+    }
+
+    /// <summary>Phrase ends from the measured word timing of a recorded clip (VoTiming, made by
+    /// Tools/arjun_recordings.py). False, with nothing set, when the clip has none or its subtitle has changed.</summary>
+    bool TimedEnds(string text, AudioClip clip)
+    {
+        var timing = clip != null ? VoTiming.Get(clip.name) : null;
+        if (timing == null || timing.text != text || timing.chars.Length == 0 || clip.length <= 0f) return false;
+        int from = 0, k = 0;
+        foreach (var p in phrases)
+        {
+            string tail = p.Length > 12 ? p.Substring(p.Length - 12) : p;
+            int at = text.IndexOf(tail, from, System.StringComparison.Ordinal);
+            if (at < 0) { phraseEnds.Clear(); return false; }
+            from = at + tail.Length;
+            while (k + 1 < timing.chars.Length && timing.chars[k + 1] <= from) k++;     // the phrase's last word
+            phraseEnds.Add(Mathf.Clamp01(timing.times[k] / clip.length));
+        }
+        return true;
     }
 }
