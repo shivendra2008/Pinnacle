@@ -19,12 +19,19 @@ public static class UiKit
 
     const float R = 2f;
 
-    static Font body, title;
+    // The game ships no font files: every screen borrows the computer's own fonts (the menu, the subtitles, the HUD).
+    // Each list names the Mac's fonts and Windows' own; on Windows its fonts are asked for first. A list the computer
+    // cannot supply falls back to Unity's built-in font, which is inside every build, so no text goes missing.
+    static Font body, title, builtIn;
+    static bool Windows =>
+        Application.platform == RuntimePlatform.WindowsPlayer || Application.platform == RuntimePlatform.WindowsEditor;
     public static Font Body
     {
         get
         {
-            if (body == null) body = Font.CreateDynamicFontFromOSFont(new[] { "Avenir Next", "Helvetica Neue", "Segoe UI", "Arial" }, 18);
+            if (body == null)
+                body = OsFont(Windows ? new[] { "Segoe UI", "Arial", "Avenir Next", "Helvetica Neue" }
+                                      : new[] { "Avenir Next", "Helvetica Neue", "Segoe UI", "Arial" }, 18, "body");
             return body;
         }
     }
@@ -32,9 +39,23 @@ public static class UiKit
     {
         get
         {
-            if (title == null) title = Font.CreateDynamicFontFromOSFont(new[] { "Didot", "Bodoni 72", "Georgia", "Palatino", "Times New Roman" }, 48);
+            if (title == null)
+                title = OsFont(Windows ? new[] { "Georgia", "Palatino Linotype", "Times New Roman", "Didot", "Bodoni 72" }
+                                       : new[] { "Didot", "Bodoni 72", "Georgia", "Palatino", "Times New Roman" }, 48, "title");
             return title;
         }
+    }
+
+    static Font OsFont(string[] names, int size, string role)
+    {
+        Font f = null;
+        try { f = Font.CreateDynamicFontFromOSFont(names, size); }
+        catch (System.Exception e) { Debug.LogWarning("[UiKit] " + role + " font: " + e.Message); }
+        if (f != null && f.HasCharacter('A') && f.HasCharacter('a'))
+            return f;
+        Debug.LogWarning("[UiKit] no " + role + " font found (" + string.Join(", ", names) + "); using Unity's built-in font");
+        if (builtIn == null) builtIn = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        return builtIn;
     }
 
     /// <summary>"OBJECTIVE" -> "O B J E C T I V E": the widely tracked capitals used for every label.</summary>

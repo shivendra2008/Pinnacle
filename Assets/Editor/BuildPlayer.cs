@@ -46,6 +46,64 @@ public static class BuildPlayer
         EditorApplication.Exit(s.result == BuildResult.Succeeded ? 0 : 1);
     }
 
+    /// <summary>
+    /// Windows build. From the menu (Pinnacle > Build Windows test build, with the project switched to Windows): a
+    /// development build in Builds/windows-test, so Unity shows any error on screen and a test on another computer can
+    /// be read without its Player.log; the title menu says "Windows test build" and when it was made. From the command
+    /// line (-buildTarget Win64 -executeMethod BuildPlayer.Windows): Builds/windows or PINNACLE_BUILD_OUT, a release
+    /// build unless PINNACLE_BUILD_DEV=1.
+    /// Windows runs on Direct3D 11 only: every Windows 10/11 laptop has it, where Unity's automatic choice may start on
+    /// Direct3D 12, which some laptop graphics drivers handle badly.
+    /// </summary>
+    [MenuItem("Pinnacle/Build Windows test build")]
+    public static void WindowsFromMenu()
+    {
+        if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.StandaloneWindows64)
+        {
+            EditorUtility.DisplayDialog("Build Windows test build",
+                "Switch the project to Windows first: File > Build Profiles > Windows > Switch Platform. Then choose " +
+                "Pinnacle > Build Windows test build again.", "OK");
+            return;
+        }
+        var s = BuildWindows("Builds/windows-test", true, "Windows test build, " + DateTime.Now.ToString("d MMM yyyy HH:mm"));
+        bool ok = s.result == BuildResult.Succeeded;
+        EditorUtility.DisplayDialog("Build Windows test build",
+            ok ? "Built in Builds/windows-test. Zip that whole folder for the Windows laptop." : "The build failed: see the Console.", "OK");
+        if (ok) EditorUtility.RevealInFinder(s.outputPath);
+    }
+
+    public static void Windows()
+    {
+        string outDir = Environment.GetEnvironmentVariable("PINNACLE_BUILD_OUT");
+        if (string.IsNullOrEmpty(outDir)) outDir = "Builds/windows";
+        var s = BuildWindows(outDir, Environment.GetEnvironmentVariable("PINNACLE_BUILD_DEV") == "1",
+                             Environment.GetEnvironmentVariable("PINNACLE_BUILD_STAMP"));
+        EditorApplication.Exit(s.result == BuildResult.Succeeded ? 0 : 1);
+    }
+
+    static BuildSummary BuildWindows(string outDir, bool development, string stamp)
+    {
+        PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.StandaloneWindows64, false);
+        PlayerSettings.SetGraphicsAPIs(BuildTarget.StandaloneWindows64, new[] { GraphicsDeviceType.Direct3D11 });
+        const string stampPath = "Assets/Resources/BuildStamp.txt";
+        if (!string.IsNullOrEmpty(stamp)) { File.WriteAllText(stampPath, stamp); AssetDatabase.ImportAsset(stampPath); }
+        else if (File.Exists(stampPath)) AssetDatabase.DeleteAsset(stampPath);
+        EnsureVariantMaterials();
+        var opts = new BuildPlayerOptions
+        {
+            scenes = new[] { "Assets/Scenes/SampleScene.unity" },
+            locationPathName = Path.Combine(outDir, "Pinnacle.exe"),
+            target = BuildTarget.StandaloneWindows64,
+            targetGroup = BuildTargetGroup.Standalone,
+            options = development ? BuildOptions.Development : BuildOptions.None,
+        };
+        var report = BuildPipeline.BuildPlayer(opts);
+        if (File.Exists(stampPath)) AssetDatabase.DeleteAsset(stampPath);     // Editor play and later builds show no stamp
+        var s = report.summary;
+        Debug.Log(string.Format("[BUILD] Windows {0}: {1} errors, {2} warnings, {3:F0} MB, {4:F0} s -> {5}", s.result, s.totalErrors, s.totalWarnings, s.totalSize / 1048576.0, s.totalTime.TotalSeconds, s.outputPath));
+        return s;
+    }
+
     [MenuItem("Pinnacle/Keep run-time shader variants")]
     public static void EnsureVariantMaterials()
     {
