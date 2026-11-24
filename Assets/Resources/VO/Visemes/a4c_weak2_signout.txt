@@ -1,0 +1,22 @@
+# a4c_weak2_signout  1.602 s  words heard on-device (Tools/lipsync/npc_lipsync.py)
+# V start end viseme weight stress phoneme | A time strength | P start end | W start end word
+W 0.060 0.420 Know
+W 0.420 0.540 what
+W 0.540 0.660 I
+W 0.660 1.140 sign,
+W 1.140 1.602 that.
+V 0.060 0.151 nn 1.00 -1 N
+V 0.151 0.245 E 1.00 1 OW1
+V 0.245 0.420 U 1.00 1 OW1
+V 0.420 0.445 U 1.00 -1 W
+V 0.445 0.505 aa 1.00 1 AA1
+V 0.505 0.540 DD 1.00 -1 T
+V 0.540 0.606 aa 1.00 1 AY1
+V 0.606 0.660 I 1.00 1 AY1
+V 0.660 0.805 SS 1.00 -1 S
+V 0.805 0.939 I 1.00 1 IH1
+V 0.939 1.028 kk 1.00 -1 G
+V 1.028 1.140 nn 1.00 -1 N
+V 1.140 1.207 TH 1.00 -1 DH
+V 1.207 1.450 aa 1.00 1 AE1
+V 1.450 1.602 DD 1.00 -1 T

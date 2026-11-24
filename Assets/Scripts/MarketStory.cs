@@ -562,7 +562,7 @@ public class MarketStory : MonoBehaviour
                 yield return Line("ARJUN", opts[0], "q_b_a", null);
                 yield return Line("BHASKAR", "Priya madam? Of course! She takes my auto sometimes. Going to the court, going to the slum. Good woman. Always pays full fare, never bargains. Why?", "b_a", bhaskar);
                 yield return Line("ARJUN", "She's missing.", "q_b_a2", null);
-                yield return Line("BHASKAR", "Missing? Arre bhai... actually, I drove her two nights ago. Late, around ten. She flagged me down near the temple. She was on the phone, very tense. She kept saying, don't come, I'll handle it. Then she told me to take her to the old mill, the abandoned textile mill near the river. But halfway there, she got another call, and her face went white. She said, take me back, right now. She gave me five hundred rupees for a fifty rupee ride, and said, forget this ride. You never saw me tonight.", "b_a2", bhaskar);
+                yield return Line("BHASKAR", "Missing? Arre bhai... actually, I drove her two nights ago. Late, around ten. She flagged me down near the temple. She was on the phone, very tense. She kept saying, don't come, I'll handle it. Then she told me to take her to the old mill. You know, the abandoned textile mill near the river. But halfway there, she got another call, and her face went white. She said, take me back. Take me back, right now. I asked if everything was okay. She gave me five hundred rupees for a fifty rupee ride, and said, forget this ride. You never saw me tonight.", "b_a2", bhaskar);
                 askedA = true;
                 AddEvidence("Bhaskar drove Priya 2 nights ago. After a frightening call she said: \"You never saw me tonight.\"");
             }
@@ -684,7 +684,7 @@ public class MarketStory : MonoBehaviour
             else if (c == 1)
             {
                 yield return Line("ARJUN", q2[1], "q_v_2b", null);
-                yield return Line("VIKRAM", "Councilor Meghna Deshpande. She's the one behind the project. But it's not just her. There's a builder, Raj Malhotra, and people inside the police. Priya said the corruption goes all the way up. She was scared, but she wouldn't stop. That girl has a spine of steel.", "v_t2b", vikram);
+                yield return Line("VIKRAM", "Councilor Meghna Deshpande. She is the one behind the project. But it's not just her. There's a builder, Raj Malhotra, and people inside the police. Priya said the corruption goes all the way up. She was scared, but she wouldn't stop. That girl has a spine of steel.", "v_t2b", vikram);
                 AddEvidence("Behind it: Councilor Meghna Deshpande, builder Raj Malhotra, and people inside the police.");
             }
             else
@@ -700,7 +700,7 @@ public class MarketStory : MonoBehaviour
         {
             trust = "TRUSTING";
             vikram.PlayOnce("Interact");
-            yield return Line("VIKRAM", "Wait. There's something else. Priya gave me this two days before she disappeared. She said, if anything happens to me, give this to someone who can use it. I didn't know what that meant until now. Take it. It has all her research. Copies of the forged documents, comparison with the originals, photographs, everything.", "v_t3a", vikram);
+            yield return Line("VIKRAM", "Wait. There's something else.", "v_t3a", vikram);
             AddEvidence("USB DRIVE from Priya: forged documents, the original deed, photographs, all her research.");
             Toast("You received: USB DRIVE", 5f, true);
             SaveSystem.Data.hasUsb = true; SaveSystem.Save();

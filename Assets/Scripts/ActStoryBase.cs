@@ -59,7 +59,9 @@ public static class Cast
     }
 
     public static NpcStyle Sharma() { return Casual(1.62f, C(0.55f, 0.5f, 0.35f), C(0.35f, 0.32f, 0.25f), C(0.5f, 0.33f, 0.22f), C(0.75f, 0.75f, 0.75f)).Rb("Security_Male_01"); }
-    public static NpcStyle Pandit() { return Casual(1.6f, C(0.95f, 0.5f, 0.1f), C(0.95f, 0.92f, 0.85f), C(0.55f, 0.36f, 0.24f), C(0.85f, 0.85f, 0.85f)).Rb("Male_Adult_15", C(1f, 0.62f, 0.26f)).Head("m204_head_shaved"); }   // saffron, shaved head, tilak
+    /// <summary>Harishankar: a neighbourhood man who keeps the temple's accounts in the evenings. A faded cotton shirt and
+    /// everyday trousers, his own face (Wood_Male_01 is kept out of the crowds), no priest's dress. ("Pandit" is the old id.)</summary>
+    public static NpcStyle Pandit() { return Casual(1.68f, C(0.62f, 0.68f, 0.72f), C(0.3f, 0.3f, 0.34f), C(0.56f, 0.38f, 0.26f), C(0.12f, 0.1f, 0.09f)).Rb("Wood_Male_01", C(0.97f, 0.95f, 0.9f)); }
     public static NpcStyle Devotee(int seed) { return seed % 2 == 0 ? NpcStyle.CrowdWoman(seed) : NpcStyle.Crowd(seed); }
     public static NpcStyle Raj() { return Suit(1.76f, C(0.32f, 0.33f, 0.36f), C(0.85f, 0.85f, 0.82f), C(0.62f, 0.44f, 0.3f), C(0.15f, 0.12f, 0.1f)).Rb("Business_Male_05"); }
     public static NpcStyle Rohan() { return Casual(1.72f, C(0.2f, 0.4f, 0.7f), C(0.15f, 0.15f, 0.2f), C(0.6f, 0.42f, 0.29f), C(0.05f, 0.04f, 0.04f)).Rb("Male_Adult_17"); }
@@ -116,6 +118,8 @@ public abstract class ActStoryBase : MonoBehaviour
     // the decision compass and phrase subtitles of Acts I-II, for the acts that switch them on (UseCompass)
     protected readonly StoryCompass compass = new StoryCompass();
     readonly StoryCompass narration = new StoryCompass();     // narration and phone calls, in the same phrase subtitles
+    /// <summary>Physical evidence laid out for a witness (the compass carries intentions; the folio carries things).</summary>
+    protected readonly EvidenceFolio folio = new EvidenceFolio();
     AudioSource talkSource;                 // the voice speaking the current line, for the subtitles' phrase timing
     string choiceHeading, choiceSituation;  // a decision with no witness in frame states its situation above the dial
 
@@ -159,6 +163,7 @@ public abstract class ActStoryBase : MonoBehaviour
         Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false;
         SetupAudio();
         compass.sfx = sfx;
+        folio.sfx = sfx;
         CinematicLook.NoSky(camComp, camComp.backgroundColor);      // an earlier act may have left a photographed sky on the shared camera
         BuildWorld();
         TexturePass();
@@ -209,9 +214,11 @@ public abstract class ActStoryBase : MonoBehaviour
         if (kb != null && kb.escapeKey.wasPressedThisFrame && !codeOpen && !cardOpen && phase != Phase.Ending) SetPaused(!paused);
         if (paused) return;
         if (kb != null && kb.jKey.wasPressedThisFrame && phase == Phase.Free) journalOpen = !journalOpen;
-        if (kb != null && kb.enterKey.wasPressedThisFrame && phase == Phase.Busy && dlgOptions == null && !codeOpen && !cardOpen) skipAll = true;
+        // Enter skips a conversation, but not over the evidence folio, where it presents a piece (her answer must play)
+        if (kb != null && kb.enterKey.wasPressedThisFrame && phase == Phase.Busy && dlgOptions == null && !codeOpen && !cardOpen && !folio.IsOpen) skipAll = true;
         if (phase == Phase.Free) skipAll = false;
         fade = Mathf.MoveTowards(fade, fadeTarget, fadeSpeed * Time.deltaTime);
+        folio.Animate(Time.deltaTime);
         UpdateInteraction();
         if (creditsStart > 0 && kb != null && kb.rKey.wasPressedThisFrame && Time.time - creditsStart > 3f) builder.Build();
     }
@@ -460,6 +467,47 @@ public abstract class ActStoryBase : MonoBehaviour
     }
 
     protected void EndTalk() { dlgSpeaker = null; dlgText = null; dlgOptions = null; AutoFocus.FocusOn = null; }
+
+    /// <summary>
+    /// Lays the folio open over <paramref name="pieces"/> and waits until one is presented (menuResult = its index).
+    /// The claim is what the witness has just said, in a line, so the question is not read out again.
+    /// </summary>
+    protected IEnumerator Present(IList<EvidenceFolio.Item> pieces, string heading, string claim)
+    {
+        dlgSpeaker = null; dlgText = null; dlgOptions = null;
+        skipAll = false; menuResult = -1;
+        folio.Open(pieces, heading, claim, cam);
+        yield return null;
+        while (menuResult < 0)
+        {
+            if (GameState.Paused) { yield return null; continue; }
+            int c = folio.Poll();
+            if (c >= 0) menuResult = c;
+            yield return null;
+        }
+    }
+
+    /// <summary>Moves the player smoothly to a place and a view (sitting down at a table, stepping up to a counter).</summary>
+    protected IEnumerator Glide(Vector3 pos, float yaw, float pitch, float dur, float eyeHeight = -1f)
+    {
+        var cc = player.GetComponent<CharacterController>();
+        bool was = cc.enabled; cc.enabled = false;
+        Vector3 p0 = player.transform.position; float y0 = player.Yaw, x0 = player.Pitch;
+        float e0 = cam.localPosition.y, e1 = eyeHeight > 0f ? eyeHeight : e0;
+        for (float t = 0f; t < dur; t += Time.deltaTime)
+        {
+            if (GameState.Paused) { yield return null; t -= Time.deltaTime; continue; }
+            float k = Mathf.SmoothStep(0f, 1f, t / dur);
+            player.transform.position = Vector3.Lerp(p0, pos, k);
+            player.SetLook(Mathf.LerpAngle(y0, yaw, k), Mathf.Lerp(x0, pitch, k));
+            var lp = cam.localPosition; lp.y = Mathf.Lerp(e0, e1, k); cam.localPosition = lp;
+            yield return null;
+        }
+        player.transform.position = pos;
+        player.SetLook(yaw, pitch);
+        var fp = cam.localPosition; fp.y = e1; cam.localPosition = fp;
+        cc.enabled = was;
+    }
 
     /// <summary>A document / photo / letter shown on screen until the player presses E, Space or Enter.</summary>
     protected IEnumerator ShowCard(string title, string body)
@@ -792,7 +840,7 @@ public abstract class ActStoryBase : MonoBehaviour
         GUI.matrix = Matrix4x4.Scale(new Vector3(s, s, 1));
         float W = Screen.width / s, H = Screen.height / s;
 
-        UiKit.Letterbox(W, H, !paused && creditsStart <= 0 && (phase == Phase.Intro || !string.IsNullOrEmpty(dlgText) || cardOpen || compass.IsOpen));
+        UiKit.Letterbox(W, H, !paused && creditsStart <= 0 && (phase == Phase.Intro || !string.IsNullOrEmpty(dlgText) || cardOpen || compass.IsOpen || folio.IsOpen));
         float fl = Mathf.Min(Mathf.Clamp01((Time.time - flashStart) / 0.5f), Mathf.Clamp01((flashEnd - Time.time) / 0.8f + 1f));
         if (fl > 0.001f && !paused)
         {
@@ -842,6 +890,7 @@ public abstract class ActStoryBase : MonoBehaviour
         // an open decision draws even when the line before it has cleared
         if ((compass.IsOpen || !string.IsNullOrEmpty(dlgText)) && !paused && (!UseCompass || (!cardOpen && !codeOpen))) DrawDialogue(W, H);
         if (UseCompass && !paused) compass.Afterglow(W, H);
+        if (folio.IsOpen && !paused && !cardOpen) folio.Draw(W, H);
         if (cardOpen && !paused) DrawCard(W, H);
         if (codeOpen && !paused) DrawCode(W, H);
         if (journalOpen && !paused) DrawJournal(W, H);
@@ -956,7 +1005,7 @@ public abstract class ActStoryBase : MonoBehaviour
         var d = SaveSystem.Data;
         var notes = new List<UiKit.Note>();
         for (int i = d.evidence.Count - 1; i >= 0; i--)          // newest first
-            notes.Add(new UiKit.Note("Evidence " + (i + 1).ToString("00"), d.evidence[i]));
+            notes.Add(new UiKit.Note("Evidence " + (i + 1).ToString("00"), EvidenceText.Shown(d.evidence[i])));
         UiKit.CaseFile(W, H, "Detective " + SaveSystem.Profile.playerName,
             "Apartment clues  " + d.clues.Count + " / 9\nEvidence notes  " + d.evidence.Count,
             notes, "Nothing recorded yet. Talk to people and examine what you find.");

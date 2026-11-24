@@ -155,11 +155,11 @@ public partial class Act4Story
         var jugHandle = GameKit.Box(root, "MilkJugHandle", new Vector3(4.07f + 0.068f, ty + 0.1f, -2.6f), new Vector3(0.012f, 0.09f, 0.02f), steel);
         jugHandle.GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.Off;
         Part(root, "CupTray", new Vector3(3.82f, ty + 0.006f, -2.66f), new Vector3(0.3f, 0.012f, 0.22f), steel, false);
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < 3; i++)
             Cup(root, new Vector3(3.74f + (i % 2) * 0.15f, ty + 0.012f, -2.71f + (i / 2) * 0.1f), white, false);
-        // the cup the owner works with, and the two places it moves between
-        cupSpotA = new Vector3(3.9f, ty, -3.0f);
-        cupSpotB = new Vector3(4.08f, ty, -2.97f);
+        // the glass the owner works with: by the jug, and back in its free place on the tray
+        cupSpotA = new Vector3(4.08f, ty, -2.97f);
+        cupSpotB = new Vector3(3.89f, ty + 0.012f, -2.61f);
         taskCup = Cup(root, cupSpotA, white, true);
         // a soft contact shade under the things on the worktop (the pendant's shadows do the rest)
         foreach (var p in new[] { new Vector4(4.33f, -2.83f, 0.26f, 0.26f), new Vector4(4.07f, -2.6f, 0.15f, 0.15f), new Vector4(3.82f, -2.66f, 0.34f, 0.26f) })
@@ -381,8 +381,8 @@ public partial class Act4Story
             cupSpot = to;
             owner.Release(1, 0.45f);
             yield return Wait(0.4f);
-            // --- a glance toward the entrance, then back to the work
-            ownerLook.position = new Vector3(-3.6f, 1.55f, -3.4f);
+            // --- a glance that goes to the man in the far corner (the watcher), then back to the work
+            ownerLook.position = watcher != null ? watcher.EyePoint() : new Vector3(-3.6f, 1.55f, -3.4f);
             yield return Wait(Random.Range(1.1f, 1.7f));
             ownerLook.position = new Vector3(3.85f, counterTopY, -2.95f);
             yield return Wait(Random.Range(0.6f, 1.2f));
@@ -395,7 +395,7 @@ public partial class Act4Story
         {
             float k = Mathf.SmoothStep(0f, 1f, t / dur);
             goal.position = Vector3.Lerp(a, b, k) + Vector3.up * arc * Mathf.Sin(k * Mathf.PI);
-            if (taskHolding && owner != null) taskGripError = Mathf.Max(taskGripError, Vector3.Distance(owner.HandPosition(1), goal.position));
+            if (taskHolding && owner != null && goal == ownerHandR) taskGripError = Mathf.Max(taskGripError, Vector3.Distance(owner.HandPosition(1), goal.position));
             yield return null;
         }
         goal.position = b;

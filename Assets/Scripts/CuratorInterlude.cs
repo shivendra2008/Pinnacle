@@ -272,7 +272,7 @@ public class CuratorInterlude : ActStoryBase
     string Chapter()
     {
         string[] c = { "CHAPTER ONE\n\nThe Empty Room", "CHAPTER TWO\n\nThe Streets Know", "CHAPTER THREE\n\nThe File", "CHAPTER FOUR\n\nThe Web" };
-        return c[Mathf.Clamp(scene, 0, 3)] + "\n\n" + (scene == 0 ? "a key, a note,\na door no one knocked on" : scene == 1 ? "a kettle, a drive,\na black car" : scene == 2 ? "a deed, a cage,\na priest's question" : "three doors,\none witness");
+        return c[Mathf.Clamp(scene, 0, 3)] + "\n\n" + (scene == 0 ? "a key, a note,\na door no one knocked on" : scene == 1 ? "a kettle, a drive,\na black car" : scene == 2 ? "a deed, a cage,\na question at the temple" : "three doors,\none witness");
     }
 
     // A small object on the table for each scene, filmed in an insert when he mentions it.
@@ -628,15 +628,24 @@ public class CuratorInterlude : ActStoryBase
             for (int i = 1; i <= 11; i++)
             {
                 l.Add("cur2_" + i.ToString("00"));
-                if (i == 6 && d.panditAnswer >= 0) l.Add(d.panditAnswer == 0 ? "cur2_truth" : d.panditAnswer == 1 ? "cur2_people" : "cur2_both");
+                string answer = d.panditAnswer == 0 ? "cur2_truth" : d.panditAnswer == 1 ? "cur2_people" : "cur2_both";
+                if (i == 6 && d.panditAnswer >= 0 && Voiced(answer)) l.Add(answer);
             }
         }
         else
         {
             string ally = d.branch == 0 && d.allyRaj ? "cur3_raj" : d.branch == 1 && d.allyRohan ? "cur3_rohan" : d.branch == 2 && d.allyReddy ? "cur3_reddy" : null;
+            if (ally != null && !Voiced(ally)) ally = null;          // the recorded general line instead
             for (int i = 1; i <= 10; i++) l.Add(i == 3 && ally != null ? ally : "cur3_" + i.ToString("00"));
         }
         return l;
+    }
+
+    /// <summary>Whether a reaction line can join its scene: in a scene the actor recorded (VoTiming has its lines), only a
+    /// recorded reaction does, so his voice never turns into text-to-speech mid-scene.</summary>
+    static bool Voiced(string id)
+    {
+        return VoTiming.Get("cur2_01") == null || VoTiming.Get(id) != null;
     }
 
     // ------------------------------------------------------------------ performance beats

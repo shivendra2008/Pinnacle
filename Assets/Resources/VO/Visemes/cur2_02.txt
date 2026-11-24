@@ -1,29 +1,28 @@
-# cur2_02  2.209 s  TTS Daniel 124  (Tools/lipsync/curator_lipsync.py)
+# cur2_02  2.497 s  words heard on-device (Tools/lipsync/npc_lipsync.py)
 # V start end viseme weight stress phoneme | A time strength | P start end | W start end word
-W 0.150 0.660 Empires
-W 0.660 0.950 fall
-W 0.950 1.120 on
-W 1.120 1.960 stationery.
-V 0.150 0.228 E 1.00 1 EH1
-V 0.228 0.293 PP 1.00 -1 M
-V 0.293 0.395 PP 1.00 -1 P
-V 0.395 0.466 aa 1.00 2 AY2
-V 0.466 0.523 I 1.00 2 AY2
-V 0.523 0.579 aa 0.60 0 AH0
-V 0.579 0.635 SS 1.00 -1 Z
-V 0.635 0.715 FF 1.00 -1 F
-V 0.715 0.878 O 1.00 1 AO1
-V 0.878 0.950 nn 1.00 -1 L
-V 0.950 1.061 aa 1.00 1 AA1
-V 1.061 1.120 nn 1.00 -1 N
-V 1.120 1.243 SS 1.00 -1 S
-V 1.243 1.328 DD 1.00 -1 T
-V 1.328 1.436 E 1.00 1 EY1
-V 1.436 1.508 I 1.00 1 EY1
-V 1.508 1.631 CH 1.00 -1 SH
-V 1.631 1.704 aa 0.60 0 AH0
-V 1.704 1.780 nn 1.00 -1 N
-V 1.780 1.856 RR 1.00 -1 R
-V 1.856 1.960 I 0.60 0 IY0
-A 0.150 0.23
-A 0.715 0.35
+W 0.120 0.840 Empires
+W 0.840 1.140 fall
+W 1.140 1.500 on
+W 1.500 2.460 stationary.
+V 0.120 0.268 E 1.00 1 EH1
+V 0.268 0.319 PP 1.00 -1 M
+V 0.319 0.426 PP 1.00 -1 P
+V 0.426 0.548 aa 1.00 2 AY2
+V 0.548 0.647 I 1.00 2 AY2
+V 0.647 0.726 aa 0.60 0 AH0
+V 0.726 0.880 SS 1.00 -1 Z
+V 0.880 0.963 FF 1.00 -1 F
+V 0.963 1.065 O 1.00 1 AO1
+V 1.065 1.140 nn 1.00 -1 L
+V 1.140 1.376 aa 1.00 1 AA1
+V 1.376 1.500 nn 1.00 -1 N
+V 1.500 1.617 SS 1.00 -1 S
+V 1.617 1.698 DD 1.00 -1 T
+V 1.698 1.860 aa 1.00 1 AE1
+V 1.860 1.977 CH 1.00 -1 SH
+V 1.977 2.046 aa 0.60 0 AH0
+V 2.046 2.118 nn 1.00 -1 N
+V 2.118 2.289 aa 1.00 1 AA1
+V 2.289 2.361 RR 1.00 -1 R
+V 2.361 2.460 I 0.60 0 IY0
+A 0.120 0.81

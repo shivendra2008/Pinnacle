@@ -30,3 +30,7 @@ sysinfo.txt
 Tools/tests/**/bin/
 Tools/tests/**/obj/
 !Tools/tests/**/*.csproj
+
+# Python bytecode, Mono crash dumps
+__pycache__/
+mono_crash.*.json

@@ -22,7 +22,7 @@ public partial class Act3Story : ActStoryBase
     protected override bool UseCompass { get { return true; } }       // the decision compass and phrase subtitles of Acts I-II
 
     static readonly Vector3 LibStart = new Vector3(-5f, 0.1f, -9.4f);
-    static readonly Vector3 Base = new Vector3(60f, 0f, 0f);          // basement origin
+    static readonly Vector3 Base = new Vector3(60f, 0f, 0f);          // where BuildBasement authors the Record Room (it is moved under the library: Act3Story.Stairs)
     static readonly Vector3 Temple = new Vector3(-90f, 0f, 0f);       // temple origin
 
     CharacterNPC sharma, pandit;
@@ -36,12 +36,15 @@ public partial class Act3Story : ActStoryBase
     protected override void BuildWorld()
     {
         BuildLibrary();
+        int recordRoomFrom = transform.childCount;
         BuildBasement();
+        MoveRecordRoom(recordRoomFrom);
+        BuildStairwell();
         BuildTemple();
         libBed = MakeNoiseBed(0.025f, 0.035f, 0.2f);
         baseBed = MakeNoiseBed(0.05f, 0.03f, 0.45f);
         templeBed = MakeChant();
-        ambience.clip = libBed; ambience.Play();
+        StairsAudio(libBed, baseBed);          // the two rooms' tones cross-fade on the stair
         RenderSettings.fog = true; RenderSettings.fogMode = FogMode.Exponential;
         SetSun(new Color(0.6f, 0.68f, 1f), 0.6f, new Vector3(28f, 200f, 0f));       // moonlight (comes from the moon's side of the sky)
         camComp.backgroundColor = new Color(0.03f, 0.03f, 0.07f);
@@ -52,16 +55,9 @@ public partial class Act3Story : ActStoryBase
     /// <summary>Ambient light, fog and moon strength for each location. The old single setting left all three far too dark.</summary>
     void AreaLook(int a)
     {
-        if (a == 0)        // library: warm lamp-lit hall with cool moonlight from the windows
-        {
-            CinematicLook.Ambient(new Color(0.62f, 0.6f, 0.66f), new Color(0.5f, 0.44f, 0.38f), new Color(0.24f, 0.2f, 0.16f));
-            RenderSettings.fogColor = new Color(0.13f, 0.12f, 0.14f); RenderSettings.fogDensity = 0.006f;
-        }
-        else if (a == 1)   // basement: grey, dusty, but readable
-        {
-            CinematicLook.Ambient(new Color(0.5f, 0.52f, 0.55f), new Color(0.4f, 0.39f, 0.37f), new Color(0.2f, 0.19f, 0.17f));
-            RenderSettings.fogColor = new Color(0.14f, 0.14f, 0.13f); RenderSettings.fogDensity = 0.012f;
-        }
+        // library: warm lamp-lit hall with cool moonlight from the windows; basement: grey, dusty, but readable.
+        // On the stair the two blend with the player's height (Act3Story.Stairs).
+        if (a < 2) BlendLook(a);
         else               // temple: moonlit courtyard, fire-lit shrine
         {
             CinematicLook.Ambient(new Color(0.4f, 0.43f, 0.62f), new Color(0.36f, 0.29f, 0.28f), new Color(0.17f, 0.13f, 0.1f));
@@ -137,7 +133,7 @@ public partial class Act3Story : ActStoryBase
         foreach (float z in new[] { -2f, 1.5f, 5f })
             foreach (float x0 in new[] { -4.4f, 1.6f })
                 for (int u = 0; u < 2; u++)
-                    BuildBookcase(new Vector3(x0 + u * 2.5f, 0f, z), 2.4f, 2.8f, 0.5f, rnd);
+                    BuildBookcase(new Vector3(x0 + u * 2.5f, 0f, z), 2.4f, 2.8f, 0.5f, rnd, z < 0f && Mathf.Abs(x0 + u * 2.5f) < 2.2f);   // the first row by the aisle: close-up detail
         // reading tables with green banker's lamps
         foreach (float x in new[] { -3f, 3f })
             for (int i = 0; i < 2; i++)
@@ -181,7 +177,8 @@ public partial class Act3Story : ActStoryBase
         B("PortraitFrame", new Vector3(0, 4f, 10.9f), new Vector3(1.6f, 2f, 0.08f), new Color(0.55f, 0.4f, 0.15f), false, 0.6f, 0.6f);
         B("Portrait", new Vector3(0, 4f, 10.85f), new Vector3(1.35f, 1.75f, 0.04f), new Color(0.3f, 0.22f, 0.18f), false, 0.2f);
         Spot(new Vector3(0, 6.1f, 9.6f), new Vector3(55f, 0f, 0f), new Color(1f, 0.85f, 0.6f), 3f, 4f, 40f);   // picture light
-        GameKit.Text(transform, "MAHARAJA OF CHANDNIPUR", new Vector3(0, 2.8f, 10.84f), Quaternion.identity, 0.08f, new Color(0.9f, 0.8f, 0.5f));
+        // depth-tested: the stair behind this wall must not see the lettering through it
+        GameKit.Solid(GameKit.Text(transform, "MAHARAJA OF CHANDNIPUR", new Vector3(0, 2.8f, 10.84f), Quaternion.identity, 0.08f, new Color(0.9f, 0.8f, 0.5f)));
 
         // front desk + computer (CRT)
         computer = BuildFrontDesk(new Vector3(3.8f, 0f, -9.3f));
@@ -208,7 +205,7 @@ public partial class Act3Story : ActStoryBase
         // stairs to the record room
         B("BasementDoorFrame", new Vector3(5.6f, 1.15f, 10.85f), new Vector3(1.3f, 2.3f, 0.12f), wood);
         Glow("BasementDoorDark", new Vector3(5.6f, 1.1f, 10.8f), new Vector3(1.05f, 2.1f, 0.04f), new Color(0.05f, 0.05f, 0.06f), 0.2f);
-        GameKit.Text(transform, "RECORD ROOM  (BASEMENT)", new Vector3(5.6f, 2.55f, 10.78f), Quaternion.identity, 0.1f, new Color(1f, 0.9f, 0.6f));
+        GameKit.Solid(GameKit.Text(transform, "RECORD ROOM  (BASEMENT)", new Vector3(5.6f, 2.55f, 10.78f), Quaternion.identity, 0.1f, new Color(1f, 0.9f, 0.6f)));
         PL(new Vector3(5.6f, 2.9f, 10.2f), new Color(1f, 0.8f, 0.5f), 1.4f, 4f);      // lamp over the basement door
         stairsDown = new GameObject("StairsDown").transform; stairsDown.SetParent(transform, false); stairsDown.position = new Vector3(5.6f, 1.1f, 10.7f);
 
@@ -238,14 +235,14 @@ public partial class Act3Story : ActStoryBase
                 {
                     B("ShelfBoard", new Vector3(x, 0.2f + s * 0.52f, z), new Vector3(0.65f, 0.03f, 2.05f), metal, false, 0.4f, 0.6f);
                     for (int k = 0; k < 4; k++)
-                        if (rnd.NextDouble() < 0.8)
+                        if (!(bi == 2 && u == 3 && s == 2 && k == 1) && rnd.NextDouble() < 0.8)        // Block C / 14: the 1942 slot is empty
                             B("FileBox", new Vector3(x, 0.36f + s * 0.52f, z - 0.75f + k * 0.5f), new Vector3(0.5f, 0.28f, 0.42f), new Color(0.6f, 0.48f, 0.32f) * (0.8f + 0.3f * (float)rnd.NextDouble()), false, 0.1f);
                 }
                 B("ShelfBlock", new Vector3(x, 1.2f, z), new Vector3(0.66f, 2.4f, 2.05f), metal * 0.1f, true).GetComponent<Renderer>().enabled = false;   // solid but invisible
                 ShelvingSupports(new Vector3(x, 0f, z), 1f);                    // feet under the uprights, X-bracing across the ends
-                GameKit.Text(transform, (u + 11).ToString(), new Vector3(x + 0.34f, 2.3f, z), Quaternion.Euler(0, -90f, 0), 0.09f, new Color(0.95f, 0.9f, 0.7f));
+                EnamelPlate("SHELF " + (u + 11), new Vector3(x + 0.345f, 1.95f, z - 0.75f), Quaternion.Euler(0, -90f, 0), 0.32f, 0.11f, 0.06f);
             }
-            GameKit.Text(transform, "BLOCK " + blocks[bi], new Vector3(x, 2.75f, -5.2f), Quaternion.identity, 0.16f, new Color(1f, 0.9f, 0.6f));
+            EnamelPlate("BLOCK " + blocks[bi], new Vector3(x, 2.45f, -4.62f), Quaternion.identity, 0.62f, 0.2f, 0.12f);
         }
         // Block C, Shelf 14: a wire cage on its open side
         float cx = Base.x - 6f + 2 * 3.4f + 0.36f, cz = -3.5f + 3 * 2.2f;
@@ -261,7 +258,8 @@ public partial class Act3Story : ActStoryBase
             GameKit.Box(doorPivot, "CageRail", new Vector3(0, 0.2f + i * 0.7f, 1.05f), new Vector3(0.02f, 0.02f, 2.1f), GameKit.Lit(iron, 0.4f, 0.6f));
         GameKit.Box(doorPivot, "Padlock", new Vector3(0.04f, 1.1f, 2.0f), new Vector3(0.06f, 0.12f, 0.1f), GameKit.Lit(new Color(0.85f, 0.65f, 0.25f), 0.8f, 0.9f));
         CageMesh(doorPivot);
-        GameKit.Text(transform, "1940 - 1945", new Vector3(cx + 0.1f, 2.05f, cz), Quaternion.Euler(0, -90f, 0), 0.08f, new Color(1f, 0.85f, 0.5f));
+        EmptyFolderPlace(new Vector3(cx - 0.36f, 0.2f + 2 * 0.52f + 0.012f, cz - 0.25f), 1f);
+        GameKit.Solid(GameKit.Text(transform, "1940 - 1945", new Vector3(cx + 0.1f, 2.05f, cz), Quaternion.Euler(0, -90f, 0), 0.08f, new Color(1f, 0.85f, 0.5f)));
         // the wall calendar - lit by its own lamp so it reads as something worth looking at
         var calRot = Quaternion.Euler(0, 90f, 0);   // faces into the room (west)
         var ink = new Color(0.12f, 0.1f, 0.08f); var redInk = new Color(0.8f, 0.08f, 0.08f);
@@ -386,22 +384,20 @@ public partial class Act3Story : ActStoryBase
         Tex(B("PedestalBase", ped + new Vector3(0, 0.05f, 0), new Vector3(2.2f, 0.1f, 1.4f), grey, false), "sandstone_floor", 1.2f, warm);
         var cloth = B("BackCloth", Temple + new Vector3(0, 3.0f, 12.02f), new Vector3(3.2f, 2.9f, 0.02f), new Color(0.5f, 0.04f, 0.05f), false, 0.1f);
         GameKit.Surface(cloth, "fabric", 0.35f, 0.5f, 1.2f, new Color(0.55f, 0.05f, 0.06f));
-        var idol = PlaceIdol(new[] { "Kali", "Uma" }, ped + new Vector3(0, 0.5f, 0.05f), 1.75f, IdolYaw, true);
-        if (idol == null) Tex(B("IdolNiche", ped + new Vector3(0, 1.3f, 0.2f), new Vector3(1.2f, 1.6f, 0.3f), dark, false), "blocks", 1.2f, dark);
-        // garland of marigolds over the idol, a second across the doorway
+        // the murti: Kali, framed as the painted relief icon it is, its garland on the frame (Act3Story.Temple)
+        PlaceKali(ped);
+        // a garland across the doorway
         var red = new Color(0.75f, 0.1f, 0.06f); var saffron = new Color(1f, 0.55f, 0.06f);
         for (int i = 0; i <= 22; i++)
         {
             float u = i / 22f;
-            Sp("Marigold", ped + new Vector3(-0.75f + u * 1.5f, 2.15f - Mathf.Sin(u * Mathf.PI) * 0.55f, -0.38f), 0.075f, i % 4 == 0 ? red : saffron, 0.15f);
             Sp("Marigold", Temple + new Vector3(-0.8f + u * 1.6f, 3.52f - Mathf.Sin(u * Mathf.PI) * 0.3f, 7.42f), 0.07f, i % 3 == 0 ? red : saffron, 0.15f);
         }
         Diya(ped + new Vector3(-1.25f, 0f, -0.3f), true); Diya(ped + new Vector3(1.25f, 0f, -0.3f), true);
         PropKit.Place(transform, "brass_vase_01", ped + new Vector3(-0.8f, 0.5f, -0.35f), 0f, 0.5f);
         PropKit.Place(transform, "brass_vase_01", ped + new Vector3(0.8f, 0.5f, -0.35f), 90f, 0.5f);
         PropKit.Place(transform, "brass_pot_01", ped + new Vector3(0f, 0f, -0.95f), 0f, 0.9f);
-        PL(Temple + new Vector3(0, 3.6f, 10.2f), new Color(1f, 0.56f, 0.22f), 4.2f, 6.5f);       // lamp-light inside the sanctum
-        PL(Temple + new Vector3(0, 2.2f, 9.2f), new Color(1f, 0.7f, 0.4f), 1.8f, 4f);           // on the idol's face
+        PL(Temple + new Vector3(0, 3.6f, 10.2f), new Color(1f, 0.56f, 0.22f), 2.4f, 6.5f);       // the sanctum's own glow (the murti has its lamp)
 
         // ---- mandapa: turned stone pillars carrying a stone roof over the porch
         var pillarMat = ProcTex.Mat(ProcTex.Get("sandstone_floor"), new Color(1f, 0.9f, 0.78f), new Vector2(2f, 2f), 1f, 1.2f);
@@ -499,13 +495,18 @@ public partial class Act3Story : ActStoryBase
         Tex(B("GateLintel", Temple + new Vector3(0, 4.6f, -14.7f), new Vector3(5.6f, 0.5f, 1f), grey, false), "blocks", 1.8f, warm);
         gate = new GameObject("Gate").transform; gate.SetParent(transform, false); gate.position = Temple + new Vector3(0, 1.5f, -13.5f);
 
-        // ---- the priest's alcove near the entrance, devotees before the shrine
+        // ---- the temple office inside the gate: Harishankar at his table with the ledger; devotees before the shrine
         Tex(B("Alcove", Temple + new Vector3(5.5f, 1.2f, -13.6f), new Vector3(2.4f, 2.4f, 1.2f), grey, true), "blocks", 1.8f, warm);
         GameKit.Surface(B("AlcoveMat", Temple + new Vector3(5.5f, 0.02f, -12.6f), new Vector3(1.6f, 0.03f, 1.0f), new Color(0.6f, 0.15f, 0.12f)), "fabric", 0.3f, 0.3f, 1.2f, new Color(0.6f, 0.15f, 0.12f));
-        Diya(Temple + new Vector3(4.6f, 0f, -12.4f), false);
         PL(Temple + new Vector3(5f, 1.8f, -11.8f), new Color(1f, 0.68f, 0.35f), 2.8f, 6f);
-        pandit = Npc(Temple + new Vector3(5.5f, 0f, -12.4f), 0f, Cast.Pandit(), "Pandit Harishankar");
-        BuildEnvelope(Temple + new Vector3(6.05f, 0.035f, -12.3f));             // Priya's envelope, kept on a brass plate beside him
+        BuildTempleOffice(Temple + new Vector3(5.5f, 0f, -12.05f));
+        pandit = Npc(Temple + new Vector3(5.5f, 0f, -12.35f), 0f, Cast.Pandit(), "Harishankar", false);
+        pandit.Sit(Temple + new Vector3(5.5f, 0.465f, -12.67f), 0f, 0.42f, true);
+        pandit.lookTarget = ledgerCover;
+        BuildEnvelope(Temple + new Vector3(5.68f, 0.7f, -12.1f));                 // Priya's envelope, in the table drawer
+        envelope.gameObject.SetActive(false);
+        var plateOld = transform.Find("OfferingPlate"); if (plateOld != null) plateOld.gameObject.SetActive(false);
+        StartCoroutine(HarishankarWrites());
         for (int i = 0; i < 4; i++) Npc(Temple + new Vector3(-2.5f + i * 1.6f, 0f, 2.6f), (i - 1.5f) * 6f, Cast.Devotee(800 + i), "Devotee" + i, false);   // facing the shrine
         foreach (var lp in new[] { new Vector2(-8f, -9f), new Vector2(8f, -8f), new Vector2(-8f, 4f), new Vector2(8f, 4f) })
         {
@@ -571,7 +572,7 @@ public partial class Act3Story : ActStoryBase
         if (d.act3Stage < 3)
         {
             yield return Narrate("a3_vo_temple");
-            BeginFree("Find the temple priest", pandit.transform.position + Vector3.up * 1.9f, "Pandit Harishankar");
+            BeginFree("Find Harishankar at the temple office", pandit.transform.position + Vector3.up * 1.6f, "Harishankar");
             yield return new WaitUntil(() => panditDone);
         }
         else panditDone = true;
@@ -590,6 +591,7 @@ public partial class Act3Story : ActStoryBase
     protected override void Update()
     {
         base.Update();
+        StairsUpdate();
         if (area == 2 && Time.time > nextBell)
         {
             sfx.PlayOneShot(Tone(392f, 2.5f, 1.2f, 0.25f), 0.6f);
@@ -605,12 +607,12 @@ public partial class Act3Story : ActStoryBase
     void RegisterSpots()
     {
         AddSpot(computer, Vector3.zero, "Use the computer", () => !usbDone && area == 0, () => StartCoroutine(ComputerPuzzle()));
-        AddSpot(stairsDown, Vector3.zero, "Go down to the Record Room", () => usbDone && area == 0, () => StartCoroutine(GoDown()));
-        AddSpot(stairsUp, Vector3.zero, "Go back upstairs", () => area == 1 && !cageOpen, () => StartCoroutine(GoUp()));
+        // the Record Room is down a real stair now: only the door at the top is a press of E (Act3Story.Stairs)
+        AddSpot(stairsDown, Vector3.zero, "Open the Record Room door", () => usbDone && !doorOpen && area == 0, () => StartCoroutine(OpenLibDoor()));
         cageSpot = AddSpot(cage, Vector3.zero, "Inspect the cage", () => area == 1 && !cageOpen, () => StartCoroutine(CageAction()), 3.2f, 0.8f);
         AddSpot(calendar, Vector3.zero, "Look at the calendar", () => area == 1, () => StartCoroutine(CalendarAction()));
         AddSpot(libDesk, new Vector3(0, 0.3f, -0.45f), "Try the desk drawer", () => area == 0 && cageSeen && !keyFound, () => StartCoroutine(DeskPuzzle()));
-        AddSpot(pandit.transform, Vector3.up * 1.5f, "Talk to Pandit Harishankar", () => area == 2 && !panditDone && phase == Phase.Free, () => StartCoroutine(PanditTalk()));
+        AddSpot(pandit.transform, Vector3.up * 1.15f, "Talk to Harishankar", () => area == 2 && !panditDone && phase == Phase.Free, () => StartCoroutine(PanditTalk()));
     }
 
     Spot cageSpot;
@@ -651,38 +653,6 @@ public partial class Act3Story : ActStoryBase
         BeginFree("Go down to the Record Room", stairsDown.position + Vector3.up, "Record Room stairs");
     }
 
-    IEnumerator GoDown()
-    {
-        BeginBusy();
-        sfx.PlayOneShot(stepClip, 0.6f);
-        yield return FadeOut(2f);
-        area = 1; SwitchBed(baseBed); AreaLook(1);
-        Teleport(Base + new Vector3(0, 0.1f, -5.8f), 0f);
-        yield return FadeIn(1.5f);
-        if (!cageSeen)
-        {
-            yield return Talk("a3_arjun_basement");
-            EndTalk();
-        }
-        if (cageSeen && !keyFound && deskTried && !calendarSeen)
-            BeginFree("Find the drawer code - check the calendar on the east wall", calendar.position, "Wall calendar");
-        else
-            BeginFree(keyFound ? "Open the cage at Block C, Shelf 14" : (cageSeen ? "Find the key - try the librarian's desk upstairs" : "Find Block C, Shelf 14"),
-                      cage.position + Vector3.up * 0.8f, "Block C, Shelf 14");
-    }
-
-    IEnumerator GoUp()
-    {
-        BeginBusy();
-        sfx.PlayOneShot(stepClip, 0.6f);
-        yield return FadeOut(2f);
-        area = 0; SwitchBed(libBed); AreaLook(0);
-        Teleport(stairsDown.position + new Vector3(0, -1f, -1.2f), 180f);
-        yield return FadeIn(1.5f);
-        BeginFree(cageSeen && !keyFound ? "Open the librarian's desk" : "Go back down to the Record Room",
-                  cageSeen && !keyFound ? libDesk.position + Vector3.up : stairsDown.position + Vector3.up, cageSeen && !keyFound ? "Librarian's desk" : "Record Room stairs");
-    }
-
     IEnumerator CalendarAction()
     {
         BeginBusy();
@@ -719,8 +689,11 @@ public partial class Act3Story : ActStoryBase
             cageDoor.localRotation = Quaternion.Euler(0, -100f * Mathf.SmoothStep(0, 1, t), 0);
             yield return null;
         }
+        // the empty box-file, then the register beside it: let the signature be read before the card says it
+        if (signOutSheet != null) yield return Turn(signOutSheet.position, 0.8f);
         yield return Talk("a3_arjun_empty");
         EndTalk();
+        yield return Wait(1.0f);
         yield return ShowCard("RECORD ROOM - SIGN-OUT SHEET  (Block C / 14 / 1942)",
             "Date          Name             Purpose                Signature\n" +
             "14 Mar 1998    R. Joshi          Audit                    R.J.\n" +
@@ -762,7 +735,9 @@ public partial class Act3Story : ActStoryBase
             yield break;
         }
         sfx.PlayOneShot(Tone(900f, 0.2f, 20f, 0.4f), 0.5f);
+        yield return OpenDrawerOnKey();
         yield return Talk("a3_arjun_key");
+        if (brassKey != null) brassKey.gameObject.SetActive(false);         // in Arjun's pocket
         EndTalk();
         keyFound = true;
         cageSpot.label = "Open the cage with the key";
@@ -774,24 +749,39 @@ public partial class Act3Story : ActStoryBase
     IEnumerator PanditTalk()
     {
         BeginBusy();
-        yield return Turn(pandit.transform.position + Vector3.up * 1.5f, 0.7f);
+        panditTalking = true;
+        pandit.lookTarget = cam;                           // he looks up from the ledger
+        yield return Turn(pandit.EyePoint(), 0.7f);
         yield return Talk("a3_pandit_1", pandit);
         yield return Talk("a3_arjun_q");
         yield return Talk("a3_pandit_2", pandit);
-        // the Pandit waits for an answer: three intentions on the dial, Arjun's full answer previewed under it
+        // Harishankar waits for an answer: three intentions on the dial, Arjun's full answer previewed under it
         yield return Choose(new[] { "The truth", "The people", "Both are one" },
                             new[] { DialogueDB.Text("a3_ans_a"), DialogueDB.Text("a3_ans_b"), DialogueDB.Text("a3_ans_c") }, null, null);
         int c = menuResult;
+        // he closes the ledger to listen
+        StartCoroutine(CloseLedger());
         yield return Talk(c == 0 ? "a3_ans_a" : c == 1 ? "a3_ans_b" : "a3_ans_c");
+        EndTalk();
+        // and studies him a moment before he decides
+        yield return Wait(1.2f);
+        yield return EnvelopeFromDrawer();
         yield return Talk(c == 0 ? "a3_pandit_a" : c == 1 ? "a3_pandit_b" : "a3_pandit_c", pandit);
         EndTalk();
         SaveSystem.Data.panditAnswer = c;
-        if (envelope != null) envelope.gameObject.SetActive(false);
+        // Arjun takes it
+        if (envelope != null)
+        {
+            Vector3 from = envelope.position;
+            for (float t = 0f; t < 0.4f; t += Time.deltaTime) { envelope.position = Vector3.Lerp(from, cam.position + cam.forward * 0.3f - cam.up * 0.25f, t / 0.4f); yield return null; }
+            envelope.gameObject.SetActive(false);
+        }
+        pandit.Release(1, 0.6f);
         Toast("You received: PRIYA'S SEALED ENVELOPE", 4f, true);
         AddEvidence("Certified copy of the original 1942 land deed - admissible in court.");
         AddEvidence("Priya's letter: councilor, builder and police are connected; the hearing is at 10 AM, Municipal Court.");
-        if (c == 1) AddEvidence("Panditji: the hearing is tomorrow at 10 AM - Priya wants the documents there.");
-        if (c == 2) AddEvidence("Panditji: Priya is safe at the NGO shelter in the old school by the river.");
+        // (his recorded answers stop at the verdict: the hearing and the shelter, which he used to add, come from the
+        // letter and from Act IV)
         StartCoroutine(Narrate("a3_letter"));
         yield return ShowCard("A LETTER, IN PRIYA'S HAND",
             "Dear whoever-you-are,\n\nIf you're reading this, I hope you're someone I can trust. I have the original documents with me. " +
@@ -810,6 +800,10 @@ public partial class Act3Story : ActStoryBase
         sfx.PlayOneShot(ringClip, 0.7f);
         yield return new WaitForSeconds(2.3f);
         yield return Narrate("a3_caller");
+        // the recorded call ends on its threat; the caller texts the meeting
+        sfx.PlayOneShot(dingClip, 0.6f);
+        yield return ShowCard("NEW MESSAGE  -  Unknown number",
+            "\"I have information about Priya that you haven't found yet. Information that could save her life, or end it.\n\nCafé Irani. Thirty minutes. Come alone.\"");
         sfx.PlayOneShot(dingClip, 0.6f);
         yield return ShowCard("NEW MESSAGE  -  Kamala-ji",
             "\"Arjun, someone broke into our house. They tore everything apart. They were looking for something. Rohan is scared. I'm scared. Please help us.\"");

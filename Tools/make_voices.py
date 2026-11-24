@@ -3,8 +3,8 @@
 Run:  python3 Tools/make_voices.py   (from the project root)
 Edit the LINES table to change dialogue, then update the matching subtitle text in
 Assets/Scripts/PriyaRoomStory.cs. Swap any .wav in Assets/Resources/VO for a real
-recording with the same file name and the game will use it automatically. Arjun's recorded lines
-(Tools/arjun_recordings.py) are skipped here, even with --all."""
+recording with the same file name and the game will use it automatically. The voice actors' recorded
+lines (Tools/vo_recordings.py) are skipped here, even with --all."""
 import os, subprocess, tempfile
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "Assets", "Resources", "VO")
@@ -21,8 +21,8 @@ LINES = {
  "arjun_intro1": (ARJUN, "In Chandnipur, everyone has a secret. The city is old enough to keep them."),
  "arjun_intro2": (ARJUN, "But sometimes a secret gets too big for the walls that hold it, and it starts to leak through the cracks."),
  "arjun_intro3": (ARJUN, "That's when people like me get a phone call."),
- "kamala_welcome1": (KAMALA, "Mr. Mehra? Thank you for coming. The police say she left on her own. But a mother knows. Something is wrong."),
- "kamala_welcome2": (KAMALA, "I haven't touched anything. I thought someone should look at it properly. Her room is the door at the end of the hallway. Here is the key."),
+ "kamala_welcome1": (KAMALA, "Mr. Mehra? Thank you for coming. Please, come inside. The police say she left on her own. But a mother knows. Something is wrong."),
+ "kamala_welcome2": (KAMALA, "I haven't touched anything. I thought... I thought someone should look at it properly."),
  "arjun_clue_1_Laptop": (ARJUN, "Someone cleaned this. Thoroughly. Priya is careful, but this looks rushed. She was in a hurry, or someone else did this after she left."),
  "arjun_clue_2_StickyNote": (ARJUN, "She hid this deliberately. This number is important enough to keep off the laptop."),
  "arjun_clue_3_NewspaperClippings": (ARJUN, "Priya was fighting this project. Hard. This wasn't casual activism. This was an obsession."),
@@ -36,9 +36,9 @@ LINES = {
  "q_k_a": (ARJUN, "Did she mention anyone threatening her?"),
  "q_k_b": (ARJUN, "Was she working on anything dangerous?"),
  "q_k_c": (ARJUN, "Did the police search this place?"),
- "kamala_a": (KAMALA, "Not directly. But two weeks ago, she stopped coming home for dinner. I could hear her on the phone, arguing with someone. She used words like forgery, and original documents. I didn't understand, but I understood her voice. She was scared."),
- "kamala_b": (KAMALA, "Priya's work is always dangerous, Mr. Mehra. She fights for people who have no one else. She told me, Maa, if I can prove the land belongs to them, no one can touch them. She was so hopeful. And then, suddenly, she wasn't."),
- "kamala_c": (KAMALA, "An inspector came. A woman. She looked around for ten minutes, asked me a few questions, and left. She said Priya probably went to visit a friend. But Priya's phone is here. Her wallet is here. What kind of person leaves without their phone?"),
+ "kamala_a": (KAMALA, "Not directly. But two weeks ago, she stopped coming home for dinner. She said she was working late at the NGO. But I could hear her on the phone, arguing with someone. She used words like 'forgery' and 'original documents'. I didn't understand, but I understood her voice. She was scared."),
+ "kamala_b": (KAMALA, "Priya's work is always dangerous, Mr. Mehra. She fights for people who have no one else to fight for them. The slum families in Basti Nagar, they were going to lose their homes. Priya was trying to stop it. She told me, 'Maa, if I can prove the land belongs to them, no one can touch them.' She was so hopeful. And then, suddenly, she wasn't."),
+ "kamala_c": (KAMALA, "An inspector came. A woman. She looked around for ten minutes, asked me a few questions, and left. She didn't seem interested. She said Priya probably went to visit a friend. But Priya's phone is here. Her wallet is here. What kind of person leaves without their phone?"),
  "kamala_more": (KAMALA, "Is there anything else you want to ask me?"),
  "kamala_bye": (KAMALA, "Please, Mr. Mehra. Find my daughter."),
  "arjun_note": (ARJUN, "Stop looking. She doesn't want to be found. A friend."),
@@ -54,7 +54,7 @@ LINES.update({
  "q_b_a": (ARJUN, "Do you know a woman named Priya Kapoor? Lives in the old quarter?"),
  "b_a": (BHASKAR, "Priya madam? Of course! She takes my auto sometimes. Going to the court, going to the slum. Good woman. Always pays full fare, never bargains. Why?"),
  "q_b_a2": (ARJUN, "She's missing."),
- "b_a2": (BHASKAR, "Missing? Arre bhai... actually, I drove her two nights ago. Late, around ten. She flagged me down near the temple. She was on the phone, very tense. She kept saying, don't come, I'll handle it. Then she told me to take her to the old mill, the abandoned textile mill near the river. But halfway there, she got another call, and her face went white. She said, take me back, right now. She gave me five hundred rupees for a fifty rupee ride, and said, forget this ride. You never saw me tonight."),
+ "b_a2": (BHASKAR, "Missing? Arre bhai... actually, I drove her two nights ago. Late, around ten. She flagged me down near the temple. She was on the phone, very tense. She kept saying, don't come, I'll handle it. Then she told me to take her to the old mill. You know, the abandoned textile mill near the river. But halfway there, she got another call, and her face went white. She said, take me back. Take me back, right now. I asked if everything was okay. She gave me five hundred rupees for a fifty rupee ride, and said, forget this ride. You never saw me tonight."),
  "q_b_b": (ARJUN, "What did the person on the phone sound like?"),
  "b_b": (BHASKAR, "I couldn't hear clearly, but it sounded like a man. Older. Speaking Hindi with an English accent, you know, the rich people type. Priya madam was saying, I have the documents, you can't stop me. Then later, I know what you did to the records. I don't know what it means, but it sounded serious."),
  "q_b_c": (ARJUN, "Did anyone follow you?"),
@@ -73,9 +73,9 @@ LINES.update({
  "q_v_2b": (ARJUN, "Who is she afraid of?"),
  "q_v_2c": (ARJUN, "Where is she now?"),
  "v_t2a": (VIKRAM, "She found that the land records were forged. The government claims the Basti Nagar land was acquired in 1965 under eminent domain. But Priya found the original deed from 1942. It shows the land was granted to the residents by the Maharaja himself. It was never acquired. The entire Renewal Project is illegal."),
- "v_t2b": (VIKRAM, "Councilor Meghna Deshpande. She's the one behind the project. But it's not just her. There's a builder, Raj Malhotra, and people inside the police. Priya said the corruption goes all the way up. She was scared, but she wouldn't stop. That girl has a spine of steel."),
+ "v_t2b": (VIKRAM, "Councilor Meghna Deshpande. She is the one behind the project. But it's not just her. There's a builder, Raj Malhotra, and people inside the police. Priya said the corruption goes all the way up. She was scared, but she wouldn't stop. That girl has a spine of steel."),
  "v_t2c": (VIKRAM, "I don't know exactly. But the last time I spoke to her, she mentioned the Kali Temple. She said, Kali Ma will protect the truth. I thought she was being poetic, but now I think she meant it literally."),
- "v_t3a": (VIKRAM, "Wait. There's something else. Priya gave me this two days before she disappeared. She said, if anything happens to me, give this to someone who can use it. I didn't know what that meant until now. Take it. It has all her research. Copies of the forged documents, comparison with the originals, photographs, everything."),
+ "v_t3a": (VIKRAM, "Wait. There's something else."),
  "v_t3b": (VIKRAM, "Be careful, Mr. Mehra. The people behind this, they don't play games. Two days ago, two men came to my stall. They asked if a woman had been asking questions about the land records. I said no. They broke my kettle and told me to keep saying no. These are not people you argue with."),
  "v_bye": (VIKRAM, "Go carefully, brother. And drink some chai next time."),
  "arjun_reddy": (ARJUN, "A cop. Plainclothes. She's been following me, or following Vikram. Whose side is she on?"),
@@ -107,8 +107,8 @@ os.makedirs(OUT, exist_ok=True)
 import sys
 only_new = "--all" not in sys.argv   # skip files that already exist unless --all is passed
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from arjun_recordings import recorded_ids
-recorded = recorded_ids()               # the voice actor's lines: never replaced by `say`
+from vo_recordings import recorded_ids
+recorded = recorded_ids()               # the voice actors' lines: never replaced by `say`
 for name, (cfg, text) in LINES.items():
     out = os.path.join(OUT, name + ".wav")
     if name in recorded or (only_new and os.path.exists(out)):

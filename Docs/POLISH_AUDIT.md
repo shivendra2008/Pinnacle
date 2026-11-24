@@ -59,7 +59,7 @@ Priority: P0 blocker or state corruption, P1 narrative coherence or interaction 
 |---|---|---|---|
 | Facial rigs with visemes + blink shapes for Priya, Kamala, Reddy, Raj, Rohan, Vikram, the Curator | Close-up dialogue | ARKit-style 52 blendshapes or at least 15 visemes + blink L/R; head and hands ≥ 2k textures; Humanoid rig | Not available. The current Rocketbox heads have a jaw bone only |
 | Interaction clips | Sitting, picking up documents, cups, handlebars | Humanoid FBX, 30 fps, root motion off: sit down/idle/stand, reach low/mid/high, hand-over, phone | Not available. Hands use IK onto props today |
-| Recorded VO | Replace macOS TTS | 48 kHz WAV mono, −16 LUFS, same file names in `Assets/Resources/VO` | All lines are TTS today. The three lines re-recorded this session are `a4b_rohan_2`, `a5_priya_4`, `end1_priya` |
+| Recorded VO | Replace macOS TTS | 48 kHz WAV mono, −16 LUFS, same file names in `Assets/Resources/VO` | Recorded (23 Nov 2026, `Docs/VOICE_CHECK.md`): Arjun, Kamala, Bhaskar, Vikram, Harishankar, Raj, Rohan and the Act III caller, 96 lines. Still TTS: the lines of theirs listed there, and everyone else (Reddy, Priya, Sharma-ji, the Curator, the court, the thugs) |
 | Hero evidence models | Deed, 1965 file, USB, burner phone, diary | 2k PBR, real scale, <5k tris | Primitive placeholders |
 | Temple imagery review | Cultural suitability of the Kali temple and idol | Review by someone familiar with the practice | Not reviewed |
 | Music | Restrained score per act | Stems, loopable | Synthesised beds only |

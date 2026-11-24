@@ -6,7 +6,7 @@
 // Uses macOS's SpeechTranscriber (macOS 26 and later) with the language assets already on the Mac: nothing is
 // downloaded and no audio leaves the machine. A locale whose assets are not installed is refused rather than fetched.
 // Writes, per file: the transcript and every word with its start and end in seconds.
-// Tools/arjun_recordings.py builds and runs this.
+// Tools/vo_recordings.py and Tools/lipsync/npc_lipsync.py build and run this.
 import AVFoundation
 import Foundation
 import Speech

@@ -1,24 +1,24 @@
-# kamala_ask  1.240 s  words heard on-device (Tools/lipsync/npc_lipsync.py)
+# kamala_ask  1.473 s  words heard on-device (Tools/lipsync/npc_lipsync.py)
 # V start end viseme weight stress phoneme | A time strength | P start end | W start end word
 W 0.000 0.240 Have
-W 0.240 0.480 you
-W 0.480 0.660 found
-W 0.660 1.240 anything?
+W 0.240 0.420 you
+W 0.420 0.600 found
+W 0.600 1.320 anything?
 V 0.000 0.048 aa 0.45 -1 HH
-V 0.048 0.126 aa 1.00 1 AE1
-V 0.126 0.195 FF 1.00 -1 V
-V 0.195 0.302 I 1.00 -1 Y
-V 0.302 0.480 U 1.00 1 UW1
-V 0.480 0.521 FF 1.00 -1 F
-V 0.521 0.563 aa 1.00 1 AW1
-V 0.563 0.598 U 1.00 1 AW1
-V 0.598 0.628 nn 1.00 -1 N
-V 0.628 0.660 DD 1.00 -1 D
-V 0.660 0.813 aa 1.00 1 AE1
-V 0.813 0.882 nn 1.00 -1 N
-V 0.882 0.957 I 0.60 0 IY0
-V 0.957 1.042 TH 1.00 -1 TH
-V 1.042 1.144 I 1.00 1 IH1
-V 1.144 1.240 kk 1.00 -1 NG
-A 0.521 0.19
-A 0.563 0.21
+V 0.048 0.156 aa 1.00 1 AE1
+V 0.156 0.225 FF 1.00 -1 V
+V 0.225 0.287 I 1.00 -1 Y
+V 0.287 0.375 U 1.00 1 UW1
+V 0.375 0.416 FF 1.00 -1 F
+V 0.416 0.483 aa 1.00 1 AW1
+V 0.483 0.538 U 1.00 1 AW1
+V 0.538 0.568 nn 1.00 -1 N
+V 0.568 0.600 DD 1.00 -1 D
+V 0.600 0.790 aa 1.00 1 AE1
+V 0.790 0.875 nn 1.00 -1 N
+V 0.875 0.968 I 0.60 0 IY0
+V 0.968 1.074 TH 1.00 -1 TH
+V 1.074 1.201 I 1.00 1 IH1
+V 1.201 1.320 kk 1.00 -1 NG
+A 0.048 0.22
+A 0.416 0.23

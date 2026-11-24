@@ -141,10 +141,12 @@ public partial class Act3Story
                 P(d, "DeskLeg", new Vector3(sx, 0.38f, sz), new Vector3(0.06f, 0.76f, 0.06f), darker);
         // the drawer: an opening in the apron, the front set 6 mm back with a shadow gap, sitting on two runners
         P(d, "DrawerOpening", new Vector3(0f, 0.74f, -0.42f), new Vector3(0.84f, 0.22f, 0.025f), GameKit.Lit(new Color(0.03f, 0.02f, 0.015f), 0.2f), false);
-        P(d, "Drawer", new Vector3(0f, 0.74f, -0.432f), new Vector3(0.8f, 0.19f, 0.02f), teak);
+        var drw = new GameObject("DrawerSlide").transform; drw.SetParent(d, false); drw.localPosition = new Vector3(0f, 0.74f, -0.432f);
+        drawerFront = drw;
+        P(drw, "Drawer", Vector3.zero, new Vector3(0.8f, 0.19f, 0.02f), teak);
         foreach (float rx in new[] { -0.38f, 0.38f }) P(d, "DrawerRunner", new Vector3(rx, 0.63f, -0.1f), new Vector3(0.025f, 0.02f, 0.66f), darker, false);
-        P(d, "DrawerEscutcheon", new Vector3(0f, 0.74f, -0.444f), new Vector3(0.1f, 0.09f, 0.004f), brass, false);
-        P(d, "DrawerLock", new Vector3(0f, 0.74f, -0.452f), new Vector3(0.07f, 0.05f, 0.014f), GameKit.Lit(new Color(0.55f, 0.45f, 0.25f), 0.65f, 0.95f), false);
+        P(drw, "DrawerEscutcheon", new Vector3(0f, 0f, -0.012f), new Vector3(0.1f, 0.09f, 0.004f), brass, false);
+        P(drw, "DrawerLock", new Vector3(0f, 0f, -0.02f), new Vector3(0.07f, 0.05f, 0.014f), GameKit.Lit(new Color(0.55f, 0.45f, 0.25f), 0.65f, 0.95f), false);
         for (int k = 0; k < 4; k++) P(d, "LockDial", new Vector3(-0.024f + k * 0.016f, 0.74f, -0.461f), new Vector3(0.011f, 0.03f, 0.006f), GameKit.Lit(new Color(0.2f, 0.18f, 0.15f), 0.5f, 0.6f), false);
         // a pedestal of drawers under the right end
         P(d, "Pedestal", new Vector3(0.62f, 0.35f, 0f), new Vector3(0.62f, 0.62f, 0.86f), darker);
@@ -170,7 +172,7 @@ public partial class Act3Story
     /// five shelves, a plinth set back as a kick, a cornice; each side filled with books of real sizes in a few cloth
     /// colours, combined into one mesh per colour (one draw each).
     /// </summary>
-    void BuildBookcase(Vector3 centre, float width, float height, float depth, System.Random rnd)
+    void BuildBookcase(Vector3 centre, float width, float height, float depth, System.Random rnd, bool hero = false)
     {
         var bc = Root("Bookcase", centre);
         var wood = WoodMat(new Color(0.3f, 0.19f, 0.11f), 0.7f, 0.8f);
@@ -201,16 +203,19 @@ public partial class Act3Story
             {
                 float x = -width * 0.5f + t + 0.01f;
                 float xEnd = width * 0.5f - t - 0.01f;
+                bool ledgers = hero && face < 0f && (s == 1 || s == 3);
+                if (ledgers) { LedgerRun(bc, sy, x, -0.05f, depth * 0.5f, face, rnd); x = 0.0f; }
                 while (x < xEnd - 0.03f)
                 {
-                    if (rnd.NextDouble() < 0.05) { x += 0.06f + (float)rnd.NextDouble() * 0.12f; continue; }      // a gap where books are out
+                    if (rnd.NextDouble() < (hero ? 0.1 : 0.05)) { x += 0.06f + (float)rnd.NextDouble() * 0.12f; continue; }      // a gap where books are out (the back panel shows)
                     float thick = 0.02f + (float)rnd.NextDouble() * 0.04f;
                     float h = Mathf.Min(pitch - 0.04f, 0.2f + (float)rnd.NextDouble() * 0.12f);
                     float dp = 0.15f + (float)rnd.NextDouble() * 0.07f;
                     if (x + thick > xEnd) break;
                     float lean = 0f;
                     if (rnd.NextDouble() < 0.04 && x + thick + 0.08f < xEnd) { lean = 14f + (float)rnd.NextDouble() * 10f; }
-                    var pos = new Vector3(x + thick * 0.5f + (lean > 0f ? h * 0.18f : 0f), sy + 0.011f + h * 0.5f, face * (depth * 0.5f - dp * 0.5f - 0.012f));
+                    float push = hero && rnd.NextDouble() < 0.3 ? (float)rnd.NextDouble() * 0.04f : 0f;          // staggered spines
+                    var pos = new Vector3(x + thick * 0.5f + (lean > 0f ? h * 0.18f : 0f), sy + 0.011f + h * 0.5f, face * (depth * 0.5f - dp * 0.5f - 0.012f - push));
                     var rot = Quaternion.Euler(0f, 0f, -lean);
                     lists[rnd.Next(bookMats.Length)].Add(new CombineInstance { mesh = cube, transform = Matrix4x4.TRS(pos, rot, new Vector3(thick, h, dp)) });
                     x += thick + (lean > 0f ? h * 0.36f : 0.0015f);

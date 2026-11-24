@@ -79,6 +79,10 @@ PINNACLE_ROUTE=market PINNACLE_PROFILE_OUT=/tmp/run PINNACLE_SAVE_DIR=/tmp/run/s
 always do). `python3 Tools/route_timing.py <run dirs>` prints cold entry and play separately for market and café runs
 (median, p95, p99, worst, frames over 50 ms).
 
+Every route writes `voices.txt`: each clip that starts playing (time, source, clip name, its length), so a run shows
+which recording of each line the build played. `PINNACLE_ROUTE_CAPTURE=1 PINNACLE_ROUTE_AUDIO_ONLY=1` records the
+route's mix to `route/route.wav` without frames (to transcribe what was heard; footage costs ~1 GB per route).
+
 Outputs in `PINNACLE_PROFILE_OUT`: `summary.txt` (cold entry, steady play and the SUV as separate samples: median,
 p95, p99, worst, frames over 50 and 100 ms; CPU main-thread and GPU times; render counters by section), `frames.csv`,
 `checks.txt` (what the route saw the game do: decisions offered, trust result, Vikram in frame at each decision,
@@ -91,3 +95,21 @@ reply-to-decision gaps, saves, outcomes), `markers.csv` and `spikes.txt` in a de
 The reference machine is a fanless MacBook Air M1: it throttles under sustained load, and other processes (browser,
 macOS services) move the numbers. Compare builds with interleaved runs (base, after, base, after...) after a settle
 wait, and keep the load printed with each run.
+
+## Acts IV and V (23 Nov 2026)
+
+`Assets/Scripts/Playtest/PlayRoute.Acts45.cs`. Each route seeds its own campaign in `PINNACLE_SAVE_DIR`, enters from
+chapter select and uses the virtual mouse for the compass. Checks that need a field only newer builds have become
+notes in older builds, so the same route runs on the committed game (the "before" player) and on this pass.
+
+| `PINNACLE_ROUTE` | What it plays |
+|---|---|
+| `cafeminute` | Café Irani from control to Raj's reaction in one take: the walk to the counter, a sidestep along the biscuit case (A then D, eyes on the case), "Sit down with Raj", his lines, the first decision on the compass ("Trust him?"), five seconds of his reply. Capture segment `cafeminute` |
+| `cafefull` | `cafeminute`, then "Time to go", the danger beat (`PINNACLE_ROUTE_LOOK=1` looks at the watcher with the mouse, `0` does not: the camera turns only then), the kitchen (a pot brushed on purpose: it rattles, footsteps, the searcher at the door; standing in his torchlight: a detection and the checkpoint; cover to cover to the exit), the alleys (caught three times in the open, each retry checked clean; then hidden: Raj crouched and still), the dhaba (ally, recordings and location lead saved whichever questions were asked) |
+| `house` | The landing and flat 301's nameplate, Kamala, the boot print and the visitor pass, the laptop read (no confession), the laptop closed (Rohan stops, Kamala looks at him, then silence until the player acts), "Ask Rohan about the emails", the compass, the ally |
+| `reddy` | `PINNACLE_ROUTE_EVIDENCE=full` (5 pieces: ID, sheet, files, cuttings, plate), `noid` (4), `heard` (no plate, Bhaskar's account heard: 4 + ID), `minimal` (sheet and files only). Space held across the folio's opening, a number (inspects only), a number and Enter together (nothing presented), pause with keys behind it, resume, Backspace, sideways mouse and a click on a weak piece (her answer is the right line), arrows and Enter on the sign-out sheet (she recognises her signature), a locked piece, the d-pad and the south button; the last question on the compass; the ally |
+| `act5` | `PINNACLE_ROUTE_CASE=j18` (18 evidence, recordings), `j17` (17), `rec` (recordings only), `emails` (emails only), `neither`; `PINNACLE_ROUTE_ENDING=0/1/2`. The shelter (the stair voice, Priya shuts her file and holds it before her first line), the Gallery checkpoint, every other casket's card (sealed or open as `Sealed()` says), a step back, the chosen casket on the compass, the ending (cards closed), the credits, R to the menu. `PINNACLE_ROUTE_RESUME=1` enters at the Gallery checkpoint; `PINNACLE_ROUTE_QUIT=1` quits to the menu before committing and continues from the checkpoint (no ending recorded) |
+
+`PINNACLE_ROUTE_FAST=1` skips spoken lines with Space where the run is about logic. `act3full` with
+`PINNACLE_ROUTE_SHOTS=1` now also takes stills of the two nearest bookcases, the cage with the sign-out sheet, the murti
+(straight on and three-quarter at a devotee's eye height), the Ganesha shrine and Harishankar's table.

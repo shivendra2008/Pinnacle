@@ -1,0 +1,20 @@
+# a4a_raj_wait  1.409 s  words heard on-device (Tools/lipsync/npc_lipsync.py)
+# V start end viseme weight stress phoneme | A time strength | P start end | W start end word
+W 0.000 0.480 Wait,
+W 0.480 1.080 don't
+W 1.080 1.409 move.
+V 0.000 0.100 U 1.00 -1 W
+V 0.100 0.243 E 1.00 1 EY1
+V 0.243 0.339 I 1.00 1 EY1
+V 0.339 0.480 DD 1.00 -1 T
+V 0.480 0.573 DD 1.00 -1 D
+V 0.573 0.661 E 1.00 1 OW1
+V 0.661 0.825 U 1.00 1 OW1
+V 0.825 0.931 nn 1.00 -1 N
+V 0.931 1.105 DD 1.00 -1 T
+V 1.105 1.183 PP 1.00 -1 M
+V 1.183 1.216 E 1.00 1 OW1
+V 1.216 1.277 U 1.00 1 OW1
+V 1.277 1.364 FF 1.00 -1 V
+A 0.100 1.00
+A 1.183 0.72
