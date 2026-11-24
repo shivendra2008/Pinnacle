@@ -99,9 +99,12 @@ P = "Voice Overs/panditji/"
 R = "Voice Overs/raj malhotra/"
 RO = "Voice Overs/rohan/"
 C = "Voice Overs/Curator/"
+PR = "Voice Overs/priya/"
+RE = "Voice Overs/reddy/"
 
 # recording -> the line(s) it voices, in the order they are spoken. A tuple of recordings is one line in several takes,
-# joined with a breath between them. drop=(first words, last words) cuts that passage out of the take.
+# joined with a breath between them. drop=(first words, last words) cuts that passage out of the (first) take; a passage
+# that opens the take is cut off its front.
 MAP = [
     # ---- Arjun
     (A + "act1 arjun1.mp3", ["arjun_intro1", "arjun_intro2", "arjun_intro3"]),
@@ -206,6 +209,33 @@ MAP = [
     (RO + "act4 rohan3.mp3", ["a4b_rohan_a"]),
     (RO + "act4 rohan4.mp3", ["a4b_rohan_b"]),
     (RO + "act4 rohan5.mp3", ["a4b_rohan_c"]),
+    # ---- Inspector Sonal Reddy
+    (RE + "act4 reddy1.mp3", ["a4c_reddy_1"]),
+    (RE + "act4 reddy2.mp3", ["a4c_reddy_2"]),
+    (RE + "act4 reddy3.mp3", ["a4c_reddy_r1"]),
+    (RE + "act4 reddy4.mp3", ["a4c_reddy_r1ok"]),
+    (RE + "act4 reddy5.mp3", ["a4c_reddy_r2"]),
+    # her line follows either winning piece, and neither is a USB stick (the copies of Priya's files, or the cuttings)
+    (RE + "act4 reddy6.mp3", ["a4c_reddy_r2ok"], ("Where did", "Never mind.")),
+    (RE + "act4 reddy7.mp3", ["a4c_reddy_r3"]),
+    # "She's braver than all of us" answered an older line of Arjun's; he now says "I have evidence you don't"
+    (RE + "act4 reddy8.mp3", ["a4c_reddy_a"], ("She's braver", "of us.")),
+    (RE + "act4 reddy9.mp3", ["a4c_reddy_b"]),
+    (RE + "act4 reddy10.mp3", ["a4c_reddy_c"]),
+    (RE + "act4 reddy11.mp3", ["a4c_reddy_reveal"]),
+    # ---- Priya Kapoor
+    (PR + "act5 priya1.mp3", ["a5_priya_1"]),
+    (PR + "act5 priya2.mp3", ["a5_priya_2"]),
+    (PR + "act5 priya3.mp3", ["a5_priya_3"]),
+    # "The hearing is in four hours" at four in the morning: the hearing is at ten (the old contradiction, cut again)
+    ((PR + "act5 priya4.mp3", PR + "act5 priya5.mp3"), ["a5_priya_4"], ("The hearing", "4 hours.")),
+    (PR + "act5 priya6.mp3", ["a5_priya_finish"]),
+    (PR + "end1 priya.mp3", ["end1_priya"]),
+    (PR + "end3 priya1.mp3", ["end3_priya_1"]),
+    ((PR + "end3 priya2.mp3", PR + "end3 priya3.mp3"), ["end3_priya_2"]),
+    # ---- the court
+    ("Voice Overs/end1 judge.mp3", ["end1_judge"]),
+    ("Voice Overs/end2 lawyer.mp3", ["end2_lawyer"]),
     # ---- the Curator: one take per scene, split at its pauses
     (C + "Curator 1.mp3", ["cur0_%02d" % i for i in range(1, 16)]),
     (C + "Curator 2.mp3", ["cur1_%02d" % i for i in range(1, 9)]),
@@ -229,6 +259,10 @@ CHARACTERS = [
     ("The unknown caller", {"UNKNOWN CALLER"}),
     ("Raj Malhotra", {"RAJ MALHOTRA"}),
     ("Rohan Kapoor", {"ROHAN KAPOOR"}),
+    ("Inspector Reddy", {"INSPECTOR REDDY"}),
+    ("Priya Kapoor", {"PRIYA KAPOOR"}),
+    ("The judge", {"THE JUDGE"}),
+    ("Deshpande's lawyer", {"DESHPANDE'S LAWYER"}),
     ("The Curator", {"THE CURATOR"}),
 ]
 
@@ -469,10 +503,14 @@ def build(text, only=None):
             i = find_words(words, drop[0])
             j = find_words(words, drop[1]) + len(drop[1].split()) - 1
             levels = energy(paths[0])
-            d0 = quietest(levels, words[i - 1]["e"] - 0.1, words[i]["s"] + 0.15)
+            d0 = quietest(levels, words[i - 1]["e"] - 0.1, words[i]["s"] + 0.15) if i else 0.0
             d1 = quietest(levels, words[j]["e"] - 0.1, words[j + 1]["s"] + 0.15 if j + 1 < len(words) else words[j]["e"] + 0.5)
-            convert(paths, os.path.join(VO, ids[0] + ".wav"), drop=(d0, d1))
-            print("%s: dropped %.2f-%.2f s (%s ... %s)" % (ids[0], d0, d1, drop[0], drop[1]))
+            if i == 0:                  # the passage opens the take: start after it
+                convert(paths, os.path.join(VO, ids[0] + ".wav"), start=d1)
+                print("%s: dropped its first %.2f s (%s ... %s)" % (ids[0], d1, drop[0], drop[1]))
+            else:
+                convert(paths, os.path.join(VO, ids[0] + ".wav"), drop=(d0, d1))
+                print("%s: dropped %.2f-%.2f s (%s ... %s)" % (ids[0], d0, d1, drop[0], drop[1]))
         elif len(ids) == 1:
             convert(paths, os.path.join(VO, ids[0] + ".wav"))
         else:

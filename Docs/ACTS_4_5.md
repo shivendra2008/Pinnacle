@@ -8,9 +8,9 @@ of a player build printed it), **seen** (I looked at stills or footage from a pl
 | | |
 |---|---|
 | Project | `/Users/user/Pinnacle` (Unity 6000.5.9f1, URP 17.5), scene `Assets/Scenes/SampleScene.unity` |
-| Player | `Builds/act4-5/Pinnacle Act4-5.app` (see section 9 for the commit it was built from) |
-| Before | `Builds/act4-5/Pinnacle Before.app`: the committed game at `2be3437` with the same route code, for side-by-side runs |
-| Built with | `BuildPlayer.MacOS` in batch mode on a clone, with the committed `Packages/manifest.json` (your uncommitted packages left out, as before) |
+| Player | `Builds/voice-overs/Pinnacle Voices 2.app` (24 Nov 2026: this work plus every recorded voice so far, Reddy, Priya, the judge and the lawyer included) |
+| Earlier players | `Builds/act4-5/` (the build this record was first written from, and the game at `2be3437` for side-by-side runs) was deleted on 24 Nov 2026 to free disk; build either again from its commit |
+| Built with | `BuildPlayer.MacOS` in batch mode on an APFS clone of the project, with the packages now committed (Unity AI Assistant and AI Inference included) |
 
 ## 1. What changed, by place
 
@@ -78,8 +78,13 @@ names under them takes any number.
   not read out again, and there is no quiz buzzer or chime.
 - Both rounds stay solvable with the least evidence a player can have: the sign-out sheet (Act III, mandatory) answers
   round 1 and Priya's files (Act III, mandatory) round 2.
-- Her reply to "I have evidence you don't" now answers that line ("Then we are both holding half a case..."); the old
-  one was written for a different question (listed open in the checklist).
+- Her reply to "I have evidence you don't" answers that line: "All right, Mr. Mehra. Cards on the table." (her recorded
+  take opened with "She's braver than all of us", written for an older line of Arjun's; that sentence is cut). Since 24
+  Nov 2026 half of her lines are the actor's recordings (`Docs/VOICE_CHECK.md`): her reply after the second winning piece
+  starts at "I can see you're not going to stop" (the take asked "Where did you get that USB?", and neither winning piece
+  is a USB stick), and her reveal ends on Deshpande sending everyone she has before 10 a.m. instead of "I need Priya to
+  testify in person". "That's my signature", "That proves nothing", the eight weak-piece answers and her court line are still
+  text-to-speech.
 
 ### 1.5 Act V: the shelter and Priya
 
@@ -90,7 +95,9 @@ names under them takes any number.
   blanket; a grandmother telling her beads; a man fanning himself with a folded paper. The sleepers breathe, each at
   their own rate.
 - A lamp at the head of the stairs throws a pool down them, and Priya's voice comes down too: she is reading her file
-  aloud to herself (`a5_priya_upstairs`, low, through the stairwell).
+  aloud to herself (`a5_priya_upstairs`, low, through the stairwell; still text-to-speech: her other Act V and ending
+  lines are the actor's recordings since 24 Nov 2026, and "The hearing is in four hours" is cut from her take, since it
+  is four in the morning and the hearing is at ten).
 - Upstairs she is at a trestle table with the 1965 file open. When Arjun comes within two steps she looks up, shuts the
   file and gathers it to her chest, then turns to him; she holds it through her lines.
 
@@ -117,7 +124,8 @@ names under them takes any number.
 
 ### 1.7 The endings
 
-- **Justice**: Arjun sits at Priya's table (close enough to read her and Deshpande across the aisle). After Priya, the
+- **Justice**: over the white, after Arjun's answer, Priya takes him up on it: "All right. Let's finish this." (24 Nov
+  2026, `a5_priya_finish`: a take she recorded that had no line in the game). Arjun sits at Priya's table (close enough to read her and Deshpande across the aisle). After Priya, the
   witness from the player's Act IV carries the object up and lays it on the clerk's table under the bench: Reddy the
   original 1942 deed in an evidence sleeve (her line now says so), Raj his phone, Rohan the printed email. The judge
   looks at it; Deshpande turns to it, then looks down; the judge rules; a silence, one stroke of the gavel, then the
