@@ -11,12 +11,14 @@ using UnityEngine;
 ///  3. The ending: Justice (the courtroom, with whichever allies you made), Sacrifice (Arjun alone, a reprieve),
 ///     or Revolution (everything leaked, a city on fire with outrage). Epilogue, the Curator's verdict, credits.
 /// </summary>
-public class Act5Story : ActStoryBase
+public partial class Act5Story : ActStoryBase
 {
     protected override int ActNumber { get { return 5; } }
     protected override string ActTitle { get { return "ACT V  -  SUNRISE"; } }
     protected override string ActSubtitle { get { return "The NGO shelter by the river   |   4:00 AM"; } }
     protected override LookPreset Look { get { return LookPreset.Apartment; } }
+    // the Gallery's confirmation and the endings' lines on the compass and phrase subtitles, as in Acts I-IV
+    protected override bool UseCompass { get { return true; } }
 
     public const int EvidenceForJustice = 18;
 
@@ -49,10 +51,13 @@ public class Act5Story : ActStoryBase
         SetSun(new Color(0.55f, 0.62f, 0.95f), 0.4f, new Vector3(45f, 30f, 0f));
         camComp.backgroundColor = new Color(0.02f, 0.02f, 0.05f);
         PriyaRoomPlayer.Surface = 0;
-        BuildShelter();
-        BuildGallery();
-        BuildCourtroom();
-        BuildTerrace();
+        // each place under its own root, so the one Arjun is not in can be switched off: with no occlusion culling the
+        // Gallery's candles, shelving and brass (about 1 M triangles, most of them shadow casters) were drawn behind the
+        // shelter's walls, and the reverse
+        shelterSet = Group("ShelterSet", BuildShelter);
+        gallerySet = Group("GallerySet", BuildGallery);
+        gallerySet.SetActive(false);
+        // the courtroom and the roof are built after the choice, during the white-out (EnsureEndingSets)
         shelterBed = MakeNoiseBed(0.0f, 0.05f, 0.25f);
         galleryBed = Ticking();
         courtBed = MakeNoiseBed(0.01f, 0.08f, 0.4f);
@@ -60,6 +65,36 @@ public class Act5Story : ActStoryBase
         chantClip = Crowd(6f, true);
         gavelClip = Tone(170f, 0.35f, 22f, 0.8f, true);
         ambience.clip = shelterBed; ambience.Play();
+    }
+
+    GameObject shelterSet, gallerySet;
+
+    static Transform Deep(Transform t, string n)
+    {
+        if (t.name == n) return t;
+        foreach (Transform c in t) { var r = Deep(c, n); if (r != null) return r; }
+        return null;
+    }
+
+    /// <summary>Builds a place and moves everything it made under one root (its lights, audio and characters with it).</summary>
+    GameObject Group(string name, System.Action build)
+    {
+        var before = new HashSet<Transform>();
+        foreach (Transform c in transform) before.Add(c);
+        build();
+        var root = new GameObject(name);
+        root.transform.SetParent(transform, false);
+        var made = new List<Transform>();
+        foreach (Transform c in transform) if (!before.Contains(c) && c != root.transform) made.Add(c);
+        foreach (var c in made) c.SetParent(root.transform, true);
+        return root;
+    }
+
+    /// <summary>Switches the places on and off at a cut (in a black or white frame): only where Arjun is is drawn.</summary>
+    void Show(bool shelter, bool galleryOn)
+    {
+        if (shelterSet != null) shelterSet.SetActive(shelter);
+        if (gallerySet != null) gallerySet.SetActive(galleryOn);
     }
 
     void BuildShelter()
@@ -80,15 +115,7 @@ public class Act5Story : ActStoryBase
         Prop("plastic_jerrycan", new Vector3(-4.9f, 0, 4.4f), 120f);
         Prop("plastic_monobloc_chair_01", new Vector3(3.2f, 0, 1.6f), 250f); Prop("plastic_monobloc_chair_01", new Vector3(0.9f, 0, 0.2f), 60f);
         Prop("pot_enamel_01", new Vector3(2.4f, 0, 0.7f), 0f, 1.4f); Prop("brass_pot_02", new Vector3(1.6f, 0, 1.3f), 0f, 1.1f);
-        var rnd = new System.Random(12);
-        for (int i = 0; i < 8; i++)
-        {
-            float x = -5.5f + (i % 4) * 3f, z = -3f + (i / 4) * 3.2f;
-            B("SleepingMat", new Vector3(x, 0.02f, z), new Vector3(0.9f, 0.04f, 1.9f), Color.HSVToRGB((float)rnd.NextDouble(), 0.5f, 0.6f), false, 0.05f);
-            B("Bundle", new Vector3(x + 0.3f, 0.2f, z + 0.9f), new Vector3(0.5f, 0.4f, 0.4f), Color.HSVToRGB((float)rnd.NextDouble(), 0.45f, 0.55f), false, 0.05f);
-        }
-        for (int i = 0; i < 5; i++)
-            Npc(new Vector3(-5f + i * 2.4f, 0f, -0.2f + (i % 2) * 1.5f), 150f + i * 20f, i == 2 ? NpcStyle.Child(1200 + i) : Cast.Devotee(1200 + i), "Family" + i, false);
+        BuildSleepers();
         for (int i = 0; i < 4; i++) B("StackedBench", new Vector3(-6.4f, 0.25f + i * 0.45f, 3.5f), new Vector3(0.6f, 0.4f, 2f), new Color(0.35f, 0.22f, 0.12f), i == 0);
         if (Prop("vintage_oil_lamp", new Vector3(2f, 0f, 1f), 0f, 0.6f) == null) Glow("Lantern", new Vector3(2f, 0.3f, 1f), new Vector3(0.14f, 0.2f, 0.14f), new Color(1f, 0.7f, 0.35f), 4f);
         else Glow("LanternFlame", new Vector3(2f, 0.3f, 1f), new Vector3(0.03f, 0.06f, 0.03f), new Color(1f, 0.7f, 0.35f), 8f);
@@ -98,11 +125,12 @@ public class Act5Story : ActStoryBase
         GameKit.Text(transform, "UPSTAIRS", new Vector3(6.2f, 2.5f, 4.88f), Quaternion.identity, 0.1f, new Color(0.9f, 0.85f, 0.7f));
         stairs = new GameObject("Stairs").transform; stairs.SetParent(transform, false); stairs.position = new Vector3(6.2f, 1.1f, 4.8f);
         resident = Npc(new Vector3(4.6f, 0f, 3.4f), 200f, NpcStyle.CrowdWoman(1300), "Resident");
+        BuildStairLight();
 
         // ---- upstairs: Priya's room
         Room("Upstairs", U, new Vector3(6f, 3f, 5f), new Color(0.72f, 0.7f, 0.62f), new Color(0.45f, 0.4f, 0.35f), "wood_floor", "facade");
         B("Mattress", U + new Vector3(-1.2f, 0.08f, 1f), new Vector3(1.0f, 0.16f, 2f), new Color(0.75f, 0.8f, 0.9f), true, 0.05f);
-        for (int i = 0; i < 6; i++) B("LegalFiles", U + new Vector3(0.3f + (i % 3) * 0.45f, 0.08f + (i / 3) * 0.16f, 1.6f), new Vector3(0.4f, 0.15f, 0.32f), new Color(0.75f, 0.68f, 0.5f), false, 0.1f);
+        for (int i = 0; i < 4; i++) B("LegalFiles", U + new Vector3(0.75f + (i % 2) * 0.45f, 0.08f + (i / 2) * 0.16f, 1.75f), new Vector3(0.4f, 0.15f, 0.32f), new Color(0.75f, 0.68f, 0.5f), false, 0.1f);
         B("Biscuits", U + new Vector3(-0.4f, 0.04f, 0.2f), new Vector3(0.18f, 0.05f, 0.08f), new Color(0.85f, 0.15f, 0.12f), false, 0.3f);
         if (Prop("vintage_oil_lamp", U + new Vector3(-0.5f, 0f, 1.3f), 0f, 0.5f) == null) Glow("OilLamp", U + new Vector3(-0.5f, 0.1f, 1.3f), new Vector3(0.1f, 0.12f, 0.1f), new Color(1f, 0.6f, 0.2f), 6f);
         else Glow("OilLampFlame", U + new Vector3(-0.5f, 0.26f, 1.3f), new Vector3(0.025f, 0.05f, 0.025f), new Color(1f, 0.6f, 0.2f), 9f);
@@ -112,7 +140,8 @@ public class Act5Story : ActStoryBase
         Tex(B("WindowFrame", U + new Vector3(1.5f, 1.7f, 2.46f), new Vector3(1.4f, 1.2f, 0.05f), new Color(0.3f, 0.2f, 0.12f), false), "wood", 0.9f, new Color(0.3f, 0.2f, 0.12f));
         PL(U + new Vector3(-0.5f, 0.6f, 1.2f), new Color(1f, 0.62f, 0.3f), 2.2f, 6f).gameObject.AddComponent<FlickerLight>();
         Glow("RiverWindow", U + new Vector3(1.5f, 1.7f, 2.47f), new Vector3(1.2f, 1f, 0.04f), new Color(0.2f, 0.28f, 0.5f), 1.2f);
-        priya = Npc(U + new Vector3(-1.2f, 0f, 0.1f), 180f, Cast.Priya(), "Priya Kapoor");
+        priya = Npc(U + new Vector3(-0.15f, 0f, 1.05f), 160f, Cast.Priya(), "Priya Kapoor");
+        BuildPriyasDesk();
     }
 
     void BuildGallery()
@@ -121,22 +150,9 @@ public class Act5Story : ActStoryBase
         // The bookcase has a gap tonight: Shadows of Chandni is out on the table.
         gallery = CuratorGallery.Build(transform, G, false, false);
         gallery.SetLights(0f);
-        // three caskets: bronze, bone, iron
-        Color[] cc = { new Color(0.8f, 0.55f, 0.25f), new Color(0.88f, 0.84f, 0.7f), new Color(0.12f, 0.1f, 0.1f) };
-        Color[] glow = { new Color(1f, 0.75f, 0.35f), new Color(0.85f, 0.9f, 1f), new Color(1f, 0.35f, 0.08f) };
-        float[] sm = { 0.9f, 0.3f, 0.2f }; float[] mt = { 0.9f, 0f, 0.6f };
-        string[] names = { "BRONZE", "BONE", "IRON" };
-        for (int i = 0; i < 3; i++)
-        {
-            var root = new GameObject("Casket_" + names[i]).transform; root.SetParent(transform, false);
-            root.position = G + new Vector3(-1.9f + i * 1.9f, 0.95f, 2f);
-            GameKit.Box(root, "Body", new Vector3(0, 0.2f, 0), new Vector3(0.8f, 0.4f, 0.5f), GameKit.Lit(cc[i], sm[i], mt[i]));
-            GameKit.Box(root, "Inlay", new Vector3(0, 0.2f, -0.26f), new Vector3(0.6f, 0.06f, 0.02f), GameKit.Glow(glow[i] * 0.5f, glow[i], 2.5f));
-            var lidPivot = new GameObject("LidPivot").transform; lidPivot.SetParent(root, false); lidPivot.localPosition = new Vector3(0, 0.4f, 0.25f);
-            GameKit.Box(lidPivot, "Lid", new Vector3(0, 0.06f, -0.25f), new Vector3(0.84f, 0.12f, 0.54f), GameKit.Lit(cc[i] * 1.05f, sm[i], mt[i]));
-            caskets[i] = root; lids[i] = lidPivot;
-            casketLights[i] = GameKit.PointLight(root, new Vector3(0, 0.6f, -0.4f), glow[i], 1.2f, 2.5f);
-        }
+        // three caskets: bronze, bone, iron (Act5Story.Gallery), and the thing this player's Act IV left them with
+        BuildCaskets();
+        BuildRouteExhibit();
         GameKit.Sphere(transform, "PriyaFigurine", G + new Vector3(2.7f, 1.05f, 1.8f), 0.12f, GameKit.Lit(new Color(0.75f, 0.55f, 0.4f), 0.4f));
         // the book the Curator writes the ending in: Shadows of Chandni, taken down from the bookcase
         var sb = StoryBookModel.Make(transform, "");
@@ -202,6 +218,21 @@ public class Act5Story : ActStoryBase
             PL(C + new Vector3(-6f + i * 4f, 5f, 0), new Color(1f, 0.92f, 0.8f), 2.2f, 10f);
         }
         for (int i = 0; i < 3; i++) Glow("HighWindow", C + new Vector3(7.97f, 4f, -6f + i * 6f), new Vector3(0.04f, 1.6f, 1.2f), new Color(1f, 0.85f, 0.6f), 1.5f);
+        // the endings play at the bench and the counsel tables, beyond the reach of the hall's four lamps: two more over
+        // the well and a soft light on the bench, morning light through the high windows on the advocates' side
+        for (int i = 0; i < 2; i++)
+        {
+            Glow("CourtLamp", C + new Vector3(-2.5f + i * 5f, 5.8f, 5.2f), new Vector3(1.4f, 0.06f, 0.2f), new Color(1f, 0.95f, 0.85f), 2f);
+            PL(C + new Vector3(-2.5f + i * 5f, 4.6f, 5.2f), new Color(1f, 0.93f, 0.82f), 2.4f, 8f);
+        }
+        var benchLight = new GameObject("BenchLight").AddComponent<Light>(); benchLight.transform.SetParent(transform, false);
+        benchLight.transform.position = C + new Vector3(0f, 4.8f, 4.6f); benchLight.transform.LookAt(C + new Vector3(0f, 2.2f, 8.6f));
+        benchLight.type = LightType.Spot; benchLight.spotAngle = 70f; benchLight.innerSpotAngle = 30f; benchLight.range = 9f; benchLight.intensity = 3f; benchLight.color = new Color(1f, 0.92f, 0.8f);
+        CinematicLook.Shadows(benchLight, 0.7f, 0.03f, 0.5f);
+        var sunIn = new GameObject("CourtMorning").AddComponent<Light>(); sunIn.transform.SetParent(transform, false);
+        sunIn.transform.position = C + new Vector3(7.6f, 4.2f, 3f); sunIn.transform.LookAt(C + new Vector3(0f, 0.8f, 4.5f));
+        sunIn.type = LightType.Spot; sunIn.spotAngle = 55f; sunIn.range = 14f; sunIn.intensity = 4f; sunIn.color = new Color(1f, 0.86f, 0.62f);
+        CinematicLook.Shadows(sunIn, 0.8f, 0.03f, 0.5f);
         judge = Npc(C + new Vector3(0f, 0.8f, 8.6f), 180f, Cast.Judge(), "Judge");
         lawyer = Npc(C + new Vector3(-2f, 0f, 4f), 0f, Cast.Lawyer(), "Lawyer");
         deshpande = Npc(C + new Vector3(-3f, 0f, 1.2f), 10f, Cast.Deshpande(), "Councilor Deshpande", false);
@@ -240,7 +271,9 @@ public class Act5Story : ActStoryBase
     {
         if (skyQuad != null) Destroy(skyQuad);
         if (sun != null) Destroy(sun);
-        skyQuad = SkyQuad(T + new Vector3(0, 15f, 80f), Vector3.zero, new Vector2(220f, 70f), bottom, top);
+        // behind the city's blocks (z 45-55 from the roof) and short of the Gallery (z 66-90 in world space): at T + 80 this
+        // 220 m backdrop stood inside the Gallery, and the Curator's last lines played in front of it as a blank wall
+        skyQuad = SkyQuad(T + new Vector3(0, 15f, 62f), Vector3.zero, new Vector2(220f, 70f), bottom, top);
         sun = GameKit.Sphere(transform, "Sun", T + new Vector3(10f, sunHeight, 78f), 9f, GameKit.Unlit(sunColor));
     }
 
@@ -287,12 +320,14 @@ public class Act5Story : ActStoryBase
 
         // ---- the shelter (skipped when resuming at the Gallery checkpoint)
         bool atGallery = resume && SaveSystem.Data.act5Stage >= 1;
+        standEye = cam.localPosition.y;
         yield return OpenAct();
         if (!atGallery)
         {
         Teleport(new Vector3(-6f, 0.1f, -4f), 50f);
         yield return Narrate("a5_vo_intro");
         BeginFree("Find Priya - she is upstairs", stairs.position + Vector3.up * 0.5f, "Stairs");
+        bool voiceHeard = false;
         while (!climbed)
         {
             if (!residentSpoke && Near(resident.transform.position, 3f))
@@ -300,17 +335,25 @@ public class Act5Story : ActStoryBase
                 residentSpoke = true;
                 StartCoroutine(SpeakNear(resident, "a5_resident"));
             }
+            // at the foot of the stairs: the lamp's pool on the steps, and her voice from above
+            if (!voiceHeard && Near(stairs.position, 5.5f) && (!residentSpoke || Time.time > subUntil)) { voiceHeard = true; PriyaUpstairsVoice(); }
             yield return null;
         }
         BeginBusy();
         sfx.PlayOneShot(stepClip, 0.6f);
         yield return FadeOut(2f);
+        // up the stairs: her voice from below stops, and its subtitle with it
+        if (stairVoice != null && stairVoice.GetComponent<AudioSource>() != null) stairVoice.GetComponent<AudioSource>().Stop();
+        sub = null;
         Teleport(U + new Vector3(1.6f, 0.1f, -1.6f), -40f);
         yield return FadeIn(1.2f);
         BeginFree("Talk to Priya", priya.transform.position + Vector3.up * 1.9f, "Priya");
-        yield return new WaitUntil(() => met);
+        // she hears him before he speaks: within a couple of steps she looks up, shuts the file and holds it to her
+        yield return new WaitUntil(() => met || Near(priya.transform.position, 2.2f));
         BeginBusy();
-        yield return Turn(priya.transform.position + Vector3.up * 1.5f, 0.7f);
+        StartCoroutine(Turn(priya.EyePoint(), 0.9f));
+        yield return PriyaGuardsTheFile();
+        yield return Turn(priya.EyePoint(), 0.4f);
         yield return Talk("a5_priya_1", priya);
         yield return Talk("a5_arjun_mother");
         yield return Talk("a5_priya_2", priya);
@@ -322,16 +365,12 @@ public class Act5Story : ActStoryBase
         SaveSystem.Data.act5Stage = 1; SaveSystem.Save();
         }
 
-        // ---- the world stops
+        // ---- the world stops: the room sinks into the oil lamp's flame, and goes out with it
         voice.Stop();
-        for (float t = 0; t < 1.6f; t += Time.deltaTime)
-        {
-            white = t / 1.6f;
-            ambience.pitch = Mathf.Lerp(1f, 0.3f, t / 1.6f);
-            yield return null;
-        }
+        if (!atGallery) yield return WorldStops();
         ambience.pitch = 1f;
         fade = 1f; fadeTarget = 1f; white = 0f;
+        Show(false, true);
         Teleport(G + new Vector3(0, 0.1f, -3.2f), 0f, -4f);
         ambience.clip = galleryBed; ambience.volume = 0.5f; ambience.Play();
         inGallery = true; galleryLevel = 0f;
@@ -339,7 +378,7 @@ public class Act5Story : ActStoryBase
         yield return new WaitForSeconds(1.5f);
         sfx.PlayOneShot(Tone(3000f, 0.15f, 25f, 0.3f), 0.6f);                   // a match strikes
         fadeSpeed = 0.35f; fadeTarget = 0f;
-        yield return LightGallery(2.4f);
+        yield return LightGallery(2.4f);            // the candle nearest the middle of the view first: where the lamp's flame was
         yield return new WaitForSeconds(0.8f);
         yield return Turn(curator.EyePoint(), 1f);
         yield return Talk("gal_1", curator);
@@ -359,6 +398,7 @@ public class Act5Story : ActStoryBase
         for (int i = 0; i < 3; i++) if (i != chosen) StartCoroutine(Crumble(i));
         yield return new WaitForSeconds(2.2f);
         for (float t = 0; t < 1.5f; t += Time.deltaTime) { white = t / 1.5f; yield return null; }
+        EnsureEndingSets();                         // built behind the white, not when the act opened
         // Arjun's answer to Priya's question, in his recorded voice, over the white as the Gallery lets go
         skipAll = false;
         yield return Narrate(chosen == 0 ? "a5_arjun_justice" : chosen == 1 ? "a5_arjun_sacrifice" : "a5_arjun_revolution");
@@ -368,6 +408,39 @@ public class Act5Story : ActStoryBase
         if (chosen == 0) yield return JusticeEnding();
         else if (chosen == 1) yield return SacrificeEnding();
         else yield return RevolutionEnding();
+    }
+
+    /// <summary>The shelter holds still: its lights sink to the oil lamp's flame while the sound slows and drops away,
+    /// the view settles on the flame, and the flame goes out. In the Gallery the first candle lights where it was.</summary>
+    IEnumerator WorldStops()
+    {
+        var flame = Deep(transform, "OilLampFlame") ?? Deep(transform, "OilLamp");
+        Vector3 fp = flame != null ? flame.position : U + new Vector3(-0.5f, 0.26f, 1.3f);
+        var ls = new List<Light>(); var i0 = new List<float>();
+        foreach (var l in GetComponentsInChildren<Light>())
+        {
+            if (l.type == LightType.Directional || Vector3.Distance(l.transform.position, U) > 7f) continue;
+            var fl = l.GetComponent<FlickerLight>(); if (fl != null) fl.enabled = false;
+            ls.Add(l); i0.Add(l.intensity);
+        }
+        Color a0 = RenderSettings.ambientSkyColor, a1 = RenderSettings.ambientEquatorColor, a2 = RenderSettings.ambientGroundColor;
+        float v0 = ambience.volume;
+        StartCoroutine(Turn(fp, 2.4f));
+        for (float t = 0f; t < 2.6f; t += Time.deltaTime)
+        {
+            float k = t / 2.6f, dim = (1f - k) * (1f - k);
+            for (int i = 0; i < ls.Count; i++) if (ls[i] != null) ls[i].intensity = i0[i] * dim;
+            RenderSettings.ambientSkyColor = a0 * dim; RenderSettings.ambientEquatorColor = a1 * dim; RenderSettings.ambientGroundColor = a2 * dim;
+            ambience.pitch = Mathf.Lerp(1f, 0.3f, k); ambience.volume = Mathf.Lerp(v0, 0.08f, k);
+            yield return null;
+        }
+        yield return Wait(0.6f);                      // the flame alone in the dark
+        if (flame != null) flame.gameObject.SetActive(false);
+        fade = 1f; fadeTarget = 1f;
+        ambience.volume = v0;
+        for (int i = 0; i < ls.Count; i++) if (ls[i] != null) ls[i].intensity = i0[i];
+        RenderSettings.ambientSkyColor = a0; RenderSettings.ambientEquatorColor = a1; RenderSettings.ambientGroundColor = a2;
+        if (flame != null) flame.gameObject.SetActive(true);
     }
 
     IEnumerator SpeakNear(CharacterNPC n, string id)
@@ -381,7 +454,8 @@ public class Act5Story : ActStoryBase
     /// <summary>The Gallery's candles and chandeliers light one after another, and the hall comes up out of the dark.</summary>
     IEnumerator LightGallery(float dur)
     {
-        var flames = gallery.flames; var lights = gallery.lights;
+        var flames = new List<GameObject>(gallery.flames); var lights = gallery.lights;
+        flames.Sort((a, b) => Vector3.Angle(cam.forward, a.transform.position - cam.position).CompareTo(Vector3.Angle(cam.forward, b.transform.position - cam.position)));
         foreach (var f in flames) f.SetActive(false);
         int fi = 0;
         for (float t = 0; t < dur; t += Time.deltaTime)
@@ -411,52 +485,6 @@ public class Act5Story : ActStoryBase
         if (i == 0) return SaveSystem.EvidenceCount < EvidenceForJustice;
         if (i == 2) return !(d.hasRecordings || d.hasEmails);
         return false;
-    }
-
-    IEnumerator ExamineCasket(int i)
-    {
-        BeginBusy();
-        yield return Turn(caskets[i].position + Vector3.up * 0.2f, 0.5f);
-        string[] titles = { "THE BRONZE CASKET  -  Justice", "THE BONE CASKET  -  Sacrifice", "THE IRON CASKET  -  Revolution" };
-        string[] inscriptions =
-        {
-            "\"Who chooseth me offers a single throat to the wolf, yet frees the entire flock from the shearer.\"",
-            "\"Who chooseth me shall build a sanctuary upon a foundation of dust and quiet graves.\"",
-            "\"Who chooseth me shall grant sight to the blind by setting the entire city on fire.\"",
-        };
-        string[] needs =
-        {
-            "Requires a strong case:  " + SaveSystem.EvidenceCount + " of " + EvidenceForJustice + " pieces of evidence gathered.",
-            "Always open.",
-            "Requires something the press can publish: Raj's recordings or the Municipal emails  (" + (Sealed(2) ? "you have neither" : "you have it") + ").",
-        };
-        yield return ShowCard(titles[i], inscriptions[i] + "\n\n" + needs[i] + (Sealed(i) ? "\n\nThe casket is SEALED." : ""));
-        yield return Talk(i == 0 ? "gal_bronze" : i == 1 ? "gal_bone" : "gal_iron", curator);
-        if (Sealed(i))
-        {
-            yield return Talk(i == 0 ? "gal_sealed_bronze" : "gal_sealed_iron", curator);
-            EndTalk();
-            BeginFree("Read the inscriptions and choose a casket", G + new Vector3(0, 1.6f, 2f), "The three caskets");
-            yield break;
-        }
-        dlgSpeaker = "THE CURATOR";
-        dlgText = "Well? Is this your casket?";
-        yield return Choose(new[] { "Choose the " + (i == 0 ? "bronze" : i == 1 ? "bone" : "iron") + " casket", "Step back" });
-        EndTalk();
-        if (menuResult == 0) chosen = i;
-        else BeginFree("Read the inscriptions and choose a casket", G + new Vector3(0, 1.6f, 2f), "The three caskets");
-    }
-
-    IEnumerator OpenCasket(int i)
-    {
-        sfx.PlayOneShot(Tone(220f, 1.5f, 1.5f, 0.4f), 0.7f);
-        for (float t = 0; t < 1.2f; t += Time.deltaTime)
-        {
-            lids[i].localRotation = Quaternion.Euler(-110f * Mathf.SmoothStep(0, 1, t / 1.2f), 0, 0);
-            casketLights[i].intensity = Mathf.Lerp(1.2f, 9f, t / 1.2f);
-            casketLights[i].range = Mathf.Lerp(2.5f, 9f, t / 1.2f);
-            yield return null;
-        }
     }
 
     IEnumerator Crumble(int i)
@@ -524,12 +552,18 @@ public class Act5Story : ActStoryBase
     IEnumerator BackToGallery(string bookTitle, string[] curatorLines, bool darken)
     {
         yield return FadeOut(0.8f);
+        // leave the roof's sky behind: its backdrop and sun, and the photographed sky on the camera
+        if (skyQuad != null) Destroy(skyQuad);
+        if (sun != null) Destroy(sun);
+        CinematicLook.NoSky(camComp, new Color(0.02f, 0.02f, 0.05f));
         ambience.clip = galleryBed; ambience.volume = 0.5f; ambience.Play();
         inGallery = true; galleryLevel = 1f;
         gallery.SetLights(1f);
         CuratorGallery.Mood(camComp, 1f);
         SetSun(new Color(0.55f, 0.62f, 0.95f), 0.1f, new Vector3(45f, 30f, 0f));
+        Show(false, true);
         Teleport(G + new Vector3(-1.2f, 0.1f, -0.6f), 10f, 5f);
+        var ce = cam.localPosition; ce.y = standEye > 0f ? standEye : 1.62f; cam.localPosition = ce;
         bookLabel.text = bookTitle;
         yield return FadeIn(0.8f);
         yield return Turn(curator.EyePoint(), 0.8f);
@@ -564,7 +598,7 @@ public class Act5Story : ActStoryBase
             "#THANK YOU FOR PLAYING", "Detective " + SaveSystem.Profile.playerName, "", "",
             "#CAST", "Arjun Mehra  -  the detective", "Priya Kapoor  -  the advocate", "Kamala Kapoor  -  her mother", "Rohan Kapoor  -  her brother",
             "Vikram Sahu  -  the chai seller", "Bhaskar  -  the auto driver", "Inspector Sonal Reddy  -  Crime Branch", "Raj Malhotra  -  the builder",
-            "Pandit Harishankar  -  the priest", "Councilor Meghna Deshpande", "and The Curator", "", "",
+            "Harishankar  -  who keeps the temple's accounts", "Councilor Meghna Deshpande", "and The Curator", "", "",
             "#MADE WITH", "Unity 6  -  Universal Render Pipeline", "Character models: Microsoft Rocketbox (MIT), Quaternius (CC0)", "Voices: macOS speech synthesis",
             "Storm and Gallery sounds: Wikimedia Commons recordings by", "CutSomeSlackenstein and Work With Sounds / Torsten Nilsson (CC BY 4.0),", "stephan, cori, ezwa and planish (public domain)", "", "",
             "#Some secrets are worth uncovering.",
@@ -573,158 +607,18 @@ public class Act5Story : ActStoryBase
         phase = Phase.Ending;
     }
 
-    IEnumerator JusticeEnding()
-    {
-        var d = SaveSystem.Data;
-        // dawn over the old quarter
-        yield return ToTerrace(new Color(1f, 0.62f, 0.4f), new Color(0.45f, 0.5f, 0.75f), new Color(1f, 0.85f, 0.55f), 6f, 0f);
-        fade = 0f; yield return WhiteIn();
-        sfx.PlayOneShot(chantClip, 0.4f);
-        yield return Narrate("end1_vo_dawn");
-        // the hearing
-        yield return FadeOut(1.2f);
-        yield return ToCourtroom(new Vector3(0.6f, 0.1f, -8.5f), 0f);
-        var p = Npc(C + new Vector3(-0.6f, 0f, -7.5f), 0f, Cast.Priya(), "PriyaCourt", false);
-        CharacterNPC raj = null, rohan = null;
-        if (d.allyRaj) raj = Npc(C + new Vector3(2.5f, 0f, 1.2f), -10f, Cast.Raj(), "RajCourt", false);
-        if (d.allyRohan) rohan = Npc(C + new Vector3(1.5f, 0f, 1.2f), 0f, Cast.Rohan(), "RohanCourt", false);
-        Npc(C + new Vector3(3.5f, 0f, 1.2f), -20f, Cast.Kamala(), "KamalaCourt", false);
-        yield return FadeIn(1f);
-        BeginBusy();
-        yield return Talk("end1_lawyer", lawyer);
-        yield return p.WalkTo(C + new Vector3(0.4f, 0f, 4.2f), 1.3f);
-        yield return Turn(p.transform.position + Vector3.up * 1.5f, 0.6f);
-        yield return Talk("end1_priya", p);
-        sfx.PlayOneShot(cheerClip, 0.35f);
-        if (d.allyReddy)
-        {
-            var r = Npc(C + new Vector3(0f, 0f, -9.5f), 0f, Cast.Reddy(), "ReddyCourt", false);
-            yield return Turn(r.transform.position + Vector3.up * 1.5f, 0.6f);
-            yield return r.WalkTo(C + new Vector3(-1.5f, 0f, 2.6f), 1.8f);
-            yield return Talk("end1_reddy", r);
-            deshpande.transform.rotation = Quaternion.Euler(0, 180f, 0);
-        }
-        if (raj != null) { yield return Turn(raj.transform.position + Vector3.up * 1.5f, 0.6f); yield return Talk("end1_raj", raj); }
-        if (rohan != null) { yield return Turn(rohan.transform.position + Vector3.up * 1.5f, 0.6f); yield return Talk("end1_rohan", rohan); }
-        yield return Turn(judge.transform.position + Vector3.up * 1.6f, 0.8f);
-        yield return Talk("end1_judge", judge);
-        EndTalk();
-        StartCoroutine(Gavel());
-        sfx.PlayOneShot(cheerClip, 0.8f);
-        yield return new WaitForSeconds(2.5f);
-        // the sun rises fully
-        yield return FadeOut(1f);
-        yield return ToTerrace(new Color(1f, 0.78f, 0.45f), new Color(0.5f, 0.65f, 0.9f), new Color(1f, 0.92f, 0.7f), 14f, 0f);
-        yield return FadeIn(0.6f);
-        yield return Narrate("end1_vo_end");
-        yield return ShowCard("EPILOGUE  -  JUSTICE",
-            "Councilor Meghna Deshpande was arrested and charged with fraud, forgery and criminal conspiracy.\n\n" +
-            "The Chandnipur Renewal Project was permanently halted. The 1942 deed was upheld by the High Court, securing the homes of Basti Nagar's 500 families.\n\n" +
-            (d.allyRaj ? "Raj Malhotra received a reduced sentence for his testimony. He now builds affordable housing - honestly.\n\n" : "") +
-            (d.allyReddy ? "Inspector Sonal Reddy was promoted to Deputy Commissioner for her undercover work.\n\n" : "") +
-            (d.allyRohan ? "Rohan Kapoor went back to college, and never filed a document without reading it again.\n\n" : "") +
-            "Priya Kapoor founded the Chandnipur Land Rights Foundation, which has since protected over 10,000 families.\n\n" +
-            "Arjun Mehra never accepted payment for the case.");
-        yield return BackToGallery("CHANDNIPUR  -  JUSTICE", new[] { "endJ_01", "endJ_02", "endJ_03", "endJ_04", "endJ_05" }, false);
-        inGallery = false;
-        RollCredits("JUSTICE", false);
-    }
-
-    IEnumerator SacrificeEnding()
-    {
-        yield return ToCourtroom(new Vector3(0.4f, 0.1f, -7.5f), 0f);
-        for (int i = 0; i < transform.childCount; i++)
-        {
-            var c = transform.GetChild(i);
-            if (c.name.StartsWith("Spectator") && (c.name.EndsWith("1") || c.name.EndsWith("3") || c.name.EndsWith("5") || c.name.EndsWith("7") || c.name.EndsWith("9"))) c.gameObject.SetActive(false);
-        }
-        fade = 0f; yield return WhiteIn();
-        BeginBusy();
-        yield return Narrate("end2_vo");
-        yield return Talk("end2_lawyer", lawyer);
-        var k = Npc(C + new Vector3(2.8f, 0f, -3f), -20f, Cast.Kamala(), "KamalaCourt", false);
-        yield return Turn(k.transform.position + Vector3.up * 1.5f, 0.6f);
-        yield return Talk("end2_kamala", k);
-        var v = Npc(C + new Vector3(-2.6f, 0f, -5f), 20f, Cast.Vikram(), "VikramCourt", false);
-        yield return Turn(v.transform.position + Vector3.up * 1.5f, 0.6f);
-        yield return Talk("end2_vikram", v);
-        yield return Turn(judge.transform.position + Vector3.up * 1.6f, 0.8f);
-        yield return Talk("end2_judge", judge);
-        EndTalk();
-        sfx.PlayOneShot(gavelClip, 0.9f);
-        yield return new WaitForSeconds(2f);
-        // the courthouse steps at sunset
-        yield return FadeOut(1f);
-        yield return ToTerrace(new Color(0.95f, 0.45f, 0.3f), new Color(0.3f, 0.22f, 0.4f), new Color(1f, 0.55f, 0.3f), 2.5f, 0f);
-        yield return FadeIn(0.6f);
-        sfx.PlayOneShot(dingClip, 0.6f);
-        yield return ShowCard("NEW MESSAGE  -  Priya",
-            "\"I saw it on the news. Thank you. I'm sorry I couldn't be there. I'm sorry I made you carry this alone.\"\n\n" +
-            "You:  \"You don't have to be sorry. You started this. I just finished a chapter.\"");
-        yield return Narrate("end2_vo_end");
-        yield return ShowCard("EPILOGUE  -  SACRIFICE",
-            "The investigation took eight months. The eviction stayed frozen, and the families remained in their homes.\n\n" +
-            "Councilor Deshpande resigned before formal charges could be filed. A civil case against her is still ongoing.\n\n" +
-            "The High Court upheld the residents' claims; the battle continues in the lower courts.\n\n" +
-            "Priya came home after three months in hiding. She carries the guilt of not walking into that courtroom herself.\n\n" +
-            "The fight for Basti Nagar is not over. But it has begun.");
-        yield return BackToGallery("CHANDNIPUR  -  SACRIFICE", new[] { "endS_01", "endS_02", "endS_03", "endS_04", "endS_05" }, true);
-        RollCredits("SACRIFICE", true);
-    }
-
-    IEnumerator RevolutionEnding()
-    {
-        // 4 AM in the shelter: everything goes out
-        ambience.clip = shelterBed; ambience.Play();
-        Teleport(U + new Vector3(0.8f, 0.1f, -1.2f), -30f);
-        for (int i = 0; i < 2; i++) Glow("Laptop", U + new Vector3(-0.3f + i * 0.6f, 0.2f, 0.6f), new Vector3(0.35f, 0.22f, 0.02f), new Color(0.6f, 0.75f, 1f), 2f);
-        fade = 0f; yield return WhiteIn();
-        BeginBusy();
-        yield return Turn(priya.transform.position + Vector3.up * 1.5f, 0.6f);
-        yield return Talk("end3_priya_1", priya);
-        yield return Talk("end3_arjun_1");
-        EndTalk();
-        sfx.PlayOneShot(Tone(1200f, 0.4f, 8f, 0.4f), 0.6f);
-        // the montage
-        yield return FadeOut(1.5f);
-        string[,] beats =
-        {
-            { "5:00 AM", "A journalist's phone lights up. She opens the email. Her eyes widen." },
-            { "5:30 AM", "\"BASTI NAGAR SCAM EXPOSED\" spreads through every WhatsApp group in Chandnipur." },
-            { "6:00 AM", "The first news channel breaks the story outside the Municipal Office." },
-            { "7:00 AM", "#SaveBastiNagar trends across the country." },
-            { "8:00 AM", "Crowds gather outside the Municipal Office. Hundreds, then thousands." },
-            { "10:00 AM", "The largest protest Chandnipur has seen in decades. \"LAND FOR THE PEOPLE.\"" },
-        };
-        for (int i = 0; i < beats.GetLength(0); i++)
-        {
-            sfx.PlayOneShot(i < 3 ? Tone(1500f, 0.12f, 30f, 0.4f) : chantClip, i < 3 ? 0.6f : 0.35f);
-            ShowTitle(beats[i, 0], beats[i, 1], 3.2f);
-            yield return new WaitForSeconds(3.4f);
-        }
-        // the rooftop at sunrise
-        yield return ToTerrace(new Color(1f, 0.6f, 0.35f), new Color(0.45f, 0.45f, 0.7f), new Color(1f, 0.8f, 0.5f), 7f, 0f);
-        var p = Npc(T + new Vector3(0.6f, 0f, 3.6f), 0f, Cast.Priya(), "PriyaRoof", false);
-        sfx.PlayOneShot(chantClip, 0.3f);
-        yield return FadeIn(0.6f);
-        yield return new WaitForSeconds(1.5f);
-        yield return Talk("end3_priya_2", p);
-        yield return Talk("end3_arjun_2");
-        EndTalk();
-        yield return ShowCard("EPILOGUE  -  REVOLUTION",
-            "The Chandnipur Land Scam became a national story. Three state ministers were investigated; an independent inquiry was ordered.\n\n" +
-            "Councilor Deshpande was never formally charged. She fled the country six months later.\n\n" +
-            "The Basti Nagar families won a temporary stay from the Supreme Court. The Renewal Project is in limbo.\n\n" +
-            "Priya Kapoor became a national symbol of resistance - and needed police protection for two years.\n\n" +
-            "The truth is messy. Justice is messy. But silence is worse. The revolution is ongoing.");
-        yield return BackToGallery("CHANDNIPUR  -  REVOLUTION", new[] { "endR_01", "endR_02", "endR_03", "endR_04", "endR_05" }, false);
-        RollCredits("REVOLUTION", false);
-    }
-
     // ======================================================================== UI
     protected override void OnGUI()
     {
         base.OnGUI();
+        if ((!string.IsNullOrEmpty(stampA) || phoneAt > 0f) && creditsStart <= 0f && !GameState.Paused)
+        {
+            float sc = Mathf.Max(0.7f, Screen.height / 900f);
+            var m = GUI.matrix; GUI.matrix = Matrix4x4.Scale(new Vector3(sc, sc, 1f));
+            DrawStamp(Screen.width / sc, Screen.height / sc);
+            DrawPhone(Screen.width / sc, Screen.height / sc);
+            GUI.matrix = m;
+        }
         if (white > 0.001f)
         {
             var old = GUI.color; GUI.color = new Color(1f, 1f, 1f, Mathf.Clamp01(white));

@@ -1,0 +1,20 @@
+# a4c_reddy_sig  1.249 s  words heard on-device (Tools/lipsync/npc_lipsync.py)
+# V start end viseme weight stress phoneme | A time strength | P start end | W start end word
+W 0.000 0.480 That's
+W 0.480 0.600 my
+W 0.600 1.249 signature.
+V 0.000 0.050 TH 1.00 -1 DH
+V 0.050 0.229 aa 1.00 1 AE1
+V 0.229 0.318 DD 1.00 -1 T
+V 0.318 0.505 SS 1.00 -1 S
+V 0.505 0.536 PP 1.00 -1 M
+V 0.536 0.571 aa 1.00 1 AY1
+V 0.571 0.600 I 1.00 1 AY1
+V 0.600 0.718 SS 1.00 -1 S
+V 0.718 0.828 I 1.00 1 IH1
+V 0.828 0.900 kk 1.00 -1 G
+V 0.900 0.973 nn 1.00 -1 N
+V 0.973 1.043 aa 0.60 0 AH0
+V 1.043 1.162 CH 1.00 -1 CH
+V 1.162 1.249 aa 0.60 0 AH0
+A 0.050 0.53

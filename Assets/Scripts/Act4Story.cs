@@ -21,9 +21,9 @@ public partial class Act4Story : ActStoryBase
         get { return variant == 0 ? "Café Irani   |   11:05 PM" : variant == 1 ? "The Kapoor house   |   11:10 PM" : "Chandnipur Police Station   |   11:15 PM"; }
     }
     protected override LookPreset Look { get { return variant == 2 ? LookPreset.Market : LookPreset.Apartment; } }
-    // the café (the branch Act III's compass leads to first) keeps the compass; the Kapoor house and the police station
-    // keep their numbered panels unchanged
-    protected override bool UseCompass { get { return variant == 0; } }
+    // conversational intentions on the compass in every branch (Rohan's question, Reddy's last question); Reddy's
+    // evidence goes on the counter through the folio, which takes as many pieces as Arjun has
+    protected override bool UseCompass { get { return true; } }
 
     int variant;
     readonly List<Transform> fans = new List<Transform>();
@@ -249,10 +249,12 @@ public partial class Act4Story : ActStoryBase
             tc.transform.SetParent(transform, false); tc.transform.position = t + new Vector3(0, 0.4f, 0); tc.size = new Vector3(0.8f, 0.8f, 0.8f);
             foreach (float a in new[] { 0f, 180f })
             {
-                if (ti == 4 && a == 0f) continue;                      // Raj is standing on that side of his table
                 Vector3 cpos = t + Quaternion.Euler(0, a, 0) * new Vector3(0, 0, 0.82f);
-                if (PropKit.Place(transform, "painted_wooden_chair_01", cpos, a + 180f + (ti * 53 % 30 - 15)) == null)
-                    B("ChairSeat", cpos + new Vector3(0, 0.45f, 0), new Vector3(0.42f, 0.04f, 0.42f), wood, false, 0.5f);
+                // the corner table's chairs sit square to it: Raj's (north side) and the one Arjun pulls out (south)
+                float jitter = ti == 4 ? 0f : (ti * 53 % 30 - 15);
+                var ch = PropKit.Place(transform, "painted_wooden_chair_01", cpos, a + 180f + jitter);
+                if (ch == null) ch = B("ChairSeat", cpos + new Vector3(0, 0.45f, 0), new Vector3(0.42f, 0.04f, 0.42f), wood, false, 0.5f);
+                if (ti == 4) { if (a == 0f) rajChair = ch.transform; else arjunChair = ch.transform; }
             }
             if (ti == 1 || ti == 4) PropKit.Place(transform, "tea_set_01", t + new Vector3(0.05f, 0.75f, 0f), ti * 70f, 0.7f);
             else B("ChaiGlass", t + new Vector3(0.1f, 0.80f, 0.05f), new Vector3(0.055f, 0.09f, 0.055f), new Color(0.6f, 0.38f, 0.2f), false, 0.85f);
@@ -273,11 +275,24 @@ public partial class Act4Story : ActStoryBase
             }
             fans.Add(hub);
         }
-        // Raj at the corner table, the watcher with his newspaper
-        raj = Npc(new Vector3(3.2f, 0f, 3.4f), 180f, Cast.Raj(), "Raj Malhotra");
+        // Raj at the corner table, seated, waiting; the watcher in the far corner, seated behind his newspaper
+        rajSeat = new Vector3(3.2f, 0.465f, 3.44f);
+        arjunSeatPos = new Vector3(3.2f, 0.1f, 1.74f);
+        raj = Npc(new Vector3(3.2f, 0f, 3.62f), 180f, Cast.Raj(), "Raj Malhotra");
+        raj.Sit(rajSeat, 180f, 0.4f, true);
         rajSpot = raj.transform;
-        watcher = Npc(new Vector3(-3.9f, 0f, 3.2f), 140f, NpcStyle.Thug(), "Watcher", false);
-        B("Newspaper", new Vector3(-3.6f, 1.35f, 2.95f), new Vector3(0.55f, 0.4f, 0.02f), new Color(0.88f, 0.86f, 0.78f), false, 0.1f).transform.rotation = Quaternion.Euler(0, 140f, 0);
+        watcherSeat = new Vector3(-3.95f, 0.465f, 3.25f);
+        var wch = PropKit.Place(transform, "painted_wooden_chair_01", new Vector3(-3.95f, 0f, 3.25f), 140f + 180f);
+        if (wch != null) watcherChair = wch.transform;
+        watcher = Npc(new Vector3(-4.1f, 0f, 3.45f), 140f, NpcStyle.Thug(), "Watcher", false);
+        watcher.Sit(watcherSeat, 140f, 0.42f, true);
+        var paper = B("Newspaper", Vector3.zero, new Vector3(0.55f, 0.4f, 0.012f), new Color(0.88f, 0.86f, 0.78f), false, 0.1f);
+        paper.transform.rotation = Quaternion.Euler(-12f, 140f, 0);
+        paper.transform.position = watcherSeat + Vector3.up * 0.55f + Quaternion.Euler(0f, 140f, 0f) * new Vector3(0f, 0f, 0.36f);
+        newspaper = paper.transform;
+        var fold = B("NewspaperFold", Vector3.zero, new Vector3(0.006f, 0.4f, 0.016f), new Color(0.7f, 0.68f, 0.6f), false, 0.1f);
+        fold.transform.SetParent(newspaper, false);
+        watcher.lookTarget = newspaper;
 
         // ---- the kitchen: white-tiled, bright, with real brass and enamel vessels all over the floor
         Room("Kitchen", K, new Vector3(8f, 3f, 6f), new Color(0.9f, 0.9f, 0.86f), Color.white, "terracotta", "plaster");
@@ -316,10 +331,33 @@ public partial class Act4Story : ActStoryBase
             if (i % 5 == 2) continue;           // leave a winding path
             pots.Add(p);
             int vi = i % vessels.Length;
-            if (PropKit.Place(transform, vessels[vi], p, i * 61f, vscale[vi]) == null)
-                Cy("Pot", p + new Vector3(0, 0.16f, 0), rr, 0.32f, new Color(0.7f, 0.7f, 0.72f), 0.8f, 0.9f);
-            else if (vi == 3) PropKit.Place(transform, "brass_pot_01", p + new Vector3(0, 0.14f, 0), i * 20f, 1.1f);     // a pot stacked in the wide pan
+            var pot = PropKit.Place(transform, vessels[vi], p, i * 61f, vscale[vi]);
+            if (pot == null) pot = Cy("Pot", p + new Vector3(0, 0.16f, 0), rr, 0.32f, new Color(0.7f, 0.7f, 0.72f), 0.8f, 0.9f);
+            else if (vi == 3) { var top = PropKit.Place(transform, "brass_pot_01", p + new Vector3(0, 0.14f, 0), i * 20f, 1.1f); if (top != null) top.transform.SetParent(pot.transform, true); }     // a pot stacked in the wide pan
+            potObjs.Add(pot.transform); potQuiet.Add(0f);
         }
+        // cover between the door they came in by and the back exit: a steel rack, sacks stacked on a pallet, a cold cabinet
+        var rackM = GameKit.Lit(new Color(0.55f, 0.56f, 0.58f), 0.55f, 0.85f);
+        foreach (float rz in new[] { -0.28f, 0.88f }) foreach (float rx in new[] { -2.0f, -1.6f })
+            GameKit.Box(transform, "RackPost", K + new Vector3(rx, 0.95f, rz), new Vector3(0.035f, 1.9f, 0.035f), rackM);
+        for (int sh = 0; sh < 4; sh++)
+        {
+            GameKit.Box(transform, "RackShelf", K + new Vector3(-1.8f, 0.25f + sh * 0.52f, 0.3f), new Vector3(0.44f, 0.025f, 1.2f), rackM);
+            for (int k = 0; k < 3; k++)
+                PropKit.Place(transform, k % 2 == 0 ? "pot_enamel_01" : "brass_pot_02", K + new Vector3(-1.8f, 0.27f + sh * 0.52f, -0.05f + k * 0.38f), sh * 40f + k * 70f, 0.9f);
+        }
+        Hide(B("RackBlock", K + new Vector3(-1.8f, 0.95f, 0.3f), new Vector3(0.46f, 1.9f, 1.22f), Color.black, true));
+        Tex(B("Pallet", K + new Vector3(1.6f, 0.07f, -0.7f), new Vector3(0.8f, 0.14f, 1.1f), new Color(0.55f, 0.42f, 0.28f), true), "wood", 0.6f, new Color(0.55f, 0.42f, 0.28f));
+        for (int k = 0; k < 6; k++)
+        {
+            var sack = B("Sack", K + new Vector3(1.42f + (k % 2) * 0.36f, 0.32f + (k / 2) * 0.36f, -1.0f + (k % 3) * 0.28f), new Vector3(0.38f, 0.34f, 0.5f), new Color(0.72f, 0.66f, 0.52f), true, 0.1f);
+            GameKit.Surface(sack, "fabric", 0.4f, 1f, 1f, new Color(0.72f, 0.66f, 0.52f));
+            sack.transform.rotation = Quaternion.Euler(0f, k * 13f - 20f, 0f);
+        }
+        var cab = B("ColdCabinet", K + new Vector3(3.25f, 1.0f, 1.6f), new Vector3(0.6f, 2.0f, 0.8f), steel, true, 0.6f, 0.8f);
+        B("ColdCabinetHandle", K + new Vector3(2.93f, 1.1f, 1.45f), new Vector3(0.03f, 0.5f, 0.03f), new Color(0.3f, 0.3f, 0.3f), false, 0.7f, 0.9f);
+        // a pan hanging by the door on a nail: the first thing that rings if anything brushes it
+        PropKit.Place(transform, "brass_pan_01", K + new Vector3(-3.92f, 1.55f, 0.75f), 0f, 1.1f, new Vector3(0f, 0f, 90f));
         PL(K + new Vector3(-1.5f, 2.7f, 0), new Color(0.95f, 0.97f, 1f), 2.6f, 9f);
         PL(K + new Vector3(2f, 2.7f, 0.5f), new Color(0.95f, 0.97f, 1f), 2.4f, 9f);
         Glow("KitchenTube", K + new Vector3(0, 2.95f, 0), new Vector3(1.4f, 0.05f, 0.12f), new Color(0.92f, 0.97f, 1f), 2.6f);
@@ -350,8 +388,25 @@ public partial class Act4Story : ActStoryBase
             var c = yard + new Vector3(-3f + i * 3f, 0, 0);
             B("Charpai", c + new Vector3(0, 0.45f, 0), new Vector3(1.0f, 0.1f, 1.9f), new Color(0.85f, 0.75f, 0.5f), true, 0.1f);
             for (int l = 0; l < 4; l++) B("CharpaiLeg", c + new Vector3(l < 2 ? -0.45f : 0.45f, 0.22f, l % 2 == 0 ? -0.9f : 0.9f), new Vector3(0.08f, 0.45f, 0.08f), new Color(0.35f, 0.22f, 0.12f));
-            Npc(c + new Vector3(0.8f, 0, 0.4f), -90f, NpcStyle.Crowd(900 + i), "TruckDriver" + i, false);
+            if (i == 1) continue;                    // the middle charpai is free: Raj and Arjun take it
+            // a driver on the edge of his charpai, his glass of chai on a stool beside him
+            var drv = Npc(c + new Vector3(0.95f, 0, 0.35f), 90f, NpcStyle.Crowd(900 + i), "TruckDriver" + i, false);
+            drv.Sit(c + new Vector3(0.44f, 0.52f, 0.35f), 90f, 0.42f, true);
+            drv.lookTarget = null;
+            dhabaDrivers.Add(drv);
+            var cup = Cy("DriverChai", c + new Vector3(0.36f, 0.545f, -0.1f), 0.032f, 0.09f, new Color(0.62f, 0.62f, 0.64f), 0.7f, 0.9f);
+            Destroy(cup.GetComponent<Collider>());
+            dhabaCups.Add(cup.transform);
         }
+        // the cook at the tandoor, and a stool for the radio playing low
+        var cook = Npc(yard + new Vector3(-2.7f, 0, 3.1f), -130f, NpcStyle.Crowd(931), "DhabaCook", false);
+        cook.lookTarget = null;
+        dhabaDrivers.Add(cook);
+        dhabaCups.Add(null);
+        var radioAt = yard + new Vector3(1.2f, 0.75f, -1.05f);
+        B("Radio", radioAt, new Vector3(0.26f, 0.15f, 0.09f), new Color(0.25f, 0.16f, 0.1f), false, 0.4f);
+        dhabaRadio = radioAt;
+        Prop("plastic_monobloc_chair_01", A + new Vector3(7.6f, 0f, 17.75f), 57f + 180f);           // the seat Arjun takes
         Hide(B("Truck", yard + new Vector3(4.5f, 1.5f, 3.5f), new Vector3(2.4f, 3f, 6f), new Color(0.9f, 0.45f, 0.1f), true, 0.4f));      // collider only
         BuildTruck(yard + new Vector3(4.5f, 0f, 3.5f));
         for (int i = 0; i < 3; i++)
@@ -376,188 +431,18 @@ public partial class Act4Story : ActStoryBase
         Fence(A + new Vector3(4.4f, 2f, 14f), new Vector3(6.8f, 4f, 0.4f));
         Fence(A + new Vector3(13.6f, 2f, 14f), new Vector3(6.8f, 4f, 0.4f));
         GameKit.Text(transform, "SHER-E-PUNJAB DHABA  -  OPEN 24 HRS", yard + new Vector3(0, 3.8f, -2.2f), Quaternion.identity, 0.3f, new Color(1f, 0.85f, 0.3f));
+        StartCoroutine(DhabaLife(dhabaDrivers.ToArray(), dhabaCups.ToArray()));
+        StartCoroutine(DhabaSound());
     }
-
-    IEnumerator CafeRun()
-    {
-        AddSpot(rajSpot, Vector3.up * 1.5f, "Sit down with Raj Malhotra", () => phase == Phase.Free && stageA == 0, () => StartCoroutine(RajTalk()));
-        StartCoroutine(OwnerWork());
-        yield return OpenAct();
-        Teleport(new Vector3(-3.6f, 0.1f, -3.4f), 40f);
-        yield return Narrate("a4a_vo");
-        BeginFree("Meet the caller at the corner table", raj.transform.position + Vector3.up * 1.9f, "Corner table");
-        yield return new WaitUntil(() => stageA >= 1);
-
-        // ---- kitchen
-        yield return FadeOut(2f);
-        Teleport(K + new Vector3(-3.4f, 0.1f, 0f), 90f);
-        raj.transform.position = K + new Vector3(-3.6f, 0f, -0.6f);
-        rajFollow = true; StartCoroutine(RajFollows());
-        yield return FadeIn(1.5f);
-        BeginBusy();
-        yield return Talk("a4a_arjun_kitchen");
-        EndTalk();
-        BeginFree("Cross the kitchen without touching the pots", K + new Vector3(3.6f, 1.2f, 0), "Back exit");
-        while (true)
-        {
-            if (Near(K + new Vector3(3.6f, 0, 0), 0.9f)) break;
-            foreach (var p in pots)
-                if (Near(p, 0.5f))
-                {
-                    BeginBusy();
-                    sfx.PlayOneShot(Tone(1300f, 0.6f, 6f, 0.5f, true), 0.8f);
-                    yield return Talk("a4a_raj_clang", raj);
-                    EndTalk();
-                    yield return FadeOut(2.5f);
-                    Teleport(K + new Vector3(-3.4f, 0.1f, 0f), 90f);
-                    raj.transform.position = K + new Vector3(-3.6f, 0f, -0.6f);
-                    yield return FadeIn(1.5f);
-                    BeginFree("Cross the kitchen without touching the pots", K + new Vector3(3.6f, 1.2f, 0), "Back exit");
-                    break;
-                }
-            yield return null;
-        }
-
-        // ---- the alleys
-        yield return FadeOut(2f);
-        PriyaRoomPlayer.Surface = 1;
-        Teleport(A + new Vector3(0, 0.1f, -8f), 0f);
-        raj.transform.position = A + new Vector3(0.3f, 0f, -9f);
-        yield return FadeIn(1.5f);
-        BeginFree("Find the way to the main road", A + new Vector3(0, 1.5f, 1f), "The fork");
-        StartCoroutine(CuratorFlash("flash2_01", "flash2_02", "flash2_03"));
-        bool deadEndSaid = false;
-        while (true)
-        {
-            Vector3 p = player.transform.position;
-            if (!deadEndSaid && p.x < A.x - 7.5f)
-            {
-                deadEndSaid = true; BeginBusy();
-                yield return Talk("a4a_arjun_dead"); EndTalk();
-                BeginFree("Take the other way at the fork", A + new Vector3(5f, 1.5f, 1.1f), "East alley");
-            }
-            if (p.x > A.x + 8f && p.z > A.z + 3.2f) break;
-            yield return null;
-        }
-        // ---- hide from the searchers
-        while (true)
-        {
-            hidden = false;
-            var hideSpot = AddSpot(transform.Find("Dumpster") ?? transform, Vector3.zero, "Hide behind the dumpster", () => !hidden && phase == Phase.Free, () => { hidden = true; StartCoroutine(Crouch(true)); }, 3f, 0.9f);
-            BeginBusy();
-            sfx.PlayOneShot(stepClip, 0.6f);
-            yield return Talk("a4a_arjun_hide"); EndTalk();
-            BeginFree("Hide behind the dumpster!", A + new Vector3(8.35f, 1.3f, 7f), "Dumpster");
-            var t1 = Npc(A + new Vector3(9f, 0f, 16f), 180f, NpcStyle.Thug(), "Searcher1", false);
-            var t2 = Npc(A + new Vector3(8.6f, 0f, 17.2f), 180f, NpcStyle.Thug(), "Searcher2", false);
-            var torch = PL(t1.transform.position + Vector3.up * 1.4f, new Color(0.95f, 0.95f, 1f), 3f, 6f);
-            t1.StartCoroutine(t1.WalkTo(A + new Vector3(9f, 0f, 1.2f), 1.5f));     // run on the NPCs, so removing them is safe
-            t2.StartCoroutine(t2.WalkTo(A + new Vector3(8.6f, 0f, 2.0f), 1.5f));
-            bool caught = false, warned = false;
-            while (t1 != null && t1.transform.position.z > A.z + 2f)
-            {
-                torch.transform.position = t1.transform.position + Vector3.up * 1.4f + Vector3.back * 0.5f;
-                float dist = Vector3.Distance(player.transform.position, t1.transform.position);
-                if (!warned && dist < 9f) { warned = true; StartCoroutine(Narrate("a4a_thug_search")); }
-                if (!hidden && dist < 6f) { caught = true; break; }
-                if (hidden && rajFollow) raj.transform.position = A + new Vector3(8.0f + 0.1f, 0f, 8.4f);
-                yield return null;
-            }
-            spots.Remove(hideSpot);
-            Destroy(t1.gameObject); Destroy(t2.gameObject); Destroy(torch.gameObject);
-            if (!caught) break;
-            BeginBusy();
-            yield return Talk("a4a_caught");
-            EndTalk();
-            Toast("You were spotted. Try again - hide before they get close.", 4f);
-            yield return FadeOut(2f);
-            Teleport(A + new Vector3(5f, 0.1f, 1.1f), 90f);
-            raj.transform.position = A + new Vector3(4f, 0f, 1.1f);
-            yield return FadeIn(1.5f);
-            yield return new WaitUntil(() => player.transform.position.x > A.x + 8f && player.transform.position.z > A.z + 3.2f);
-        }
-        yield return Crouch(false);
-        BeginFree("Reach the dhaba and blend in", A + new Vector3(9f, 1.8f, 17f), "Dhaba");
-        yield return new WaitUntil(() => Near(A + new Vector3(9f, 0, 17f), 3f));
-        BeginBusy();
-        rajFollow = false;
-        raj.transform.position = A + new Vector3(10f, 0f, 18f);
-        yield return Turn(raj.transform.position + Vector3.up * 1.5f, 0.7f);
-        yield return Talk("a4a_raj_dhaba", raj);
-        EndTalk();
-        SaveSystem.Data.allyRaj = true; SaveSystem.Save();
-        yield return Narrate("a4a_vo_end");
-        yield return CloseAct("", "");
-    }
-
-    int stageA;
-    IEnumerator RajTalk()
-    {
-        BeginBusy();
-        stageA = -1;
-        yield return Turn(raj.transform.position + Vector3.up * 1.5f, 0.7f);
-        yield return Talk("a4a_raj_1", raj);
-        yield return Talk("a4a_arjun_why");
-        yield return Talk("a4a_raj_2", raj);
-        bool[] asked = new bool[3];
-        string[] q = { DialogueDB.Text("a4a_q_a"), DialogueDB.Text("a4a_q_b"), DialogueDB.Text("a4a_q_c") };
-        for (int round = 0; round < 3; round++)
-        {
-            var show = new string[3]; var dis = new bool[3];
-            for (int i = 0; i < 3; i++) { show[i] = q[i] + (asked[i] ? "   (asked)" : ""); dis[i] = asked[i]; }
-            // on the compass the asked questions carry a tick instead of "(asked)"
-            yield return Choose(new[] { "Trust him?", "Priya", "His price" }, UseCompass ? (string[])q.Clone() : show, dis, (bool[])asked.Clone());
-            int c = menuResult; asked[c] = true;
-            yield return Talk(c == 0 ? "a4a_q_a" : c == 1 ? "a4a_q_b" : "a4a_q_c");
-            yield return Talk(c == 0 ? "a4a_raj_a" : c == 1 ? "a4a_raj_b" : "a4a_raj_c", raj);
-            if (c == 0)
-            {
-                SaveSystem.Data.hasRecordings = true;
-                AddEvidence("RAJ'S PHONE: six months of recorded calls with Deshpande - forgeries, bribes, the plan to destroy the originals.");
-                Toast("You received: RAJ'S PHONE RECORDINGS", 4f, true);
-            }
-            if (c == 1) AddEvidence("Raj: Priya is at the old NGO shelter by the river. He told Deshpande's men she went to Nagpur.");
-            if (c == 2) AddEvidence("Raj will testify against Deshpande in exchange for immunity.");
-        }
-        if (!SaveSystem.Data.hasRecordings)
-        {
-            SaveSystem.Data.hasRecordings = true;
-            AddEvidence("RAJ'S PHONE: six months of recorded calls with Deshpande - forgeries, bribes, the plan to destroy the originals.");
-        }
-        // they have been seen
-        yield return Turn(watcher.transform.position + Vector3.up * 1.5f, 0.6f);
-        yield return Talk("a4a_raj_made", raj);
-        EndTalk();
-        stageA = 1;
-    }
-
-    IEnumerator RajFollows()
-    {
-        while (rajFollow && raj != null)
-        {
-            Vector3 target = player.transform.position - player.transform.forward * 1.3f;
-            target.y = 0f;
-            if (Vector3.Distance(raj.transform.position, target) > 1.2f && !hidden)
-                yield return raj.WalkTo(target, Vector3.Distance(raj.transform.position, target) > 4f ? 3.2f : 1.8f);
-            else yield return new WaitForSeconds(0.2f);
-        }
-    }
-
-    IEnumerator Crouch(bool down)
-    {
-        float y0 = cam.localPosition.y, y1 = down ? 0.85f : 1.62f;
-        for (float t = 0; t < 0.4f; t += Time.deltaTime)
-        {
-            var p = cam.localPosition; p.y = Mathf.Lerp(y0, y1, t / 0.4f); cam.localPosition = p;
-            yield return null;
-        }
-        if (down) PriyaRoomPlayer.Locked = true; else PriyaRoomPlayer.Locked = phase != Phase.Free;
-    }
+    readonly List<CharacterNPC> dhabaDrivers = new List<CharacterNPC>();
+    readonly List<Transform> dhabaCups = new List<Transform>();
+    Vector3 dhabaRadio;
 
     // ============================================================ B: KAPOOR HOUSE
     CharacterNPC kamala, rohan;
-    Transform laptop, bootPrint, visitorPass;
-    bool laptopRead, printSeen, passSeen;
+    Transform laptop, laptopLid, bootPrint, visitorPass;
+    Light laptopGlow;
+    bool laptopRead, laptopClosed, printSeen, passSeen, confronting;
 
     void BuildKapoorHouse()
     {
@@ -592,15 +477,10 @@ public partial class Act4Story : ActStoryBase
         if (Prop("wooden_bookshelf_worn", new Vector3(1.8f, 0.3f, 2.87f), 105f, 1f, new Vector3(90f, 0, 0)) != null) Hide(shelf);    // pulled down on its face
         for (int i = 0; i < 14; i++)
         {
-            var bk = B("Book", new Vector3(1.6f + (float)rnd.NextDouble() * 2.6f, 0.04f, 1.4f + (float)rnd.NextDouble() * 1.4f), new Vector3(0.22f, 0.05f, 0.3f), Color.HSVToRGB((float)rnd.NextDouble(), 0.5f, 0.6f), false, 0.1f);
+            var bk = B("Book", new Vector3(1.5f + (float)rnd.NextDouble() * 1.4f, 0.025f + (i % 3) * 0.045f, 2.0f + (float)rnd.NextDouble() * 0.9f), new Vector3(0.22f, 0.045f, 0.3f), i % 2 == 0 ? new Color(0.16f, 0.1f, 0.06f) : Color.HSVToRGB((float)rnd.NextDouble(), 0.45f, 0.5f), false, 0.1f);
             bk.transform.rotation = Quaternion.Euler(0, (float)rnd.NextDouble() * 180f, 0);
         }
-        // papers everywhere, drawers pulled out
-        for (int i = 0; i < 40; i++)
-        {
-            var pp = B("Paper", new Vector3(-4f + (float)rnd.NextDouble() * 8f, 0.006f + i * 0.0005f, -3.5f + (float)rnd.NextDouble() * 7f), new Vector3(0.21f, 0.004f, 0.3f), new Color(0.95f, 0.94f, 0.9f), false, 0.05f);
-            pp.transform.rotation = Quaternion.Euler(0, (float)rnd.NextDouble() * 360f, 0);
-        }
+        // drawers pulled out where the search went (papers, the almirah and the boot prints: BuildHouseDetails)
         var cab = B("Cabinet", new Vector3(4.2f, 0.5f, -1f), new Vector3(0.5f, 1f, 1.4f), wood, true, 0.3f);
         if (Prop("vintage_cabinet_01", new Vector3(4.18f, 0, -1f), -90f, 0.7f) != null) Hide(cab);
         for (int i = 0; i < 3; i++)
@@ -621,10 +501,14 @@ public partial class Act4Story : ActStoryBase
         Prop("painted_wooden_chair_01", new Vector3(3.5f, 0.24f, -2.9f), 250f, 1f, new Vector3(0, 0, 88f));          // kicked over
         Prop("tea_set_01", new Vector3(2.75f, 0.775f, -2.6f), 30f, 0.5f);
         B("LaptopBase", new Vector3(2.4f, 0.8f, -2.4f), new Vector3(0.36f, 0.02f, 0.25f), new Color(0.2f, 0.2f, 0.22f), false, 0.6f, 0.5f);
-        var scr = Glow("LaptopScreen", new Vector3(2.4f, 0.94f, -2.28f), new Vector3(0.36f, 0.24f, 0.01f), new Color(0.5f, 0.7f, 1f), 1.8f);
-        scr.transform.rotation = Quaternion.Euler(-12f, 0, 0);
+        B("LaptopKeys", new Vector3(2.4f, 0.8105f, -2.43f), new Vector3(0.3f, 0.002f, 0.12f), new Color(0.08f, 0.08f, 0.09f), false, 0.3f);
+        laptopLid = new GameObject("LaptopLid").transform; laptopLid.SetParent(transform, false);
+        laptopLid.position = new Vector3(2.4f, 0.811f, -2.285f);            // the hinge at the back edge
+        laptopLid.rotation = Quaternion.Euler(-102f, 0f, 0f);               // open, leaning back a little
+        GameKit.Box(laptopLid, "LidBack", new Vector3(0f, 0f, 0.125f), new Vector3(0.36f, 0.008f, 0.25f), GameKit.Lit(new Color(0.2f, 0.2f, 0.22f), 0.6f, 0.5f));
+        var scr = GameKit.Box(laptopLid, "LaptopScreen", new Vector3(0f, -0.0045f, 0.125f), new Vector3(0.33f, 0.002f, 0.22f), GameKit.Glow(new Color(0.25f, 0.35f, 0.5f), new Color(0.5f, 0.7f, 1f), 1.8f));
         laptop = scr.transform;
-        PL(new Vector3(2.4f, 1.2f, -2.6f), new Color(0.55f, 0.75f, 1f), 0.8f, 2.5f);
+        laptopGlow = PL(new Vector3(2.4f, 1.2f, -2.6f), new Color(0.55f, 0.75f, 1f), 0.8f, 2.5f);
         // optional clues: a boot print by the door, a dropped visitor pass
         bootPrint = B("BootPrint", new Vector3(-3.6f, 0.008f, -3f), new Vector3(0.14f, 0.004f, 0.32f), new Color(0.2f, 0.14f, 0.08f), false, 0.1f).transform;
         visitorPass = B("VisitorPass", new Vector3(1.5f, 0.01f, -2.9f), new Vector3(0.09f, 0.004f, 0.13f), new Color(0.2f, 0.45f, 0.85f), false, 0.3f).transform;
@@ -634,85 +518,9 @@ public partial class Act4Story : ActStoryBase
         var lamp = Cy("FallenLamp", new Vector3(-0.6f, 0.15f, 2.3f), 0.12f, 0.5f, new Color(0.7f, 0.6f, 0.4f));
         lamp.transform.rotation = Quaternion.Euler(0, 0, 85f);
         if (Prop("vintage_oil_lamp", new Vector3(-0.3f, 0.11f, 2.3f), 0f, 0.8f, new Vector3(0, 0, 86f)) != null) Hide(lamp);
-        B("FrontDoor", new Vector3(-4.48f, 1.05f, -3f), new Vector3(0.05f, 2.1f, 1f), wood);
         kamala = Npc(new Vector3(-2.4f, 0f, 1.8f), 200f, Cast.Kamala(), "Kamala");
         rohan = Npc(new Vector3(1.5f, 0f, 0.5f), 90f, Cast.Rohan(), "Rohan");
-    }
-
-    bool rohanPacing = true;
-    IEnumerator RohanPaces()
-    {
-        while (rohanPacing && rohan != null)
-        {
-            yield return rohan.WalkTo(new Vector3(3.2f, 0, 0.6f), 0.9f);
-            if (!rohanPacing) break;
-            yield return rohan.WalkTo(new Vector3(0.6f, 0, 0.2f), 0.9f);
-        }
-    }
-
-    IEnumerator HouseRun()
-    {
-        AddSpot(laptop, Vector3.zero, "Look at Rohan's laptop", () => phase == Phase.Free && !laptopRead, () => StartCoroutine(LaptopClue()));
-        AddSpot(bootPrint, Vector3.zero, "Examine the boot print", () => phase == Phase.Free && !printSeen, () => StartCoroutine(SmallClue(true)), 3f, 0.35f);
-        AddSpot(visitorPass, Vector3.zero, "Pick up the visitor pass", () => phase == Phase.Free && !passSeen, () => StartCoroutine(SmallClue(false)), 3f, 0.3f);
-        StartCoroutine(RohanPaces());
-        yield return OpenAct();
-        Teleport(new Vector3(-3.8f, 0.1f, -3.0f), 30f);
-        yield return Narrate("a4b_vo");
-        yield return Turn(kamala.transform.position + Vector3.up * 1.5f, 0.8f);
-        yield return Talk("a4b_kamala_1", kamala);
-        yield return Talk("a4b_arjun_find");
-        yield return Talk("a4b_kamala_2", kamala);
-        EndTalk();
-        BeginFree("Search the ransacked flat for anything they missed", null);
-        yield return new WaitUntil(() => laptopRead);
-
-        // the confession
-        BeginBusy();
-        rohanPacing = false;
-        yield return new WaitForSeconds(0.6f);
-        yield return Turn(rohan.transform.position + Vector3.up * 1.5f, 0.7f);
-        yield return Talk("a4b_arjun_confront");
-        yield return Talk("a4b_rohan_1", rohan);
-        yield return Talk("a4b_arjun_told");
-        yield return Talk("a4b_rohan_2", rohan);
-        yield return Choose(new[] { DialogueDB.Text("a4b_q_a"), DialogueDB.Text("a4b_q_b"), DialogueDB.Text("a4b_q_c") });
-        int c = menuResult;
-        yield return Talk(c == 0 ? "a4b_q_a" : c == 1 ? "a4b_q_b" : "a4b_q_c");
-        yield return Talk(c == 0 ? "a4b_rohan_a" : c == 1 ? "a4b_rohan_b" : "a4b_rohan_c", rohan);
-        if (c == 0) AddEvidence("Rohan knows Priya is at the NGO shelter by the river, and will take you there.");
-        if (c == 2) AddEvidence("Rohan's cloud drive: copies of the emails, the forged orders and Priya's analysis.");
-        yield return Turn(kamala.transform.position + Vector3.up * 1.5f, 0.6f);
-        yield return Talk("a4b_kamala_3", kamala);
-        EndTalk();
-        SaveSystem.Data.allyRohan = true; SaveSystem.Save();
-        Toast("Rohan joins you", 3.5f, true);
-        yield return Narrate("a4b_vo_end");
-        yield return CloseAct("", "");
-    }
-
-    IEnumerator LaptopClue()
-    {
-        BeginBusy();
-        yield return Talk("a4b_arjun_laptop");
-        EndTalk();
-        yield return ShowCard("MUNICIPAL OFFICE MAIL  -  rohan.kapoor (intern)",
-            "From:  Deputy Commissioner, Land Records\nTo:  Councilor M. Deshpande\nSubject:  RE: Basti Nagar transfer\n\n" +
-            "\"The original deed is no longer in the library. S. Reddy signed it out two weeks ago. We need it back from her before the hearing. " +
-            "Keep the 1965 order in the file - nobody will question a stamped government document.\"");
-        SaveSystem.Data.hasEmails = true; SaveSystem.Save();
-        AddEvidence("MUNICIPAL EMAILS: senior officials knew the 1965 order was forged and planned to seize the original deed.");
-        laptopRead = true;
-    }
-
-    IEnumerator SmallClue(bool print)
-    {
-        BeginBusy();
-        yield return Talk(print ? "a4b_arjun_print" : "a4b_arjun_pass");
-        EndTalk();
-        if (print) { printSeen = true; AddEvidence("Kapoor house: heavy muddy boot prints - the 'clerks' were hired muscle."); }
-        else { passSeen = true; AddEvidence("Kapoor house: a Municipal Office visitor pass dropped by one of the intruders."); }
-        BeginFree("Search the ransacked flat for anything they missed", null);
+        BuildHouseDetails();
     }
 
     // =========================================================== C: INSPECTOR REDDY
@@ -742,6 +550,17 @@ public partial class Act4Story : ActStoryBase
         Tex(B("StationSteps", new Vector3(0, 0.2f, 8.1f), new Vector3(3.4f, 0.1f, 0.9f), Color.white, true), "concrete", 1.4f, new Color(0.8f, 0.78f, 0.74f));
         foreach (float dx in new[] { -1.25f, 1.25f }) Tex(B("StationPillar", new Vector3(dx, 1.5f, 8.35f), new Vector3(0.3f, 3f, 0.3f), Color.white, false), "plaster", 1.6f, new Color(0.88f, 0.86f, 0.8f));
         Tex(B("NoticeBoard", new Vector3(-3.2f, 1.6f, 8.46f), new Vector3(1.4f, 1f, 0.05f), new Color(0.2f, 0.3f, 0.2f), false), "wood", 0.9f, new Color(0.25f, 0.35f, 0.25f));
+        // the stretch of the station's wall behind the chai stall (it is in frame through Reddy's interview): a barred
+        // window with a light on behind it, a downpipe, a painted helpline sign, the plinth band
+        B("StationWindowRecess", new Vector3(-7.4f, 1.75f, 8.47f), new Vector3(1.2f, 1.1f, 0.04f), new Color(0.05f, 0.05f, 0.06f), false, 0.6f);
+        Glow("StationWindowLit", new Vector3(-7.4f, 1.75f, 8.465f), new Vector3(1.1f, 1.0f, 0.01f), new Color(0.75f, 0.85f, 0.7f), 0.5f);
+        for (int i = 0; i < 6; i++) B("StationWindowBar", new Vector3(-7.9f + i * 0.2f, 1.75f, 8.44f), new Vector3(0.025f, 1.1f, 0.025f), new Color(0.12f, 0.12f, 0.13f), false, 0.4f, 0.6f);
+        B("StationWindowSill", new Vector3(-7.4f, 1.17f, 8.4f), new Vector3(1.35f, 0.06f, 0.16f), new Color(0.7f, 0.68f, 0.62f), false, 0.3f);
+        Cy("Downpipe", new Vector3(-5.15f, 2.6f, 8.4f), 0.05f, 5.2f, new Color(0.25f, 0.26f, 0.27f), 0.35f, 0.4f);
+        B("StationPlinthBand", new Vector3(-6.5f, 0.3f, 8.47f), new Vector3(5f, 0.6f, 0.03f), new Color(0.42f, 0.38f, 0.34f), false, 0.2f);
+        B("HelplineSign", new Vector3(-9.1f, 2.15f, 8.46f), new Vector3(0.9f, 0.45f, 0.03f), new Color(0.75f, 0.12f, 0.1f), false, 0.4f);
+        GameKit.Solid(GameKit.Text(transform, "POLICE HELP  100", new Vector3(-9.1f, 2.18f, 8.443f), Quaternion.identity, 0.09f, Color.white));
+        GameKit.Solid(GameKit.Text(transform, "WOMEN HELPLINE 1091", new Vector3(-9.1f, 2.03f, 8.443f), Quaternion.identity, 0.055f, Color.white));
         for (int i = 0; i < 3; i++) Prop("barrel_03", new Vector3(9.5f + i * 0.9f, 0, 0.6f + (i % 2) * 0.3f), i * 50f);
         Prop("trashbag", new Vector3(-9.5f, 0.16f, 6.6f), 30f);
         Prop("old_tyre", new Vector3(-8.6f, 0.24f, 6.9f), 10f, 1f, new Vector3(90f, 0, 0));
@@ -753,10 +572,11 @@ public partial class Act4Story : ActStoryBase
         VehicleKit.Part(transform, "StallRoof", VehicleKit.Tarp(2.9f, 1.9f, 0.14f), tarpMat, stall + new Vector3(0, 2.55f, 0.3f)).transform.rotation = Quaternion.Euler(8f, 0, 0);
         foreach (float px in new[] { -1.35f, 1.35f }) foreach (float pz in new[] { -0.55f, 1.15f })
                 Cy("StallPole", stall + new Vector3(px, 1.3f, pz), 0.028f, 2.6f, new Color(0.6f, 0.5f, 0.28f), 0.35f);
-        if (Prop("metal_jug", stall + new Vector3(-0.5f, 1.0f, 0.6f), 40f, 1.5f) == null)
-            Cy("Kettle", stall + new Vector3(-0.5f, 1.2f, 0.6f), 0.2f, 0.4f, new Color(0.75f, 0.76f, 0.78f), 0.85f, 0.9f);
-        Prop("brass_pot_01", stall + new Vector3(0.2f, 1.0f, 0.65f), 0f, 0.9f);
-        Prop("pot_enamel_01", stall + new Vector3(0.75f, 1.0f, 0.5f), 70f, 1.2f);
+        // the vendor's things at the far (east) end and the back of the counter: the near end is where the evidence goes
+        if (Prop("metal_jug", stall + new Vector3(0.85f, 1.0f, 0.85f), 40f, 1.1f) == null)
+            Cy("Kettle", stall + new Vector3(0.85f, 1.2f, 0.85f), 0.16f, 0.36f, new Color(0.75f, 0.76f, 0.78f), 0.85f, 0.9f);
+        Prop("brass_pot_01", stall + new Vector3(0.45f, 1.0f, 0.88f), 0f, 0.8f);
+        Prop("pot_enamel_01", stall + new Vector3(0.9f, 1.0f, 0.45f), 70f, 1.0f);
         Prop("small_lpg_tank", stall + new Vector3(1.35f, 0, 0.9f), 0f, 1.2f);
         Glow("StallBulb", stall + new Vector3(0, 2.2f, 0.2f), new Vector3(0.15f, 0.15f, 0.15f), new Color(1f, 0.8f, 0.45f), 5f);
         PL(stall + new Vector3(0, 2f, -0.4f), new Color(1f, 0.75f, 0.45f), 2.4f, 6f);
@@ -767,7 +587,8 @@ public partial class Act4Story : ActStoryBase
             B("PlasticChair", cp + new Vector3(0, 0.45f, 0), new Vector3(0.45f, 0.05f, 0.45f), i == 1 ? new Color(0.85f, 0.15f, 0.12f) : new Color(0.15f, 0.4f, 0.8f), false, 0.4f);
             B("PlasticBack", cp + new Vector3(0, 0.72f, 0.2f), new Vector3(0.45f, 0.5f, 0.04f), i == 1 ? new Color(0.85f, 0.15f, 0.12f) : new Color(0.15f, 0.4f, 0.8f), false, 0.4f);
         }
-        reddy = Npc(stall + new Vector3(0f, 0f, -1.6f), 180f, Cast.Reddy(), "Inspector Reddy");
+        reddy = Npc(ReddyAt, 90f, Cast.Reddy(), "Inspector Reddy", false);
+        reddy.lookTarget = cam;
         // street lights + a stray dog
         for (int i = 0; i < 4; i++)
         {
@@ -780,35 +601,186 @@ public partial class Act4Story : ActStoryBase
         FenceArea(new Vector3(0, 0, -1f), 36f, 18f);
     }
 
+    // where the conversation happens: the customer side of the stall's counter, Reddy leaning at its end
+    static readonly Vector3 ReddyAt = new Vector3(-6.95f, 0f, 5.28f);
+    static readonly Vector3 ArjunAtStall = new Vector3(-5.45f, 0.1f, 5.22f);
+    const float StallTop = 1.0f;
+    readonly List<EvidenceFolio.Item> pieces = new List<EvidenceFolio.Item>();
+    Transform reddyHandL, reddyHandR;
+    // read by the play-test route
+    readonly List<string> presentedLog = new List<string>();
+    int reddyRound;
+
+    /// <summary>One piece Arjun can put on the counter: what it is, what it shows, and the thing itself.</summary>
+    EvidenceFolio.Item Piece(string key, string name, string shows, Transform obj)
+    {
+        var it = new EvidenceFolio.Item { key = key, name = name, shows = shows, obj = obj };
+        if (obj != null) obj.gameObject.SetActive(false);         // in Arjun's pocket until he lays it down
+        pieces.Add(it);
+        return it;
+    }
+
+    /// <summary>The evidence this player actually has, built as things on the counter.</summary>
+    void GatherPieces()
+    {
+        var d = SaveSystem.Data;
+        pieces.Clear();
+        var root = new GameObject("CounterEvidence").transform; root.SetParent(transform, false);
+        // laid facing Arjun: the tops of the papers towards Reddy (-x), readable from where he stands
+        if (d.hasIdCard)
+            Piece("id", "Her ID card", "Her Crime Branch card, dropped in the market while she watched Vikram's stall.", PaperKit.IdCard(root, Vector3.zero, -90f));
+        Piece("signout", "The sign-out sheet", "The Record Room register: the 1942 deed signed out two weeks ago. \"S. Reddy\", in her hand.", PaperKit.SignOutSheet(root, Vector3.zero, -90f));
+        Piece("usb", "Priya's files", "Copies from Priya's encrypted files: the forged 1965 order beside the 1942 deed, every discrepancy marked.", PaperKit.Printouts(root, Vector3.zero, -90f));
+        if (d.clues.Contains("3_NewspaperClippings"))
+            Piece("clip", "Priya's cuttings", "The cuttings from Priya's wall, still knotted with her red string: the Renewal Project and 500 families.", PaperKit.Cuttings(root, Vector3.zero, -90f));
+        if (d.hasPlate)
+            Piece("plate", "The SUV's plate", "MH-12-AB-4471, written down as the black SUV passed: the car that followed you.", PaperKit.NotebookPage(root, Vector3.zero, -90f, "MH-12-AB-4471", "black SUV - market lane"));
+        else if (d.evidence.Contains("A black SUV followed Priya's auto."))      // only testimony this player actually heard
+            Piece("bhaskar", "Bhaskar's account", "Bhaskar, who drove Priya two nights ago: a black SUV followed her auto.", PaperKit.NotebookPage(root, Vector3.zero, -90f, "Bhaskar (auto):", "black SUV followed P."));
+    }
+
+    /// <summary>Where piece i of n rests on the counter, between Arjun and Reddy.</summary>
+    Vector3 PieceSpot(int i, int n)
+    {
+        float x0 = -6.5f, x1 = -5.72f;
+        float x = n <= 1 ? (x0 + x1) * 0.5f : Mathf.Lerp(x0, x1, i / (float)(n - 1));
+        return new Vector3(x, StallTop + 0.002f, 5.86f + (i % 2) * 0.04f);           // near the front edge, between them
+    }
+
+    /// <summary>Arjun lays the pieces down one at a time, from his hand to the counter.</summary>
+    IEnumerator LayOut()
+    {
+        for (int i = 0; i < pieces.Count; i++)
+        {
+            var it = pieces[i];
+            if (it.obj == null) continue;
+            Vector3 to = PieceSpot(i, pieces.Count);
+            Vector3 from = cam.position + cam.right * 0.16f - Vector3.up * 0.42f + cam.forward * 0.22f;
+            it.obj.gameObject.SetActive(true);
+            Quaternion r1 = Quaternion.Euler(0f, -90f + (i % 2 == 0 ? -4f : 5f), 0f), r0 = Quaternion.Euler(-35f, -60f, 0f);
+            for (float t = 0f; t < 0.42f; t += Time.deltaTime)
+            {
+                float k = Mathf.SmoothStep(0f, 1f, t / 0.42f);
+                it.obj.position = Vector3.Lerp(from, to, k) + Vector3.up * 0.05f * Mathf.Sin(k * Mathf.PI);
+                it.obj.rotation = Quaternion.Slerp(r0, r1, k);
+                yield return null;
+            }
+            it.obj.position = to; it.obj.rotation = r1;
+            EvidenceFolio.Repose(it);
+            sfx.PlayOneShot(EvidenceFolio.Put(), 0.5f);
+            yield return Wait(0.18f);
+        }
+    }
+
+    /// <summary>Arjun turns a piece round and slides it across to her (back = takes it back to where it lay).</summary>
+    IEnumerator SlidePiece(EvidenceFolio.Item it, bool across)
+    {
+        if (it.obj == null) yield break;
+        if (!homes.ContainsKey(it)) homes[it] = new Pose(it.basePos, it.baseRot);
+        var home = homes[it];
+        Vector3 a = it.obj.position, b = across ? new Vector3(-6.62f, StallTop + 0.002f, 5.9f) : home.position;
+        Quaternion ra = it.obj.rotation, rb = across ? Quaternion.Euler(0f, 90f, 0f) : home.rotation;     // turned round, so she can read it
+        // the folio keeps every piece at its resting pose: move the rest with the hand
+        for (float t = 0f; t < 0.5f; t += Time.deltaTime)
+        {
+            float k = Mathf.SmoothStep(0f, 1f, t / 0.5f);
+            it.basePos = Vector3.Lerp(a, b, k) + Vector3.up * 0.012f * Mathf.Sin(k * Mathf.PI);
+            it.baseRot = Quaternion.Slerp(ra, rb, k);
+            it.obj.position = it.basePos; it.obj.rotation = it.baseRot;
+            yield return null;
+        }
+        it.basePos = b; it.baseRot = rb;
+        it.obj.position = b; it.obj.rotation = rb;
+    }
+    readonly Dictionary<EvidenceFolio.Item, Pose> homes = new Dictionary<EvidenceFolio.Item, Pose>();
+
+    /// <summary>She turns her own ID card face down under her hand (the one resting on the counter), without a word.</summary>
+    IEnumerator TurnOverCard(EvidenceFolio.Item it)
+    {
+        if (it.obj == null || reddy == null) yield break;
+        Vector3 rest = reddyHandL.position;
+        Vector3 grip = it.obj.position + Vector3.up * 0.045f;
+        for (float t = 0f; t < 0.5f; t += Time.deltaTime) { reddyHandL.position = Vector3.Lerp(rest, grip, Mathf.SmoothStep(0f, 1f, t / 0.5f)); yield return null; }
+        Quaternion r0 = it.obj.rotation, r1 = Quaternion.AngleAxis(180f, it.obj.right) * r0;
+        Vector3 p0 = it.obj.position;
+        for (float t = 0f; t < 0.55f; t += Time.deltaTime)
+        {
+            float k = Mathf.SmoothStep(0f, 1f, t / 0.55f);
+            it.baseRot = Quaternion.Slerp(r0, r1, k);
+            it.basePos = p0 + Vector3.up * 0.03f * Mathf.Sin(k * Mathf.PI);
+            it.obj.rotation = it.baseRot; it.obj.position = it.basePos;
+            reddyHandL.position = it.obj.position + Vector3.up * 0.045f;
+            yield return null;
+        }
+        it.obj.rotation = r1; it.obj.position = p0;
+        sfx.PlayOneShot(EvidenceFolio.Put(), 0.35f);
+        it.basePos = p0; it.baseRot = r1;
+        yield return Wait(0.7f);                                  // her hand stays on it a moment
+        Vector3 on = reddyHandL.position;
+        for (float t = 0f; t < 0.5f; t += Time.deltaTime) { reddyHandL.position = Vector3.Lerp(on, rest, Mathf.SmoothStep(0f, 1f, t / 0.5f)); yield return null; }
+        reddyHandL.position = rest;
+    }
+
+    /// <summary>A short answer to a piece that does not do what Arjun needs: what it fails to establish.</summary>
+    static string WeakLine(string key, int round)
+    {
+        if (round == 1)
+            return key == "usb" ? "a4c_weak1_usb" : key == "clip" ? "a4c_weak1_clip" : key == "plate" ? "a4c_weak1_plate" : "a4c_weak1_bhaskar";
+        return key == "id" ? "a4c_weak2_id" : key == "signout" ? "a4c_weak2_signout" : key == "plate" ? "a4c_weak2_plate" : "a4c_weak2_bhaskar";
+    }
+
     IEnumerator ReddyRun()
     {
         bool met = false;
         AddSpot(reddy.transform, Vector3.up * 1.5f, "Talk to Inspector Reddy", () => phase == Phase.Free && !met, () => { met = true; });
+        // she waits at the end of the counter, one hand resting on it, watching the station
+        reddyHandL = new GameObject("ReddyHandL").transform; reddyHandL.SetParent(transform, false);
+        reddyHandR = new GameObject("ReddyHandR").transform; reddyHandR.SetParent(transform, false);
+        reddyHandL.position = new Vector3(-6.86f, StallTop + 0.03f, 5.86f);
+        reddy.Hold(0, reddyHandL, 0.01f);
+        reddy.lean = 3f;
+        var stationLook = new GameObject("ReddyLook").transform; stationLook.SetParent(transform, false);
+        stationLook.position = new Vector3(0f, 2.2f, 8.4f);               // the station's door
+        reddy.lookTarget = stationLook;
+        GatherPieces();
         yield return OpenAct();
         Teleport(new Vector3(4f, 0.1f, -6f), -40f);
         yield return Narrate("a4c_vo");
         BeginFree("Meet Inspector Reddy at the chai stall", reddy.transform.position + Vector3.up * 1.9f, "Inspector Reddy");
-        yield return new WaitUntil(() => met);
+        // she has seen him coming: once he is close she turns her head from the station to him
+        while (!met)
+        {
+            if (Near(reddy.transform.position, 6f)) reddy.lookTarget = cam;
+            yield return null;
+        }
         BeginBusy();
-        yield return Turn(reddy.transform.position + Vector3.up * 1.5f, 0.7f);
+        reddy.lookTarget = cam;
+        yield return Glide(ArjunAtStall, -57f, 22f, 1.1f);          // her face and the counter's near end both in view
         yield return Talk("a4c_reddy_1", reddy);
         yield return Talk("a4c_arjun_id");
+        // before she answers she looks back at the station, as if to check who is watching
+        reddy.lookTarget = stationLook;
+        yield return Wait(1.1f);
+        reddy.lookTarget = cam;
+        yield return Wait(0.3f);
         yield return Talk("a4c_reddy_2", reddy);
+        EndTalk();
 
-        // the evidence the detective can put on the table
-        var d = SaveSystem.Data;
-        var items = new List<string>(); var keys = new List<string>();
-        if (d.hasIdCard) { items.Add("Her own ID card, dropped in the market"); keys.Add("id"); }
-        items.Add("The library sign-out sheet: \"S. Reddy\", two weeks ago"); keys.Add("signout");
-        items.Add("Priya's research from the encrypted files"); keys.Add("usb");
-        items.Add("The newspaper clippings from Priya's wall"); keys.Add("clip");
-        if (d.hasPlate) { items.Add("The black SUV's licence plate"); keys.Add("plate"); }
-        else { items.Add("Bhaskar's story about the black SUV"); keys.Add("bhaskar"); }
-
-        yield return EvidenceRound("a4c_reddy_r1", "a4c_reddy_r1ok", items, keys, new[] { "id", "signout" });
-        yield return EvidenceRound("a4c_reddy_r2", "a4c_reddy_r2ok", items, keys, new[] { "usb", "clip" });
+        // ---- round 1: "I don't know any Priya Kapoor"
+        reddyRound = 1;
+        yield return Talk("a4c_reddy_r1", reddy);
+        EndTalk();
+        yield return LayOut();
+        yield return EvidenceRound(1, "INSPECTOR REDDY", "\"I don't know any Priya Kapoor.\"", "a4c_reddy_r1ok", new[] { "id", "signout" });
+        // ---- round 2: "My investigation is classified"
+        reddyRound = 2;
+        yield return Talk("a4c_reddy_r2", reddy);
+        EndTalk();
+        yield return EvidenceRound(2, "INSPECTOR REDDY", "\"You're seeing a fraction of the picture. Stay out of it.\"", "a4c_reddy_r2ok", new[] { "usb", "clip" });
+        reddyRound = 3;
         yield return Talk("a4c_reddy_r3", reddy);
-        yield return Choose(new[] { DialogueDB.Text("a4c_q_a"), DialogueDB.Text("a4c_q_b"), DialogueDB.Text("a4c_q_c") });
+        yield return Choose(new[] { "Show my hand", "Whose side?", "Priya first" },
+                            new[] { DialogueDB.Text("a4c_q_a"), DialogueDB.Text("a4c_q_b"), DialogueDB.Text("a4c_q_c") }, null, null);
         int c = menuResult;
         yield return Talk(c == 0 ? "a4c_q_a" : c == 1 ? "a4c_q_b" : "a4c_q_c");
         yield return Talk(c == 0 ? "a4c_reddy_a" : c == 1 ? "a4c_reddy_b" : "a4c_reddy_c", reddy);
@@ -817,28 +789,47 @@ public partial class Act4Story : ActStoryBase
         SaveSystem.Data.allyReddy = true; SaveSystem.Save();
         AddEvidence("Inspector Reddy is investigating Deshpande undercover; the original 1942 deed is safe in her evidence room.");
         AddEvidence("Reddy's men are guarding Priya at the NGO shelter by the river.");
-        Toast("Inspector Reddy is now your ally", 3.5f, true);
+        reddy.Release(0, 0.6f);
         yield return Narrate("a4c_vo_end");
         yield return CloseAct("", "");
     }
 
-    IEnumerator EvidenceRound(string ask, string ok, List<string> items, List<string> keys, string[] correct)
+    /// <summary>
+    /// One round of the interview: the folio is open over everything on the counter; a piece that answers her claim
+    /// ends the round, a weak one gets a short reason and comes back. Her question is not read out again.
+    /// </summary>
+    IEnumerator EvidenceRound(int round, string who, string claim, string ok, string[] correct)
     {
         while (true)
         {
-            yield return Talk(ask, reddy);
-            dlgSpeaker = "PRESENT EVIDENCE";
-            dlgText = DialogueDB.Text(ask);
-            yield return Choose(items.ToArray());
-            string k = keys[menuResult];
-            if (System.Array.IndexOf(correct, k) >= 0)
+            yield return Present(pieces, who, claim);
+            var it = pieces[menuResult];
+            presentedLog.Add(round + ":" + it.key);
+            reddy.lookTarget = it.obj != null ? it.obj : cam;      // she looks down at what he puts in front of her
+            yield return SlidePiece(it, true);
+            yield return Wait(0.5f);
+            if (System.Array.IndexOf(correct, it.key) >= 0)
             {
-                sfx.PlayOneShot(dingClip, 0.5f);
+                if (it.key == "signout")
+                {
+                    // she knows her own hand: a long look at the signature before she says so
+                    yield return Wait(1.1f);
+                    yield return Talk("a4c_reddy_sig", reddy);
+                }
+                else if (it.key == "id") yield return TurnOverCard(it);
+                else yield return Wait(0.8f);
+                reddy.lookTarget = cam;
+                yield return Wait(0.35f);
+                it.locked = true; it.lockedNote = "On the counter in front of her. She has seen it.";
                 yield return Talk(ok, reddy);
+                EndTalk();
                 yield break;
             }
-            sfx.PlayOneShot(buzzClip, 0.4f);
-            yield return Talk("a4c_reddy_wrong", reddy);
+            yield return Wait(0.3f);
+            reddy.lookTarget = cam;
+            yield return Talk(WeakLine(it.key, round), reddy);
+            EndTalk();
+            yield return SlidePiece(it, false);               // he takes it back
         }
     }
 }

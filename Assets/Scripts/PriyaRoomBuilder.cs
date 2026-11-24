@@ -1419,6 +1419,10 @@ public class PriyaRoomPlayer : MonoBehaviour
     float pitch;
     float vy;
     public static bool Locked;
+    /// <summary>While Locked: the head may still turn (seated at a table, hidden behind cover), within LookRange
+    /// degrees of LookCentre, but the body does not move. Never on while a decision is open (the compass reads the mouse).</summary>
+    public static bool LookOnly;
+    public static float LookCentre, LookRange = 75f;
     public static int Surface;          // 0 = wooden floor (apartment), 1 = street (market)
 
     // walking feel
@@ -1461,7 +1465,17 @@ public class PriyaRoomPlayer : MonoBehaviour
         if (Locked)
         {
             vel = Vector3.zero; speedSm = 0f;
-            cc.Move(new Vector3(0, -1f, 0) * Time.deltaTime);
+            if (cc.enabled) cc.Move(new Vector3(0, -1f, 0) * Time.deltaTime);
+            if (LookOnly && !GameState.Paused)
+            {
+                Vector2 d = Vector2.zero;
+                if (ms != null && Cursor.lockState == CursorLockMode.Locked) d += ms.delta.ReadValue() * lookSens;
+                d += GameInput.Look * GameInput.LookSpeed * Time.deltaTime;
+                float yaw = transform.eulerAngles.y + d.x;
+                float off = Mathf.Clamp(Mathf.DeltaAngle(LookCentre, yaw), -LookRange, LookRange);
+                transform.rotation = Quaternion.Euler(0f, LookCentre + off, 0f);
+                pitch = Mathf.Clamp(pitch - d.y, -60f, 60f);
+            }
             ApplyBob(Vector3.zero, 0f);
             return;
         }
@@ -1496,7 +1510,9 @@ public class PriyaRoomPlayer : MonoBehaviour
         Vector3 targetVel = (transform.right * mv.x + transform.forward * mv.y) * s;
         vel = Vector3.MoveTowards(vel, targetVel, (mv.sqrMagnitude > 0.01f ? 13f : 18f) * Time.deltaTime);
 
-        vy = cc.isGrounded ? -1f : vy - 9.81f * Time.deltaTime;
+        // grounded, the capsule is pressed down firmly enough to follow a flight of stairs going down (31 degrees at a
+        // sprint needs ~2 m/s): with the old -1 m/s it left the steps and fell from one to the next
+        vy = cc.isGrounded ? -4f : vy - 9.81f * Time.deltaTime;
         if (GameInput.JumpPressed && cc.isGrounded) vy = GameInput.JumpSpeed;      // Arduino left button, once per press
         Vector3 move = vel; move.y = vy;
         cc.Move(move * Time.deltaTime);

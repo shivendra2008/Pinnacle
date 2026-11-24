@@ -345,8 +345,8 @@ public class PriyaRoomStory : MonoBehaviour
         new[] { "arjun_intro1", "ARJUN (V.O.)", "In Chandnipur, everyone has a secret. The city is old enough to keep them.", "" },
         new[] { "arjun_intro2", "ARJUN (V.O.)", "But sometimes a secret gets too big for the walls that hold it, and it starts to leak through the cracks.", "" },
         new[] { "arjun_intro3", "ARJUN (V.O.)", "That's when people like me get a phone call.", "" },
-        new[] { "kamala_welcome1", "KAMALA KAPOOR", "Mr. Mehra? Thank you for coming. The police say she left on her own. But a mother knows. Something is wrong.", "her" },
-        new[] { "kamala_welcome2", "KAMALA KAPOOR", "I haven't touched anything. I thought someone should look at it properly. Her room is the door at the end of the hallway. Here is the key.", "her" },
+        new[] { "kamala_welcome1", "KAMALA KAPOOR", "Mr. Mehra? Thank you for coming. Please, come inside. The police say she left on her own. But a mother knows. Something is wrong.", "her" },
+        new[] { "kamala_welcome2", "KAMALA KAPOOR", "I haven't touched anything. I thought... I thought someone should look at it properly.", "her" },
     };
 
     IEnumerator OpeningVoices()
@@ -768,9 +768,9 @@ public class PriyaRoomStory : MonoBehaviour
         string[] asks = { "q_k_a", "q_k_b", "q_k_c" };          // Arjun's own recordings of the three questions
         string[] replies =
         {
-            "Not directly. But two weeks ago, she stopped coming home for dinner. I could hear her on the phone, arguing with someone. She used words like 'forgery' and 'original documents'. I didn't understand, but I understood her voice. She was scared.",
-            "Priya's work is always dangerous, Mr. Mehra. She fights for people who have no one else. She told me, 'Maa, if I can prove the land belongs to them, no one can touch them.' She was so hopeful. And then, suddenly, she wasn't.",
-            "An inspector came. A woman. She looked around for ten minutes, asked me a few questions, and left. She said Priya probably went to visit a friend. But Priya's phone is here. Her wallet is here. What kind of person leaves without their phone?",
+            "Not directly. But two weeks ago, she stopped coming home for dinner. She said she was working late at the NGO. But I could hear her on the phone, arguing with someone. She used words like 'forgery' and 'original documents'. I didn't understand, but I understood her voice. She was scared.",
+            "Priya's work is always dangerous, Mr. Mehra. She fights for people who have no one else to fight for them. The slum families in Basti Nagar, they were going to lose their homes. Priya was trying to stop it. She told me, 'Maa, if I can prove the land belongs to them, no one can touch them.' She was so hopeful. And then, suddenly, she wasn't.",
+            "An inspector came. A woman. She looked around for ten minutes, asked me a few questions, and left. She didn't seem interested. She said Priya probably went to visit a friend. But Priya's phone is here. Her wallet is here. What kind of person leaves without their phone?",
         };
         dlgAsked = new bool[3];
 

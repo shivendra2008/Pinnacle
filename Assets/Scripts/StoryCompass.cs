@@ -574,7 +574,7 @@ public sealed class StoryCompass
     }
 
     /// <summary>Phrase ends from the measured word timing of a recorded clip (VoTiming, made by
-    /// Tools/arjun_recordings.py). False, with nothing set, when the clip has none or its subtitle has changed.</summary>
+    /// Tools/vo_recordings.py). False, with nothing set, when the clip has none or its subtitle has changed.</summary>
     bool TimedEnds(string text, AudioClip clip)
     {
         var timing = clip != null ? VoTiming.Get(clip.name) : null;

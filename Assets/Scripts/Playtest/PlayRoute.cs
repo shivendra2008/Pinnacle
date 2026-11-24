@@ -49,7 +49,8 @@ using UnityEngine.Rendering.Universal;
 ///   PINNACLE_ROUTE_CURATOR_SKIP=12 skips it with Enter after 12 s),
 ///   PINNACLE_ROUTE_CAPTURE=1 or a list of segments: approach,suv,curator for the market, act1 for Act I (footage: fixed
 ///   30 fps while a segment records (approach, suv, curator; act1; prologue), every frame with its UI as JPEG, the mix rendered offline to WAV, one folder per
-///   segment; the stretches between run in real time; Tools/route_video.py makes the MP4), PINNACLE_ROUTE_SHOTS=1 (a few PNG stills; not for timing runs),
+///   segment; the stretches between run in real time; Tools/route_video.py makes the MP4; PINNACLE_ROUTE_AUDIO_ONLY=1
+///   records the mix and no frames, to hear what plays), PINNACLE_ROUTE_SHOTS=1 (a few PNG stills; not for timing runs),
 ///   PINNACLE_ROUTE_POINTER=mouse (answer the dials by swinging the needle with a virtual mouse and clicking, instead of
 ///   the number keys), PINNACLE_ROUTE_INPUTTESTS=1 (Bhaskar's gated questions with keys and a virtual gamepad, a held key, pausing in the
 ///   SUV choice), PINNACLE_ROUTE_CENSUS=1 (census.txt: triangles and shadow casters per mesh once the market is built),
@@ -61,7 +62,7 @@ using UnityEngine.Rendering.Universal;
 /// biggest ones in every frame over 50 ms). Then it quits.
 /// </summary>
 [DefaultExecutionOrder(-800)]          // after GameInput (-900), before the story scripts read their input
-public class PlayRoute : MonoBehaviour
+public partial class PlayRoute : MonoBehaviour
 {
     const BindingFlags Any = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
 
@@ -72,6 +73,7 @@ public class PlayRoute : MonoBehaviour
     Vector2 mouseDelta; bool mouseClick, mouseDirty;
     string experiments;
     readonly HashSet<string> segments = new HashSet<string>();      // footage segments to record (PINNACLE_ROUTE_CAPTURE)
+    bool audioOnly;                                                   // PINNACLE_ROUTE_AUDIO_ONLY=1: the mix only, no frames
 
     // ------------------------------------------------------------------ virtual input
     Keyboard vk;
@@ -132,10 +134,12 @@ public class PlayRoute : MonoBehaviour
         curatorAfter = Env("PINNACLE_ROUTE_CURATOR", "") == "1";
         foreach (var seg in Env("PINNACLE_ROUTE_CAPTURE", "").Split(',')) if (seg.Trim().Length > 0) segments.Add(seg.Trim() == "1" ? "route" : seg.Trim());
         capture = segments.Count > 0;
+        audioOnly = Env("PINNACLE_ROUTE_AUDIO_ONLY", "") == "1";
         shots = Env("PINNACLE_ROUTE_SHOTS", "") == "1";
         census = Env("PINNACLE_ROUTE_CENSUS", "") == "1";
         inputTests = Env("PINNACLE_ROUTE_INPUTTESTS", "") == "1";
-        mousePointer = Env("PINNACLE_ROUTE_POINTER", "") == "mouse" || route == "kamala" || route == "act3" || route == "act3full";
+        mousePointer = Env("PINNACLE_ROUTE_POINTER", "") == "mouse" || route == "kamala" || route == "act3" || route == "act3full"
+                       || route == "cafeminute" || route == "cafefull" || route == "house" || route == "reddy" || route == "act5";
         experiments = Env("PINNACLE_ROUTE_EXP", "");
         UnityEngine.Random.InitState(20261121);       // the crowd's and the traffic's dice roll the same way every run
 
@@ -407,12 +411,18 @@ public class PlayRoute : MonoBehaviour
         player = builder.PlayerCtrl;
         SaveSystem.Profile.playerName = "Route";
         if (segments.Contains("route")) StartCapture("route");
+        StartCoroutine(VoiceLog());
         if (route == "act1") yield return ActOne();
         else if (route == "act1door") yield return ActOneDoor();
         else if (route == "kamala") yield return Kamala();
         else if (route == "act3") yield return ActThree(false);
         else if (route == "act3full") yield return ActThree(true);
         else if (route == "cafe") yield return Cafe(true);
+        else if (route == "cafeminute") yield return CafeMinute();
+        else if (route == "cafefull") yield return CafeFull();
+        else if (route == "house") yield return House();
+        else if (route == "reddy") yield return Reddy();
+        else if (route == "act5") yield return ActFive();
         else if (route == "act1intro") yield return ActOneIntro();
         else if (route == "signs") yield return Signs();
         else yield return Market(route == "walk");
@@ -822,10 +832,12 @@ public class PlayRoute : MonoBehaviour
             all += t; rends++; if (c) { cast += t; casters++; }
         }
         foreach (var l in FindObjectsByType<Light>()) if (l.enabled && l.gameObject.activeInHierarchy) { lights++; if (l.shadows != LightShadows.None) shadowLights++; }
+        int sources = 0, playing = 0, npcs = FindObjectsByType<CharacterNPC>().Length;
+        foreach (var a0 in FindObjectsByType<AudioSource>()) if (a0.enabled && a0.gameObject.activeInHierarchy) { sources++; if (a0.isPlaying) playing++; }
         var keys = new List<string>(agg.Keys);
         keys.Sort((x, y) => agg[y][1].CompareTo(agg[x][1]));
         var sb = new StringBuilder();
-        sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "{0} renderers ({1} skinned), {2:N0} triangles; {3} cast shadows ({4:N0} triangles); {5} lights ({6} with shadows)", rends, skinned, all, casters, cast, lights, shadowLights));
+        sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "{0} renderers ({1} skinned), {2:N0} triangles; {3} cast shadows ({4:N0} triangles); {5} lights ({6} with shadows); {7} characters; {8} audio sources ({9} playing)", rends, skinned, all, casters, cast, lights, shadowLights, npcs, sources, playing));
         sb.AppendLine("instances  triangles   casting  casting-tris  mesh");
         foreach (var k in keys)
         {
@@ -1540,6 +1552,52 @@ public class PlayRoute : MonoBehaviour
         Check(GetBool(st, "codeResult"), "the code " + code + " is accepted");
     }
 
+    /// <summary>Walks the Record Room stair like a player: from the reading room through the door, down the twenty steps
+    /// and into the Record Room (or the reverse). No prompt, no fade: the floor changes half-way down.</summary>
+    IEnumerator Stair(object a3, bool down, bool shots_)
+    {
+        const float X = 5.6f;
+        string seg = down ? (shots_ ? "stairs_down" : "stairs_down2") : "stairs_up";       // footage: PINNACLE_ROUTE_CAPTURE=stairs_down,stairs_up
+        Segment(seg, true);
+        float t0 = (float)Now, y0 = player.transform.position.y;
+        float fogTop = RenderSettings.fogDensity;
+        Vector3 P(float z) => new Vector3(X, player.transform.position.y, z);
+        if (down)
+        {
+            yield return WalkToIn(a3, P(10.1f), 0.35f, 25f);
+            yield return WalkToIn(a3, P(11.75f), 0.3f, 10f);
+            if (shots && shots_) { yield return LookHold(new Vector3(X, -2.4f, 18.6f), 120f, 0.4f); yield return StillShot("act3_stair_top"); }
+            yield return WalkToIn(a3, P(15.0f), 0.3f, 15f);
+            if (shots && shots_) { yield return LookHold(new Vector3(X, -2.6f, 19.2f), 120f, 0.3f); yield return StillShot("act3_stair_mid"); }
+            yield return WalkToIn(a3, P(18.45f), 0.3f, 20f);
+            yield return WalkToIn(a3, P(20.3f), 0.35f, 15f);
+            yield return WaitFor(() => (Get(a3, "area") is int ar && ar == 1) && FreeIn(a3), 30f, "down the stair on foot into the Record Room");
+            Check(player.transform.position.y < -3.2f, "Arjun stands on the Record Room's floor, 3.4 m below the reading room (y " + player.transform.position.y.ToString("F2") + ")");
+            Check(Mathf.Abs(RenderSettings.fogDensity - 0.012f) < 0.001f && fogTop < 0.0075f, "the air thickens on the way down (fog " + fogTop.ToString("F4") + " -> " + RenderSettings.fogDensity.ToString("F4") + ")");
+            if (shots && shots_)
+            {
+                PlaceAt(new Vector3(X, player.transform.position.y, 18.4f), 180f, 0f);
+                yield return LookHold(new Vector3(X, 0.9f, 12.2f), 160f, 0.4f);
+                yield return StillShot("act3_stair_foot_up");
+                PlaceAt(new Vector3(X, player.transform.position.y, 20.3f), 0f, 0f);
+            }
+        }
+        else
+        {
+            Vector3 p = player.transform.position;
+            if (p.z > 20.8f) yield return WalkToIn(a3, new Vector3(Mathf.Max(p.x, 11.6f), p.y, 20.4f), 0.4f, 25f);
+            yield return WalkToIn(a3, P(20.3f), 0.35f, 25f);
+            yield return WalkToIn(a3, P(18.45f), 0.3f, 10f);
+            yield return WalkToIn(a3, P(11.75f), 0.3f, 25f);
+            yield return WalkToIn(a3, P(10.0f), 0.35f, 10f);
+            yield return WaitFor(() => (Get(a3, "area") is int ar && ar == 0) && FreeIn(a3), 30f, "up the stair on foot into the reading room");
+            Check(player.transform.position.y > -0.05f && player.transform.position.y < 0.3f, "Arjun is back on the reading room's floor (y " + player.transform.position.y.ToString("F2") + ")");
+        }
+        Note("the stair " + (down ? "down" : "up") + ": " + ((float)Now - t0).ToString("F1") + " s from the reading room side, y " + y0.ToString("F2") + " -> " + player.transform.position.y.ToString("F2") +
+             ", lowest " + ((Get(a3, "stairMinY") as float? ?? 9f).ToString("F2")));
+        Segment(seg, false);
+    }
+
     IEnumerator ActThree(bool fresh)
     {
         int wantPandit = int.Parse(Env("PINNACLE_ROUTE_PANDIT", "2"), CultureInfo.InvariantCulture);
@@ -1561,42 +1619,49 @@ public class PlayRoute : MonoBehaviour
         {
             // the night guard lets Arjun in (lines are skipped with Space like a player in a hurry would not: they play out)
             yield return WaitFor(() => FreeIn(a3) && (((string)Get(a3, "objective")) ?? "").Contains("computer"), 120f, "the guard's lines end and the computer is the objective");
+            if (shots) yield return LibraryStills(a3);
             yield return Use(a3, "Use the computer");
             yield return TypeCode(a3, "NANI1987");
             yield return CloseCard(a3, 2.5f);
             yield return WaitFor(() => GetBool(a3, "usbDone"), 60f, "Priya's files are read");
-            yield return Use(a3, "Go down to the Record Room");
-            yield return WaitFor(() => (Get(a3, "area") is int ar && ar == 1) && FreeIn(a3), 30f, "down in the Record Room");
+            yield return Use(a3, "Open the Record Room door");
+            yield return WaitFor(() => GetBool(a3, "doorOpen") && FreeIn(a3), 15f, "the Record Room door swings open on the stair");
+            yield return Stair(a3, true, true);
             if (shots) yield return StillShot("act3_basement");
             yield return Use(a3, "Inspect the cage", 1.6f);
             yield return WaitFor(() => GetBool(a3, "cageSeen") && FreeIn(a3), 30f, "the cage is locked");
             yield return Use(a3, "Look at the calendar", 1.4f);
             yield return CloseCard(a3, 2.5f);
             yield return WaitFor(() => GetBool(a3, "calendarSeen") && FreeIn(a3), 30f, "the calendar is read");
-            yield return Use(a3, "Go back upstairs");
-            yield return WaitFor(() => (Get(a3, "area") is int ar2 && ar2 == 0) && FreeIn(a3), 30f, "back in the reading room");
+            yield return Stair(a3, false, false);
             yield return Use(a3, "Try the desk drawer", 1.3f);
             yield return TypeCode(a3, "7491");
             yield return WaitFor(() => GetBool(a3, "keyFound") && FreeIn(a3), 30f, "the cage key is found");
-            yield return Use(a3, "Go down to the Record Room");
-            yield return WaitFor(() => (Get(a3, "area") is int ar3 && ar3 == 1) && FreeIn(a3), 30f, "down again");
+            yield return WalkToIn(a3, new Vector3(0.5f, player.transform.position.y, 9.3f), 0.5f, 20f);
+            yield return Stair(a3, true, false);
+            Check(Get(a3, "stairMaxStep") is float ms && ms < 0.3f, "nothing on the stair moved Arjun more than a footstep in one frame (largest " + ((Get(a3, "stairMaxStep") as float? ?? -1f).ToString("F2")) + " m)");
+            Segment("cage", true);
             yield return Use(a3, "Open the cage with the key", 1.6f);
+            if (shots) { yield return WaitFor(() => GetBool(a3, "cardOpen") || (Get(a3, "dlgText") as string ?? "").Contains("1942"), 20f, "the empty folder is found"); yield return StillShot("act3_cage_sheet"); }
             yield return CloseCard(a3, 2.5f);
             yield return WaitFor(() => GetBool(a3, "cageOpen"), 30f, "the cage is opened and the sign-out sheet read");
+            Segment("cage", false);
         }
         // ---- the temple
         yield return WaitFor(() => (Get(a3, "area") is int ar4 && ar4 == 2), 60f, "Arjun reaches the Kali Temple");
-        yield return WaitFor(() => FreeIn(a3) && (((string)Get(a3, "objective")) ?? "").Contains("priest"), 60f, "the priest is the objective");
-        if (shots) yield return StillShot("act3_temple");
+        yield return WaitFor(() => FreeIn(a3) && ((((string)Get(a3, "objective")) ?? "").Contains("priest") || (((string)Get(a3, "objective")) ?? "").Contains("Harishankar")), 60f, "Harishankar is the objective");
+        if (shots) yield return TempleStills(a3);
+        if (Has(a3, "idolReport")) Note("murti: " + (Get(a3, "idolReport") as string));
         var pandit = Get(a3, "pandit") as CharacterNPC;
         Segment("pandit", true);
         section = "pandit";
-        yield return Use(a3, "Talk to Pandit Harishankar", 1.7f);
+        yield return Use(a3, "Harishankar", 1.7f);
         yield return WaitFor(() => StoryPhase(a3) == "Busy", 3f, "E starts the Pandit's talk");
         yield return Dial(a3, wantPandit, "the Pandit's question", pandit);
         int got = Get(a3, "menuResult") is int mr ? mr : -9;
         Check(got == wantPandit, "the Pandit's question answered with index " + got);
-        yield return WaitFor(() => pandit != null && pandit.IsTalking, 20f, "the Pandit answers back");
+        yield return WaitFor(() => pandit != null && pandit.IsTalking, 25f, "Harishankar answers back");
+        if (Has(a3, "ledgerClosed")) Check(GetBool(a3, "ledgerClosed") && GetBool(a3, "drawerOpened") && GetBool(a3, "envelopeOffered"), "he closed the ledger, opened the drawer and held out the envelope before answering");
         for (float t = 0; t < 3.5f; t += Time.deltaTime) yield return null;
         Segment("pandit", false);
         yield return CloseCard(a3, 3f);
@@ -1607,6 +1672,7 @@ public class PlayRoute : MonoBehaviour
         var gate = Get(a3, "gate") as Transform;
         yield return WaitFor(() => FreeIn(a3), 20f, "control after the letter");
         if (gate != null) yield return WalkToIn(a3, gate.position, 2.4f, 40f);
+        yield return CloseCard(a3, 2f);                     // the caller's text: Café Irani, thirty minutes
         yield return CloseCard(a3, 2f);                     // Kamala's text message
         Segment("crossroads", true);
         section = "crossroads";
@@ -1731,7 +1797,7 @@ public class PlayRoute : MonoBehaviour
             float top = counter != null ? counter.position.y : 0.5f;
             // the window can end mid-carry (the cup 6 cm up in his hand): judge the cup once he has set it down
             for (double r0 = Now; GetBool(a4, "taskHolding") && Now - r0 < 6.0;) yield return null;
-            Check(!GetBool(a4, "taskHolding") && Mathf.Abs(task.position.y - (Get(a4, "counterTopY") is float cty ? cty : task.position.y)) < 0.01f, "the cup is standing on the counter after release (y " + task.position.y.ToString("F3") + ")");
+            Check(!GetBool(a4, "taskHolding") && Mathf.Abs(task.position.y - (Get(a4, "counterTopY") is float cty ? cty : task.position.y)) < 0.02f, "the cup is standing on the counter (or its tray) after release (y " + task.position.y.ToString("F3") + ")");
         }
         else Note("no owner task in this build");
         sampling = false;
@@ -1897,6 +1963,27 @@ public class PlayRoute : MonoBehaviour
     // ================================================================== footage
     string segDir;
 
+    /// <summary>voices.txt: every clip that starts playing on any source (time, source, clip, its length), so a run shows
+    /// which recording of each line the build plays.</summary>
+    IEnumerator VoiceLog()
+    {
+        var playing = new Dictionary<AudioSource, AudioClip>();
+        string path = Path.Combine(outDir, "voices.txt");
+        File.WriteAllText(path, "# time\tsource\tclip\tlength (s)\n");
+        while (true)
+        {
+            foreach (var src in FindObjectsByType<AudioSource>())
+            {
+                var clip = src.isPlaying ? src.clip : null;
+                playing.TryGetValue(src, out var was);
+                if (clip != null && clip != was && clip.length > 0.6f)
+                    File.AppendAllText(path, string.Format(CultureInfo.InvariantCulture, "{0:F2}\t{1}\t{2}\t{3:F2}\n", Now, src.gameObject.name, clip.name, clip.length));
+                playing[src] = clip;
+            }
+            for (float t = 0f; t < 0.1f; t += Time.unscaledDeltaTime) yield return null;
+        }
+    }
+
     void Segment(string name, bool on)
     {
         if (!segments.Contains(name)) return;
@@ -1937,9 +2024,12 @@ public class PlayRoute : MonoBehaviour
                 wavSamples += n;
                 buf.Dispose();
             }
-            var tex = ScreenCapture.CaptureScreenshotAsTexture();
-            File.WriteAllBytes(Path.Combine(capDir, "f_" + capFrame.ToString("00000") + ".jpg"), tex.EncodeToJPG(82));
-            Destroy(tex);
+            if (!audioOnly)
+            {
+                var tex = ScreenCapture.CaptureScreenshotAsTexture();
+                File.WriteAllBytes(Path.Combine(capDir, "f_" + capFrame.ToString("00000") + ".jpg"), tex.EncodeToJPG(82));
+                Destroy(tex);
+            }
             string line = section;
             if (line != srtLine)
             {

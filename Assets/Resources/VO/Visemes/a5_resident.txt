@@ -1,0 +1,40 @@
+# a5_resident  2.877 s  words heard on-device (Tools/lipsync/npc_lipsync.py)
+# V start end viseme weight stress phoneme | A time strength | P start end | W start end word
+W 0.120 0.960 Bhaiya,
+W 0.960 1.380 Priya
+W 1.380 1.740 Didi
+W 1.740 2.160 hasn't
+W 2.160 2.340 slept
+W 2.340 2.520 in
+W 2.520 2.877 days.
+V 0.115 0.230 PP 1.00 -1 B
+V 0.230 0.398 E 1.00 1 EY1
+V 0.398 0.509 I 1.00 1 EY1
+V 0.509 0.636 I 0.60 0 IY0
+V 0.636 0.940 aa 1.00 1 AE1
+V 0.940 1.023 PP 1.00 -1 P
+V 1.023 1.109 RR 1.00 -1 R
+V 1.109 1.242 I 1.00 1 IY1
+V 1.242 1.300 I 1.00 -1 Y
+V 1.300 1.380 aa 0.60 0 AH0
+V 1.380 1.441 DD 1.00 -1 D
+V 1.441 1.547 I 1.00 1 IH1
+V 1.547 1.608 DD 1.00 -1 D
+V 1.608 1.740 I 1.00 1 IH1
+V 1.740 1.791 aa 0.45 -1 HH
+V 1.791 1.923 aa 1.00 1 AE1
+V 1.923 2.019 SS 1.00 -1 S
+V 2.019 2.077 nn 1.00 -1 N
+V 2.077 2.160 DD 1.00 -1 T
+V 2.160 2.201 SS 1.00 -1 S
+V 2.201 2.226 nn 1.00 -1 L
+V 2.226 2.273 E 1.00 1 EH1
+V 2.273 2.305 PP 1.00 -1 P
+V 2.305 2.340 DD 1.00 -1 T
+V 2.340 2.438 I 1.00 1 IH1
+V 2.438 2.520 nn 1.00 -1 N
+V 2.520 2.579 DD 1.00 -1 D
+V 2.579 2.675 E 1.00 1 EY1
+V 2.675 2.740 I 1.00 1 EY1
+V 2.740 2.877 SS 1.00 -1 S
+A 1.109 0.41

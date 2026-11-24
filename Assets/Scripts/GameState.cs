@@ -40,5 +40,6 @@ public static class GameState
     {
         Paused = false;
         Time.timeScale = 1f; AudioListener.pause = false;
+        PriyaRoomPlayer.LookOnly = false;          // a seat or a hiding place does not outlive its scene
     }
 }

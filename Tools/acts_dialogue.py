@@ -5,8 +5,8 @@ Run from the project root:   python3 Tools/acts_dialogue.py          (only missi
                              python3 Tools/acts_dialogue.py --all    (re-record everything)
 Writes  Assets/Resources/VO/<id>.wav   (macOS `say` + ffmpeg)
 and     Assets/Scripts/DialogueDB.cs   (id -> speaker + subtitle text, used by the game)
-Arjun's recorded lines (Tools/arjun_recordings.py) are never re-recorded, even with --all: change their text only to
-match the recording, then re-run that tool to check it and re-time the subtitles.
+The voice actors' recorded lines (Tools/vo_recordings.py) are never re-recorded, even with --all: change their text only
+to match the recording, then re-run that tool to check it and re-time the subtitles.
 """
 import os, subprocess, sys, tempfile
 
@@ -26,6 +26,9 @@ KAMALA = ("Tara", 150, 1.0, "")
 REDDY = ("Tara", 160, 0.9, "")
 PRIYA = ("Tara", 156, 1.06, "")
 RESIDENT = ("Tara", 150, 0.95, "")
+PRIYA_LOW = ("Tara", 138, 1.04, "volume=0.6")                 # reading her file aloud to herself, upstairs
+REPORTER = ("Tara", 148, 1.13, "")
+NEWS = ("Rishi", 172, 0.98, "highpass=f=280,lowpass=f=4200")      # a television anchor through a small set's speaker
 VIKRAM = ("Aman", 150, 0.86, "")
 THUG = ("Rishi", 140, 0.80, "")
 JUDGE = ("Aman", 138, 0.82, "aecho=0.6:0.5:40:0.15")
@@ -53,59 +56,63 @@ LINES = [
  ("a3_arjun_empty", "ARJUN", ARJUN, "The 1942 folder. It's empty. Just a sign-out sheet."),
  ("a3_arjun_reddy", "ARJUN", ARJUN, "Inspector Reddy took the original deed. Is she destroying evidence for Deshpande? Or is she building a case of her own? I need to find out."),
  ("a3_vo_temple", "ARJUN (V.O.)", ARJUN, "The Kali Temple. Priya told Vikram that Kali Ma would protect the truth. Maybe she meant it more literally than he thought."),
- ("a3_pandit_1", "PANDIT HARISHANKAR", PANDIT, "You are looking for Priya. I can see it in your eyes. You have the same look she had when she came to me. Desperate, and determined."),
+ ("a3_pandit_1", "HARISHANKAR", PANDIT, "You are looking for Priya. I can see it in your eyes. You have the same look she had when she came to me. Desperate, and determined."),
  ("a3_arjun_q", "ARJUN", ARJUN, "She left something with you?"),
- ("a3_pandit_2", "PANDIT HARISHANKAR", PANDIT, "A sealed envelope. She said someone would come for it, but that I should only give it to someone who understands what matters. So tell me, young man. What is more important? The truth, or the people the truth protects?"),
+ ("a3_pandit_2", "HARISHANKAR", PANDIT, "She did. A sealed envelope. She said someone would come for it, but she also said I should only give it to someone who understands what matters."),
  ("a3_ans_a", "ARJUN", ARJUN, "The truth. Always. Without truth, there is no justice."),
  ("a3_ans_b", "ARJUN", ARJUN, "The people. Truth is meaningless if it doesn't serve those who suffer."),
  ("a3_ans_c", "ARJUN", ARJUN, "They're the same thing. The truth protects the people, and the people deserve the truth."),
- ("a3_pandit_a", "PANDIT HARISHANKAR", PANDIT, "A journalist's answer. Very well. Take it."),
- ("a3_pandit_b", "PANDIT HARISHANKAR", PANDIT, "A compassionate answer. Priya would agree. She told me to tell you: the hearing is tomorrow at ten in the morning, at the Municipal Court. She wants the documents there."),
- ("a3_pandit_c", "PANDIT HARISHANKAR", PANDIT, "Now that is the answer she hoped for. She is safe. She is at the old school building near the river, the one the NGO uses as a shelter. She is waiting for tomorrow."),
+ ("a3_pandit_a", "HARISHANKAR", PANDIT, "A journalist's answer. Very well."),
+ ("a3_pandit_b", "HARISHANKAR", PANDIT, "A compassionate answer. Priya would agree."),
+ ("a3_pandit_c", "HARISHANKAR", PANDIT, "Now, that is the answer she hoped for."),
  ("a3_letter", "PRIYA (LETTER)", PRIYA, "If you're reading this, I hope you're someone I can trust. The councilor, the builder, and someone in the police are all connected. The hearing is tomorrow morning at ten, at the Municipal Court. Five hundred families are counting on this. I'm trusting you with their futures. Please don't let me down. Priya."),
- ("a3_caller", "UNKNOWN CALLER", CALLER, "Mister Mehra. You've been busy tonight. I'm impressed. Most people would have given up after the apartment. I have information about Priya that you haven't found yet. Information that could save her life, or end it. Cafe Irani. Thirty minutes. Come alone."),
+ ("a3_caller", "UNKNOWN CALLER", CALLER, "Mister Mehra. You've been busy tonight. I must say, I'm impressed. Most people would have given up after the apartment. But you've gone further, and that makes you either very brave, or very foolish."),
  ("a3_vo_crossroads", "ARJUN (V.O.)", ARJUN, "Two calls, and time for one. Or I could stop running, and call the one person who keeps turning up in this story."),
  ("a3_vo_end", "ARJUN (V.O.)", ARJUN, "Every choice closes a door. In Chandnipur, closed doors have a way of locking behind you."),
 
  # ---------------- ACT IV A: CAFE IRANI
  ("a4a_vo", "ARJUN (V.O.)", ARJUN, "Cafe Irani. Checked tablecloths, Osmania biscuits, and at this hour, nobody who wants to be seen."),
- ("a4a_raj_1", "RAJ MALHOTRA", RAJ, "Sit down, Mister Mehra. And before you say anything, yes, I know who I am. The big bad builder who wants to demolish a slum. That's what Priya Kapoor believes. And she's not entirely wrong."),
+ ("a4a_raj_1", "RAJ MALHOTRA", RAJ, "Sit down, Mister Mehra. And before you say anything, yes, I know who I am. I'm the villain of this story. The big bad builder who wants to demolish a slum. That's what the newspapers will say. That's what Priya Kapoor believes. And she's not entirely wrong."),
  ("a4a_arjun_why", "ARJUN", ARJUN, "Then why did you call me?"),
- ("a4a_raj_2", "RAJ MALHOTRA", RAJ, "Because I'm in over my head. I built affordable homes for twenty years. Then Deshpande offered me the Renewal Project. I didn't know the land documents were forged, I swear it. By the time I found out, I was in too deep. If I back out, she destroys me. If I stay, five hundred families lose their homes."),
+ ("a4a_raj_2", "RAJ MALHOTRA", RAJ, "Because I'm in over my head. And I think you're the only person in this city who isn't on Deshpande's payroll. I didn't know the land documents were forged, I swear it. By the time I found out, when Priya started making noise about the original deed, I was already in too deep. Deshpande had recordings of me discussing the project with her. She had financial records showing my company receiving advance payments from government funds. If I backed out, she'd destroy me. If I stayed, I'd be complicit in displacing five hundred families."),
  ("a4a_q_a", "ARJUN", ARJUN, "Why should I trust you?"),
- ("a4a_raj_a", "RAJ MALHOTRA", RAJ, "You shouldn't. Not yet. But this should earn a little trust. Six months of recorded conversations between me and Deshpande. The forged documents, the bribes, the plan to destroy the originals. It's all on this phone."),
+ ("a4a_raj_a", "RAJ MALHOTRA", RAJ, "You shouldn't. Not yet. But I'm going to give you something that should earn a little trust."),
  ("a4a_q_b", "ARJUN", ARJUN, "Where is Priya?"),
- ("a4a_raj_b", "RAJ MALHOTRA", RAJ, "I've known for twenty four hours. Deshpande ordered my people to track her. I told them she'd gone to Nagpur. She's at the old NGO shelter near the river. The school building."),
+ ("a4a_raj_b", "RAJ MALHOTRA", RAJ, "I know where she is. I've known for twenty four hours. My people were tracking her. Deshpande ordered it, but I haven't told her. I told my men she'd gone to Nagpur. That bought Priya some time. She's at the old NGO shelter near the river. The school building."),
  ("a4a_q_c", "ARJUN", ARJUN, "What do you want in return?"),
- ("a4a_raj_c", "RAJ MALHOTRA", RAJ, "Immunity. I'll testify against Deshpande, but I want my name kept out of the criminal case. I have a daughter Priya's age, Mister Mehra."),
- ("a4a_raj_made", "RAJ MALHOTRA", RAJ, "We've been made. The man in the corner is on the phone. Back door. Now."),
+ ("a4a_raj_c", "RAJ MALHOTRA", RAJ, "Immunity. I'll testify against Deshpande. I'll give you the recordings, the financial records, everything. But I want my name kept out of the criminal case. I have a family, Mister Mehra. I have a daughter Priya's age. I don't want to spend the rest of my life in prison for a crime I was manipulated into."),
+ ("a4a_raj_made", "RAJ MALHOTRA", RAJ, "We've been made. Back door. Now."),
  ("a4a_arjun_kitchen", "ARJUN", ARJUN, "The kitchen. Pots everywhere. Quietly."),
- ("a4a_raj_clang", "RAJ MALHOTRA", RAJ, "Too loud! They heard that. Back, back. Quietly this time."),
+ ("a4a_raj_clang", "RAJ MALHOTRA", RAJ, "That was close. Slowly now. Keep the rack and the sacks between us and that torch."),
+ ("a4a_raj_wait", "RAJ MALHOTRA", RAJ, "Wait. Don't move."),
+ ("a4a_searcher_listen", "DESHPANDE'S MAN", THUG, "Who's there? Hm."),
+ ("a4a_searcher_found", "DESHPANDE'S MAN", THUG, "Oi! In the kitchen! Here!"),
  ("a4a_arjun_dead", "ARJUN", ARJUN, "Dead end. Back to the fork."),
  ("a4a_arjun_hide", "ARJUN", ARJUN, "Footsteps. Behind the dumpster, now!"),
  ("a4a_thug_search", "DESHPANDE'S MAN", THUG, "They came this way. Check the alley. The councilor wants them both."),
- ("a4a_caught", "DESHPANDE'S MAN", THUG, "There! Behind the dumpster!"),
- ("a4a_raj_dhaba", "RAJ MALHOTRA", RAJ, "Tomorrow morning. The hearing. I'll be there, and I'll testify. Make sure Priya is there too."),
+ ("a4a_caught", "DESHPANDE'S MAN", THUG, "There! In the alley!"),
+ ("a4a_raj_where", "RAJ MALHOTRA", RAJ, "I know where she is. I've known for twenty four hours. My people were tracking her. Deshpande ordered it, but I haven't told her. I told my men she'd gone to Nagpur. That bought Priya some time. She's at the old NGO shelter near the river. The school building."),
+ ("a4a_raj_dhaba", "RAJ MALHOTRA", RAJ, "Tomorrow morning. The hearing. I'll be there. Make sure Priya is there too."),
  ("a4a_vo_end", "ARJUN (V.O.)", ARJUN, "A frightened builder with a phone full of recordings. In this city, that's the closest thing to an army."),
 
  # ---------------- ACT IV B: KAPOOR HOUSE
  ("a4b_vo", "ARJUN (V.O.)", ARJUN, "The Kapoor house. The front door was open. That's never a good sign."),
- ("a4b_kamala_1", "KAMALA KAPOOR", KAMALA, "They came an hour ago. Two men. They said they were from the Municipal Office, looking for misplaced documents. They tore the house apart. They kept asking about a file, and a deed."),
+ ("a4b_kamala_1", "KAMALA KAPOOR", KAMALA, "They came an hour ago. Two men. They said they were from the Municipal Office, looking for misplaced documents. When I told them I didn't have any documents, they pushed past me and tore the house apart. They were looking for something specific. They kept asking about a file, and a deed."),
  ("a4b_arjun_find", "ARJUN", ARJUN, "Did they find anything?"),
  ("a4b_kamala_2", "KAMALA KAPOOR", KAMALA, "No. Whatever they wanted, it wasn't here."),
  ("a4b_arjun_print", "ARJUN", ARJUN, "A muddy boot print. Heavy boots. These weren't clerks."),
  ("a4b_arjun_pass", "ARJUN", ARJUN, "A visitor pass from the Municipal Office. One of them dropped it."),
  ("a4b_arjun_laptop", "ARJUN", ARJUN, "Rohan's laptop. Still logged into his Municipal Office email. An intern shouldn't be able to see these."),
  ("a4b_arjun_confront", "ARJUN", ARJUN, "Rohan. These emails. How do you have them?"),
- ("a4b_rohan_1", "ROHAN KAPOOR", ROHAN, "It's my fault. All of it. I found the forged documents. I was filing papers at the office and I saw the acquisition order. The dates didn't match, the signatures were different. The whole thing was fake."),
+ ("a4b_rohan_1", "ROHAN KAPOOR", ROHAN, "It's my fault. All of it. I am the one who found the forged documents. I was filing papers at the office, boring intern work, and I saw the original acquisition order. Something didn't look right. The dates didn't match. The signatures were different. I compared it with the public records and realised the whole thing was fake."),
  ("a4b_arjun_told", "ARJUN", ARJUN, "And you told Priya?"),
- ("a4b_rohan_2", "ROHAN KAPOOR", ROHAN, "She's my sister. I told her where the Municipal Office keeps the 1965 file. I thought she'd file a complaint. I didn't think she'd walk in and take the original herself. And now they're hunting her, because of me."),
+ ("a4b_rohan_2", "ROHAN KAPOOR", ROHAN, "She is my sister. Of course I told her. I thought she'd file a complaint, go through proper channels. And now Deshpande's people are hunting her, and it's because of me."),
  ("a4b_q_a", "ARJUN", ARJUN, "Can you take me to her?"),
- ("a4b_rohan_a", "ROHAN KAPOOR", ROHAN, "Yes. I've been in contact with her. She's at the old NGO shelter near the river. She made me promise not to tell anyone, but she needs help now. I'll take you."),
+ ("a4b_rohan_a", "ROHAN KAPOOR", ROHAN, "Yes. I've been in contact with her. She's at the old NGO shelter near the river. She made me promise not to tell anyone, but I think she needs help now. I'll take you."),
  ("a4b_q_b", "ARJUN", ARJUN, "We need to go to the police."),
- ("a4b_rohan_b", "ROHAN KAPOOR", ROHAN, "The police are part of the problem, Arjun-ji. The only cop I'd trust is Inspector Reddy, and I don't even know whose side she's on."),
+ ("a4b_rohan_b", "ROHAN KAPOOR", ROHAN, "The police? Arjun-ji, the police are part of the problem. Deshpande has officers on her payroll. The only cop I trust is Inspector Reddy, and I don't even know whose side she's on."),
  ("a4b_q_c", "ARJUN", ARJUN, "We need to protect these documents first."),
- ("a4b_rohan_c", "ROHAN KAPOOR", ROHAN, "I have copies of everything on a cloud drive. The emails, the forged orders, Priya's analysis. Even if they burn the papers, the digital evidence is safe."),
+ ("a4b_rohan_c", "ROHAN KAPOOR", ROHAN, "I have copies of everything on the cloud drive. The emails, the forged orders, the comparison analysis. Even if they destroy the physical copies, the digital evidence is safe."),
  ("a4b_kamala_3", "KAMALA KAPOOR", KAMALA, "Bring her home, Arjun. Please. Both of you, come back safe."),
  ("a4b_vo_end", "ARJUN (V.O.)", ARJUN, "A guilty brother and a cloud drive full of emails. Sometimes the truth hides in the most ordinary places."),
 
@@ -117,11 +124,20 @@ LINES = [
  ("a4c_reddy_r1", "INSPECTOR REDDY", REDDY, "I don't know any Priya Kapoor. I'm a crime branch officer. Organised crime, not missing persons."),
  ("a4c_reddy_r1ok", "INSPECTOR REDDY", REDDY, "Alright. You've done your homework. Yes, I know the Kapoor case. It's connected to an ongoing investigation. I can't share details."),
  ("a4c_reddy_wrong", "INSPECTOR REDDY", REDDY, "That proves nothing, Mister Mehra. Try harder, or go home."),
+ ("a4c_reddy_sig", "INSPECTOR REDDY", REDDY, "That's my signature."),
+ ("a4c_weak1_usb", "INSPECTOR REDDY", REDDY, "Priya's research. It shows what she found. It doesn't put me anywhere near her."),
+ ("a4c_weak1_clip", "INSPECTOR REDDY", REDDY, "Newspaper cuttings. Half the city has read those. They don't connect me to her."),
+ ("a4c_weak1_plate", "INSPECTOR REDDY", REDDY, "A number plate. Find out whose car it is before you bring it to me. It isn't mine."),
+ ("a4c_weak1_bhaskar", "INSPECTOR REDDY", REDDY, "An auto driver saw a black car. That's a rumour, not a link to me."),
+ ("a4c_weak2_id", "INSPECTOR REDDY", REDDY, "You've made that point. My card tells you who I am, not what you know."),
+ ("a4c_weak2_signout", "INSPECTOR REDDY", REDDY, "I know what I signed. That isn't the question now."),
+ ("a4c_weak2_plate", "INSPECTOR REDDY", REDDY, "A car in a lane. It shows someone followed you. It doesn't show you understand what this is."),
+ ("a4c_weak2_bhaskar", "INSPECTOR REDDY", REDDY, "A driver heard a car. That isn't a case, Mister Mehra."),
  ("a4c_reddy_r2", "INSPECTOR REDDY", REDDY, "My investigation is classified. You're seeing a fraction of the picture. Stay out of it."),
  ("a4c_reddy_r2ok", "INSPECTOR REDDY", REDDY, "Where did you get that? Never mind. I can see you're not going to stop. Fine. Let me tell you what you don't know."),
  ("a4c_reddy_r3", "INSPECTOR REDDY", REDDY, "You think I took the original deed to destroy it for Deshpande. That's what it looks like, isn't it?"),
  ("a4c_q_a", "ARJUN", ARJUN, "I have evidence you don't."),
- ("a4c_reddy_a", "INSPECTOR REDDY", REDDY, "She's braver than all of us. Alright, Mister Mehra. Cards on the table."),
+ ("a4c_reddy_a", "INSPECTOR REDDY", REDDY, "Then we are both holding half a case. Alright, Mister Mehra. Cards on the table."),
  ("a4c_q_b", "ARJUN", ARJUN, "Are you protecting Deshpande, or investigating her?"),
  ("a4c_reddy_b", "INSPECTOR REDDY", REDDY, "Investigating her. For six months. I'm undercover. I took the original deed as evidence. It's locked in a secure evidence room right now."),
  ("a4c_q_c", "ARJUN", ARJUN, "Priya's life is in danger. Politics can wait."),
@@ -132,6 +148,7 @@ LINES = [
  # ---------------- ACT V: SUNRISE
  ("a5_vo_intro", "ARJUN (V.O.)", ARJUN, "The old school by the river. Four in the morning. Somewhere upstairs, a single lamp is still burning."),
  ("a5_resident", "RESIDENT", RESIDENT, "Upstairs, bhaiya. Priya didi hasn't slept in days."),
+ ("a5_priya_upstairs", "PRIYA KAPOOR", PRIYA_LOW, "Order number one fourteen, nineteen sixty five. The stamp is from Wardha district. Wardha. Why would Wardha stamp a Chandnipur order..."),
  ("a5_priya_1", "PRIYA KAPOOR", PRIYA, "I knew someone would come. I just didn't know if they'd come to help me, or to silence me."),
  ("a5_arjun_mother", "ARJUN", ARJUN, "Your mother sent me. She's worried sick."),
  ("a5_priya_2", "PRIYA KAPOOR", PRIYA, "Maa... I called her. I told her I loved her. I thought it might be the last time I could say it."),
@@ -175,7 +192,7 @@ LINES = [
  ("cur1_02", "THE CURATOR", CURATOR_SLOW, 'Someone broke this kettle. Not for the kettle. For the sound it makes when it breaks. Fear is a language, and they are fluent.'),
  ("cur1_03", "THE CURATOR", CURATOR_SLOW, "The chai-wallah gave what he had left to give. A daughter's life in a plastic shell. Evidence is never only evidence."),
  ("cur1_04", "THE CURATOR", CURATOR_SLOW, 'A watcher who drops her badge is either careless or inviting you to follow. She did not look careless.'),
- ("cur1_05", "THE CURATOR", CURATOR_SLOW, 'Drivers are confessional. They hear the sentences people say to the air. If you have not asked the man who drove her what he heard, you have left a witness idling at the curb.'),
+ ("cur1_05", "THE CURATOR", CURATOR_SLOW, 'Drivers are confessional. They hear the sentences people say to the air. If you had not asked the man who drove her what he heard, you have left a witness idling at the curb.'),
  ("cur1_06", "THE CURATOR", CURATOR_SLOW, 'Black cars are like bad thoughts. They follow you home and never use their indicators.'),
  ("cur1_07", "THE CURATOR", CURATOR_SLOW, 'You have been noticed. Somewhere in this city, your face is a file now. Files are patient. They wait in drawers and become warrants.'),
  ("cur1_08", "THE CURATOR", CURATOR_SLOW, 'Go on. The night is young and the kettle is broken. Both are your problem now.'),
@@ -247,7 +264,7 @@ LINES = [
  ("end1_vo_dawn", "ARJUN (V.O.)", ARJUN, "Dawn. Shutters rising, temple bells, chai stoves. And outside the Municipal Court, Basti Nagar had come to watch."),
  ("end1_lawyer", "DESHPANDE'S LAWYER", LAWYER, "Your Honour, the Renewal Project is a vision for a modern Chandnipur. The acquisition order of 1965 is entirely in order."),
  ("end1_priya", "PRIYA KAPOOR", PRIYA, "Your Honour, I am Priya Kapoor, advocate for the residents of Basti Nagar. The acquisition order of 1965 is a forgery. This is the original file, with the forgers' signatures on it. And the original deed of 1942, now in Crime Branch custody, proves the land belongs to its residents, in perpetuity."),
- ("end1_reddy", "INSPECTOR REDDY", REDDY, "Inspector Sonal Reddy, Crime Branch. I have a warrant for the arrest of Councilor Meghna Deshpande, for fraud, forgery and criminal conspiracy."),
+ ("end1_reddy", "INSPECTOR REDDY", REDDY, "Inspector Sonal Reddy, Crime Branch. This is the original deed of 1942, taken from the Record Room into Crime Branch custody. And I have a warrant for the arrest of Councilor Meghna Deshpande, for fraud, forgery and criminal conspiracy."),
  ("end1_raj", "RAJ MALHOTRA", RAJ, "I am Raj Malhotra. I signed the Renewal contracts. And I have six months of recordings of the councilor planning this fraud. I will play them for the court."),
  ("end1_rohan", "ROHAN KAPOOR", ROHAN, "I'm Rohan Kapoor. I was an intern at the Municipal Office. These internal emails prove the forgery was known, and approved, at the highest level."),
  ("end1_judge", "THE JUDGE", JUDGE, "The Chandnipur Renewal Project is hereby stayed, pending a full investigation into the land records. The residents of Basti Nagar shall not be displaced."),
@@ -257,7 +274,7 @@ LINES = [
  # ---------------- ENDING 2: SACRIFICE
  ("end2_vo", "ARJUN (V.O.)", ARJUN, "I walked into the Municipal Court alone. A few lawyers, a bored clerk, and the councilor in the front row, looking bored too."),
  ("end2_lawyer", "DESHPANDE'S LAWYER", LAWYER, "Your Honour, these documents were allegedly stolen from a government facility by a fugitive. The chain of custody is broken. Without the person who obtained them, this evidence is inadmissible."),
- ("end2_kamala", "KAMALA KAPOOR", KAMALA, "Your Honour, I am Kamala Kapoor, Priya's mother. My daughter has been threatened. Our home was broken into. I am a teacher, and I know the difference between truth and lies."),
+ ("end2_kamala", "KAMALA KAPOOR", KAMALA, "Your Honour, I am Kamala Kapoor, Priya's mother. I can testify that my daughter has been threatened, that our home was broken into by agents of the councilor, and that the documents my daughter found are genuine. I may not be a lawyer, but I am a teacher, and I know the difference between truth and lies."),
  ("end2_vikram", "VIKRAM SAHU", VIKRAM, "I am Vikram Sahu. I sell chai near the market. Two men broke my kettle and told me to keep quiet. I am not quiet any more."),
  ("end2_judge", "THE JUDGE", JUDGE, "This court cannot rule without proper standing. But it orders a full investigation into the land records, and stays the eviction until that investigation is complete."),
  ("end2_vo_end", "ARJUN (V.O.)", ARJUN, "Not every battle ends with a bang. Some end with a whisper. A judge's order, a mother's courage. The truth is out there now, but it's fragile. It needs protecting."),
@@ -268,8 +285,15 @@ LINES = [
  ("end3_arjun_1", "ARJUN", ARJUN, "She'll come after us anyway. At least this way, the whole city will be watching."),
  ("end3_priya_2", "PRIYA KAPOOR", PRIYA, "The truth is out. But truth without a courtroom is just noise, until enough people listen. I hope they're listening. Did we do the right thing?"),
  ("end3_arjun_2", "ARJUN", ARJUN, "Ask me in a year."),
+ ("a5r_reporter", "REPORTER", REPORTER, "Six months of recordings. The original deed. Oh god. This is real."),
+ ("a5r_news", "TELEVISION", NEWS, "Breaking news from Chandnipur. Documents and recordings released overnight allege that the land order behind the Renewal Project was forged in nineteen sixty five, and that the councilor knew."),
  ("end3_curator", "THE CURATOR", CURATOR, "I have many stories of revolution in my collection. They all end the same way. The people cheering, and the hero weeping. The crowd goes home. The hero stays in the fire."),
 ]
+
+
+def shown(text):
+    """The subtitle as the game shows it (Tools/vo_recordings.py times the recordings against this)."""
+    return text.replace("Mister ", "Mr. ").replace("Cafe Irani", "Café Irani")
 
 
 def cs_escape(s):
@@ -279,8 +303,7 @@ def cs_escape(s):
 def write_db():
     rows = []
     for lid, speaker, _, text in LINES:
-        shown = text.replace("Mister ", "Mr. ").replace("Cafe Irani", "Café Irani")
-        rows.append('        {"%s", new[] { "%s", "%s" }},' % (lid, cs_escape(speaker), cs_escape(shown)))
+        rows.append('        {"%s", new[] { "%s", "%s" }},' % (lid, cs_escape(speaker), cs_escape(shown(text))))
     body = "\n".join(rows)
     src = f'''// GENERATED by Tools/acts_dialogue.py - edit the dialogue there, then re-run the script.
 using System.Collections.Generic;
@@ -302,7 +325,7 @@ public static class DialogueDB
 
 
 def record(only_new):
-    from arjun_recordings import recorded_ids
+    from vo_recordings import recorded_ids
     recorded = recorded_ids()
     os.makedirs(OUT, exist_ok=True)
     for lid, _, (voice, rate, pitch, extra), text in LINES:

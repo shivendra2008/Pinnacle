@@ -72,13 +72,13 @@ Docs: audit and production list `POLISH_AUDIT.md` · story `STORY_BIBLE.md` · s
 - [ ] Recorded door creak, horn, phone and engines (no licensed recordings in the project)
 - [ ] A person plays Act I end to end (nine clues, Kamala, door, note) and the market by hand (control feel)
 
-## Session 5 (22 Nov 2026): Arjun's recorded voice (`Docs/ARJUN_VOICE_CHECK.md`)
-- [x] 50 recordings by the voice actor (`arjun voice overs 2/`) replace 46 of Arjun's text-to-speech lines and voice 6 that had none: his three questions to Mrs. Kapoor were silent, and his three answers to Priya in Act V (one per ending) are new (`Tools/arjun_recordings.py`)
+## Session 5 (22 Nov 2026): Arjun's recorded voice (now in `Docs/VOICE_CHECK.md`)
+- [x] 50 recordings by the voice actor (`arjun voice overs 2/`) replace 46 of Arjun's text-to-speech lines and voice 6 that had none: his three questions to Mrs. Kapoor were silent, and his three answers to Priya in Act V (one per ending) are new (`Tools/arjun_recordings.py`, now `Tools/vo_recordings.py`)
 - [x] Trimmed, the Act I opening split at its pauses, levelled to the rest of the VO (-16 LUFS); every line transcribed on the Mac and compared with its subtitle: 45 of 52 word for word, the other 7 differ only in names the recogniser mishears (measured)
 - [x] Five subtitles changed to the recorded wording (`a3_arjun_unlock`, `a3_arjun_reddy`, `a4b_arjun_told`, `a4c_arjun_id`, `a4c_q_a`)
 - [x] Acts I-II subtitles change phrase on the recorded words (`VoTiming.cs`); Acts III-V show each line for its recording's length
 - [x] The text-to-speech generators never overwrite a recorded line, even with `--all`
-- [ ] 39 Arjun lines still have no recording and stay text-to-speech (listed in `Docs/ARJUN_VOICE_CHECK.md`)
+- [ ] 39 Arjun lines still have no recording and stay text-to-speech (listed in `Docs/VOICE_CHECK.md`)
 - [ ] Reddy's reply to "I have evidence you don't" still says "She's braver than all of us", written for the old line about Priya's letter
 - [ ] Listen to the recorded lines in the game against the other characters' voices
 
@@ -99,6 +99,21 @@ Docs: audit and production list `POLISH_AUDIT.md` · story `STORY_BIBLE.md` · s
 - [ ] Foot planting in turns on the spot and on steps; no-rig lip-sync fallback run
 - [x] Frame time measured before/after at 1080p (`CINEMATIC_PASS.md` section 8): market unchanged and café +3 ms on a quiet machine; p95 under 33.3 ms in steady play and the café in every run
 - [ ] SUV chase p95 at or under 33.3 ms on a warm M1 (35-44 ms in three of six warm runs)
+
+## 23 Nov 2026: the cast's recorded voices (`Docs/VOICE_CHECK.md`)
+- [x] 45 recordings in `Voice Overs/` (Kamala 9, Bhaskar 5, Vikram 12, Harishankar 5, the Act III caller 1, Raj 8, Rohan 5) replace 44 text-to-speech lines (`Tools/vo_recordings.py`, which now handles Arjun's too): trimmed, levelled to -16 LUFS like the rest; two lines are two takes joined (`v_t2_intro`, `a4a_raj_2`), one take voices two lines (`a4a_raj_b`, `a4a_raj_where`)
+- [x] Every line transcribed on the Mac against its subtitle: of all 96 recorded lines 65 word for word, the other 31 differ only in names, numbers written as digits and Hindi words (measured)
+- [x] The takes follow an older, longer script: their subtitles were changed to the recorded words (Acts I-II in `PriyaRoomStory.cs` / `MarketStory.cs`, checked against the tool's table on every run; Acts III-V in `acts_dialogue.py`)
+- [x] Where a take leaves out what the story needs: the caller's meeting ("Café Irani. Thirty minutes. Come alone.") is a text message after the call; Raj hands over the phone as he answers "Why should I trust you?" (asked before the dial, which shows it as asked); Rohan's take is cut where it had Priya take the deed from the library (Reddy signed it out); Harishankar's question is implied, not spoken, and the hearing time and shelter he used to add (and their case-file notes) are gone: the letter and Act IV carry them
+- [x] Lip-sync re-made from the recordings for the 43 lines spoken by a face (measured)
+- [x] Played in a player build (`Builds/voice-overs/Pinnacle Voices.app`): routes act1intro, kamala, market, act3, cafefull, house, act5 (audio captured) and again in real time; 29 of the 44 lines were heard, each at its recording's length (`voices.txt`), and in the captured mix the recogniser found the actors' own words for 18 of the 19 checked (the 19th was cut off by the route). Route checks in real time: act1intro 6/6, market 14/14, market input tests 22/22 (the build before: 22/22), act3 24/25, cafefull 35/36; audio-captured only: kamala 20/20, house 26/27, act5 26/26. The misses are the two listed below, or came from audio capture itself (the dial's arming delay runs on real time, the route on stepped time: dropped key presses, the needle 16 degrees off) (measured; `Recordings/voices/`)
+- [ ] 11 lines of these characters still have no recording (listed in `Docs/VOICE_CHECK.md`): Kamala 3, Bhaskar 1, Vikram 3, Raj 3, Rohan 1
+- [ ] Not reached by a route, checked in the files only (15): Kamala's welcome and two of her answers, Vikram's replies to the other two challenges and his later answers, Harishankar's first answer, Raj's answer about Priya (the same take played at the dhaba), Rohan's last two answers
+- [ ] Listen to the recorded lines in the game: the joins, the cut in Rohan's line, the recorded voices next to the remaining text-to-speech ones
+- [x] The Curator: 10 takes in `Voice Overs/Curator/` (one per scene) split at their pauses into 65 lines: the Act I welcome, the interludes after Acts II-IV, the three verdicts, the library and alley visits; 64 word for word apart from names and digits, one subtitle changed to the recording (`cur1_05` "had"), and `cur2_06` says "Panditji" again, as recorded (measured). In the player build his interlude after Act II played all 8 lines at their recorded lengths (route `market` with the Curator, 19/19; measured); the other scenes are checked in the files only
+- [x] His reactions to the Act III answer and the Act IV ally are not recorded: a recorded interlude leaves out the answer line and plays the general line for the ally (`CuratorInterlude.Voiced`), so his voice never turns into text-to-speech mid-scene; a reaction joins again once it is recorded (code)
+- [ ] The Curator's 27 unrecorded lines (the gallery, the Act V "other side" scene, the six reactions) stay text-to-speech; the recordings are dry, without the room echo his text-to-speech had
+- [ ] Existing route failures seen in the build before this work too: the café owner's hand leaves his cup (30-32 cm), Raj in cover ("holds still" check)
 
 ## Next
 - [ ] Justice gate: case conditions instead of `EvidenceCount >= 18`, shown on the casket card

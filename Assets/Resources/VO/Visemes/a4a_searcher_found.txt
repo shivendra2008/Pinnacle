@@ -1,0 +1,24 @@
+# a4a_searcher_found  2.618 s  words heard on-device (Tools/lipsync/npc_lipsync.py)
+# V start end viseme weight stress phoneme | A time strength | P start end | W start end word
+W 0.180 0.600 Lie
+W 0.600 0.960 in
+W 0.960 1.140 the
+W 1.140 1.260 kitchen
+W 1.260 2.580 here.
+V 0.180 0.278 nn 1.00 -1 L
+V 0.278 0.455 aa 1.00 1 AY1
+V 0.455 0.600 I 1.00 1 AY1
+V 0.600 0.796 I 1.00 1 IH1
+V 0.796 0.960 nn 1.00 -1 N
+V 0.960 1.022 TH 1.00 -1 DH
+V 1.022 1.140 aa 0.60 0 AH0
+V 1.140 1.160 kk 1.00 -1 K
+V 1.160 1.184 I 1.00 1 IH1
+V 1.184 1.210 CH 1.00 -1 CH
+V 1.210 1.240 E 1.00 1 EH1
+V 1.240 1.260 nn 1.00 -1 N
+V 1.260 1.583 I 0.45 -1 HH
+V 1.583 2.136 I 1.00 1 IH1
+V 2.136 2.580 aa 0.60 0 AH0
+A 1.160 0.24
+A 1.583 0.25

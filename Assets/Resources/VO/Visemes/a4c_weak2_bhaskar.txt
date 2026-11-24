@@ -1,0 +1,44 @@
+# a4c_weak2_bhaskar  3.319 s  words heard on-device (Tools/lipsync/npc_lipsync.py)
+# V start end viseme weight stress phoneme | A time strength | P start end | W start end word
+W 0.000 0.240 A
+W 0.240 0.480 driver
+W 0.480 0.780 heard
+W 0.780 1.020 a
+W 1.020 1.380 car.
+W 1.440 1.740 That
+W 1.740 2.100 isn't
+W 2.100 2.220 a
+W 2.220 2.580 case,
+W 2.580 2.880 Mr.
+W 2.880 3.319 Mera.
+V 0.000 0.240 aa 0.60 0 AH0
+V 0.240 0.275 DD 1.00 -1 D
+V 0.275 0.316 RR 1.00 -1 R
+V 0.316 0.401 I 1.00 1 IH1
+V 0.401 0.442 FF 1.00 -1 V
+V 0.442 0.480 E 0.60 0 ER0
+V 0.480 0.542 E 0.45 -1 HH
+V 0.542 0.702 E 1.00 1 ER1
+V 0.702 0.780 DD 1.00 -1 D
+V 0.780 1.020 aa 0.60 0 AH0
+V 1.020 1.112 kk 1.00 -1 K
+V 1.112 1.288 aa 1.00 1 AA1
+V 1.288 1.380 RR 1.00 -1 R
+V 1.440 1.484 TH 1.00 -1 DH
+V 1.484 1.641 aa 1.00 1 AE1
+V 1.641 1.740 DD 1.00 -1 T
+V 1.740 1.830 I 1.00 1 IH1
+V 1.830 1.898 SS 1.00 -1 Z
+V 1.898 1.955 aa 0.60 0 AH0
+V 1.955 2.016 nn 1.00 -1 N
+V 2.016 2.100 DD 1.00 -1 T
+V 2.100 2.220 aa 0.60 0 AH0
+V 2.220 2.300 kk 1.00 -1 K
+V 2.300 2.390 E 1.00 1 EY1
+V 2.390 2.451 I 1.00 1 EY1
+V 2.451 2.545 SS 1.00 -1 S
+V 2.545 2.687 PP 1.00 -1 M
+V 2.687 2.885 RR 1.00 -1 R
+V 2.885 2.981 PP 1.00 -1 M
+V 2.981 3.081 E 0.60 0 ER0
+V 3.081 3.319 aa 1.00 1 AE1

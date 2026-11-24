@@ -609,3 +609,4 @@ young Y AH1 NG
 your Y AO1
 yours Y AO1 Z
 yourself Y AO0 S EH1 L F
+harishankar HH AA2 R IY0 SH AH1 NG K AH0

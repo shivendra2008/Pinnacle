@@ -75,6 +75,11 @@ public static class BuildPlayer
         if (lit != null) made += Make(lit, "Lit_transparent_premul_noenv", new[] { "_ALPHAPREMULTIPLY_ON", "_ENVIRONMENTREFLECTIONS_OFF" }, true, false, flatNormal, mask);
         if (unlit != null) { made += Make(unlit, "Unlit_plain", new string[0], false, false, flatNormal, mask); made += Make(unlit, "Unlit_transparent", new string[0], true, false, flatNormal, mask); }
         if (particles != null) made += Make(particles, "Particles_transparent", new string[0], true, false, flatNormal, mask);
+        // the roof's photographed sky (CinematicLook.Sky): nothing in the scene references the panoramic skybox shader, so
+        // the player stripped it and every ending fell back to the painted gradient
+        var pano = Shader.Find("Skybox/Panoramic");
+        if (pano != null && AssetDatabase.LoadAssetAtPath<Material>(VariantDir + "/Skybox_panoramic.mat") == null)
+        { AssetDatabase.CreateAsset(new Material(pano) { name = "Skybox_panoramic" }, VariantDir + "/Skybox_panoramic.mat"); made++; }
         AssetDatabase.SaveAssets();
         // read back what was kept: a keyword that did not survive would silently drop its variants again
         int lost = 0;

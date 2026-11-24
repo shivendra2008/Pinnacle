@@ -18,7 +18,12 @@ import ast, os, re, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import curator_lipsync as cl
 
-SPEAKERS = {"KAMALA", "KAMALA KAPOOR", "BHASKAR", "VIKRAM", "SHARMA-JI", "PANDIT HARISHANKAR", "RAJ MALHOTRA"}
+SPEAKERS = {"KAMALA", "KAMALA KAPOOR", "BHASKAR", "VIKRAM", "SHARMA-JI", "HARISHANKAR", "PANDIT HARISHANKAR", "RAJ MALHOTRA",
+            # Acts IV-V faces seen speaking close up (added 22 Nov 2026)
+            "ROHAN KAPOOR", "INSPECTOR REDDY", "PRIYA KAPOOR", "THE JUDGE", "DESHPANDE'S LAWYER", "VIKRAM SAHU", "REPORTER",
+            "DESHPANDE'S MAN", "RESIDENT",
+            # the Curator's recorded lines (23 Nov 2026): recognised words, like the others (curator_lipsync.py skips them)
+            "THE CURATOR"}
 
 
 def make_voices_lines():
@@ -45,7 +50,12 @@ def acts_lines():
     start = src.index("LINES = [")
     end = src.index("\n]\n", start)
     lines = eval(src[start + len("LINES = "):end + 2], ns)
-    return [(lid, speaker, voice, text) for (lid, speaker, voice, text) in lines if speaker in SPEAKERS]
+    sys.path.insert(0, os.path.join(cl.ROOT, "Tools"))
+    from vo_recordings import recorded_ids
+    rec = recorded_ids()
+    # the Curator's text-to-speech lines keep curator_lipsync.py's TTS word markers
+    return [(lid, speaker, voice, text) for (lid, speaker, voice, text) in lines
+            if speaker in SPEAKERS and (speaker != "THE CURATOR" or lid in rec)]
 
 
 # ------------------------------------------------------------------ spelling to sound, for words not in the lexicon

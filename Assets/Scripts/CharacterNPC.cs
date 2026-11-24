@@ -69,7 +69,8 @@ public class NpcStyle
     }
 
     static readonly string[] WomenRb = { "Female_Adult_09", "Female_Adult_09", "Female_Adult_03", "Business_Female_03", "Business_Female_01" };
-    static readonly string[] MenRb = { "Male_Adult_15", "Male_Adult_15", "Wood_Male_01", "Male_Adult_17", "Male_Adult_05", "Male_Adult_03", "Business_Male_05" };
+    // Wood_Male_01 is Harishankar's face: kept out of the crowds so nobody else in the city wears it
+    static readonly string[] MenRb = { "Male_Adult_15", "Male_Adult_15", "Male_Adult_15", "Male_Adult_17", "Male_Adult_05", "Male_Adult_03", "Business_Male_05" };
 
     /// <summary>Women in bright sari / salwar colours (the dress model, recoloured).</summary>
     public static NpcStyle CrowdWoman(int seed)
@@ -1283,6 +1284,75 @@ public partial class CharacterNPC : MonoBehaviour
         if (rJaw != null) rJaw.localRotation = jawRest;
     }
 
+    // ---- sitting on a chair: the pelvis on the seat, the feet on the floor in front; gaze, hands and face as standing
+    bool seated, seatInstant; Vector3 seatPoint, standPos; float seatBlend, seatFeet = 0.42f, floorY;
+    public bool IsSeated => seated;
+
+    /// <summary>
+    /// Sits this character down: <paramref name="seatWorld"/> is the middle of the seat's surface, <paramref name="yaw"/>
+    /// the way the chair faces, <paramref name="feetForward"/> how far in front of the seat the feet rest. The head
+    /// keeps following its look target, the hands their holds, the mouth its visemes.
+    /// </summary>
+    public void Sit(Vector3 seatWorld, float yaw, float feetForward = 0.42f, bool instant = false)
+    {
+        seated = true; seatPoint = seatWorld; seatFeet = feetForward;
+        walkToken++; walking = false; moving = false; freezeFacing = true;
+        if (cc != null) cc.enabled = false;
+        standPos = transform.position; floorY = transform.position.y;
+        transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+        seatInstant = instant;             // applied once the model has been fitted standing (FitModelOnce)
+    }
+
+    /// <summary>Stands up again (over about 0.6 s, or at once), back where it sat down from or at <paramref name="at"/>.</summary>
+    public void Stand(Vector3? at = null, bool instant = false)
+    {
+        bool was = seated || seatBlend > 0f;
+        seated = false; seatInstant = false;
+        if (at.HasValue) { standPos = at.Value; floorY = at.Value.y; }
+        if (instant && was)
+        {
+            seatBlend = 0f;
+            transform.position = standPos;
+            if (cc != null) cc.enabled = true;
+        }
+    }
+
+    void SeatPose(float dt)
+    {
+        if (!fitted) return;                // fitted standing first: the fit measures the feet against the floor
+        if (seatInstant) { seatBlend = 1f; seatInstant = false; }
+        seatBlend = Mathf.MoveTowards(seatBlend, seated ? 1f : 0f, dt * 1.6f);
+        float k = Mathf.SmoothStep(0f, 1f, seatBlend);
+        if (rPelvis == null) return;
+        // where the body must be for the pelvis to rest on the seat, from the clip's own pelvis height this frame
+        Vector3 pelvisOff = rPelvis.position - transform.position;
+        Vector3 onSeat = seatPoint + Vector3.up * 0.075f - pelvisOff;
+        transform.position = Vector3.Lerp(standPos, onSeat, k);
+        if (seatBlend <= 0f)
+        {
+            transform.position = standPos;
+            if (cc != null) cc.enabled = true;
+            return;
+        }
+        // the legs fold: feet flat on the floor in front of the seat, knees forward over them
+        Vector3 fwd = transform.forward, right = transform.right;
+        for (int i = 0; i < 2; i++)
+        {
+            if (rThigh[i] == null || rCalf[i] == null || rFoot[i] == null) continue;
+            float s = i == 0 ? sideL : -sideL;
+            Vector3 foot = new Vector3(seatPoint.x, floorY + 0.085f, seatPoint.z) + fwd * seatFeet + right * s * 0.12f;
+            Quaternion t0 = rThigh[i].rotation, c0 = rCalf[i].rotation;
+            Reach(rThigh[i], rCalf[i], rFoot[i], foot, fwd + Vector3.up * 0.6f + right * s * 0.15f);
+            Quaternion t1 = rThigh[i].rotation, c1 = rCalf[i].rotation;
+            rThigh[i].rotation = Quaternion.Slerp(t0, t1, k);
+            rCalf[i].rotation = Quaternion.Slerp(c0, c1, k);
+            // the sole flat on the floor
+            Vector3 toe = rToe[i] != null ? rToe[i].position - rFoot[i].position : fwd * 0.12f;
+            Vector3 flat = toe; flat.y = Mathf.Min(0f, toe.y * 0.2f);
+            if (toe.sqrMagnitude > 1e-6f) rFoot[i].rotation = Quaternion.Slerp(Quaternion.identity, Quaternion.FromToRotation(toe, flat), k) * rFoot[i].rotation;
+        }
+    }
+
     float measSpeed, bornAt, runBlend;
     Vector3 lastPos;
     Quaternion jawRest;
@@ -1396,7 +1466,7 @@ public partial class CharacterNPC : MonoBehaviour
             return;
         }
         if (hero != null) { FitModelOnce(); HeroFrame(dt); return; }     // the Curator: CharacterNPC.Hero.cs owns every layer
-        measSpeed = Mathf.Lerp(measSpeed, d.magnitude / dt, Mathf.Clamp01(dt * 10f));
+        measSpeed = seatBlend > 0f ? 0f : Mathf.Lerp(measSpeed, d.magnitude / dt, Mathf.Clamp01(dt * 10f));
         walkBlend = Mathf.MoveTowards(walkBlend, Mathf.Clamp01((measSpeed - 0.06f) / 0.45f), dt * 4f);
         runBlend = Mathf.MoveTowards(runBlend, cRun != null ? Mathf.Clamp01((measSpeed - 2.1f) / 0.9f) : 0f, dt * 3f);
         mixer.SetInputWeight(0, 1f - walkBlend);
@@ -1406,6 +1476,7 @@ public partial class CharacterNPC : MonoBehaviour
         pRun.SetSpeed(Mathf.Clamp(measSpeed / 3.4f, 0.8f, 1.35f));
 
         FitModelOnce();
+        if (seated || seatBlend > 0f) SeatPose(dt);
 
         // layered on top of the clip: the right hand talks and waves, the head follows the player, the jaw follows the voice
         bool waving = Time.time < waveUntil;

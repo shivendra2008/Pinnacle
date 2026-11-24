@@ -1,0 +1,18 @@
+# a4a_caught  1.912 s  words heard on-device (Tools/lipsync/npc_lipsync.py)
+# V start end viseme weight stress phoneme | A time strength | P start end | W start end word
+W 0.060 0.360 There
+W 0.360 1.020 in
+W 1.020 1.260 the
+W 1.260 1.912 alley.
+V 0.060 0.123 TH 1.00 -1 DH
+V 0.123 0.360 E 1.00 1 EH1
+V 0.360 0.720 I 1.00 1 IH1
+V 0.720 1.020 nn 1.00 -1 N
+V 1.020 1.102 TH 1.00 -1 DH
+V 1.102 1.260 aa 0.60 0 AH0
+V 1.260 1.456 aa 1.00 1 AE1
+V 1.456 1.543 nn 1.00 -1 L
+V 1.543 1.630 nn 1.00 -1 L
+V 1.630 1.793 E 1.00 1 EH1
+V 1.793 1.912 I 0.60 0 IY0
+A 0.123 0.29

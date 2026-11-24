@@ -1,0 +1,13 @@
+# a4a_searcher_listen  1.221 s  words heard on-device (Tools/lipsync/npc_lipsync.py)
+# V start end viseme weight stress phoneme | A time strength | P start end | W start end word
+W 0.000 0.420 Who's
+W 0.420 0.600 their
+W 0.600 1.221 hum?
+V 0.000 0.086 U 0.45 -1 HH
+V 0.086 0.282 U 1.00 1 UW1
+V 0.282 0.420 SS 1.00 -1 Z
+V 0.420 0.458 TH 1.00 -1 DH
+V 0.458 0.600 E 1.00 1 EH1
+V 0.600 0.735 aa 0.45 -1 HH
+V 0.735 1.034 aa 1.00 1 AH1
+V 1.034 1.251 PP 1.00 -1 M
