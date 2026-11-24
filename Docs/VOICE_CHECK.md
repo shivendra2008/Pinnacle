@@ -6,7 +6,7 @@ recogniser and compared word by word with the subtitle the game shows. The recog
 (Chandnipur, Mehra, Kapoor, Reddy, Deshpande, Basti Nagar, the letter V) and Hindi words (chai, arre bhai, -ji): a
 difference in one of those alone is the recogniser, not the recording.
 
-161 lines from 105 recordings; 120 match their subtitle word for word, 41 differ only as listed.
+182 lines from 128 recordings; 126 match their subtitle word for word, 56 differ only as listed.
 
 ## Arjun Mehra
 
@@ -160,6 +160,55 @@ difference in one of those alone is the recogniser, not the recording.
 | `a4b_rohan_b` | act4 rohan4.mp3 | 12.72 s | The police? Arjun-ji, the police are part of the problem. Deshpande has officers on her payroll. The only cop I trust is Inspector Reddy, and I don't even know whose side she's on. | The police, Arjunji, the police are part of the problem. They spend the house officers on her payroll. The only cop I trust is inspector ready, and I don't even know whose side she's on. | 30/33<br>Deshpande has → They spend the house<br>Reddy, → ready, |
 | `a4b_rohan_c` | act4 rohan5.mp3 | 12.15 s | I have copies of everything on the cloud drive. The emails, the forged orders, the comparison analysis. Even if they destroy the physical copies, the digital evidence is safe. | I have copies of everything on the cloud drive, the emails, the forged orders, the comparison analysis, even if they destroy the physical copies, the digital evidence is safe. | 29/29 |
 
+## Inspector Reddy
+
+11 recorded, 11 still text-to-speech.
+
+| Line | Recording | Length | Subtitle | Heard | Words |
+|---|---|---|---|---|---|
+| `a4c_reddy_1` | act4 reddy1.mp3 | 6.67 s | Mr. Mehra. I was wondering when you'd figure out I was following you. You're better than I expected. | Mr. Mayor, I was wondering when you'd figure out I was following you. You're better than I expected. | 17/18<br>Mehra. → Mayor, |
+| `a4c_reddy_2` | act4 reddy2.mp3 | 3.05 s | Maybe I wanted you to find it. Sit down. We need to talk. | Maybe I wanted you to find it. Sit down. We need to talk. | 13/13 |
+| `a4c_reddy_r1` | act4 reddy3.mp3 | 6.58 s | I don't know any Priya Kapoor. I'm a crime branch officer. I deal with organised crime, not missing persons. | I don't know any Priya Kapur. I'm a crime branch officer. I deal with organised crime, not missing persons. | 18/19<br>Kapoor. → Kapur. |
+| `a4c_reddy_r1ok` | act4 reddy4.mp3 | 8.07 s | All right. You've done your homework. Yes, I know the Kapoor case. It's connected to an ongoing investigation. I can't share details. | All right, you've done your homework. Yes, I know the Kapur case. It's connected to an ongoing investigation. I can't share details. | 21/22<br>Kapoor → Kapur |
+| `a4c_reddy_r2` | act4 reddy5.mp3 | 6.28 s | My investigation is classified. Whatever you think you know, you're seeing a fraction of the picture. Stay out of it. | My investigation is classified. Whatever you think you know, you're seeing a fraction of the picture. Stay out of it. | 20/20 |
+| `a4c_reddy_r2ok` | act4 reddy6.mp3 | 4.39 s | I can see you're not going to stop. Fine. Let me tell you what you don't know. | I can see you're not going to stop. Fine. Let me tell you what you don't know. | 17/17 |
+| `a4c_reddy_r3` | act4 reddy7.mp3 | 7.21 s | You think I'm the enemy. You think I took the original deed to destroy it for Deshpande? That's what it looks like, isn't it? | You think I'm the enemy? You think I took the original deed to destroy it for Deshpande? That's what it looks like, isn't it? | 24/24 |
+| `a4c_reddy_a` | act4 reddy8.mp3 | 2.44 s | All right, Mr. Mehra. Cards on the table. | All right, Mr. Mayor, cards on the table. | 7/8<br>Mehra. → Mayor, |
+| `a4c_reddy_b` | act4 reddy9.mp3 | 16.63 s | Investigating her. For six months. I'm undercover. My superiors don't even know the full scope of the case. I took the original deed from the library as evidence for my case file. It's locked in a secure evidence room right now. | Investigating her for 6 months. I'm undercover. My superiors don't even know the full scope of the case. I took the original deed from the library as evidence for my case file. It's locked in a secure evidence room right now. | 40/41<br>six → 6 |
+| `a4c_reddy_c` | act4 reddy10.mp3 | 8.83 s | You're right. I've been so focused on building the perfect case that I almost lost sight of the person at the centre of it. Let me help. | You're right. I've been so focussed on building the perfect case that I almost lost sight of the person at the centre of it. Let me help. | 26/27<br>focused → focussed |
+| `a4c_reddy_reveal` | act4 reddy11.mp3 | 20.59 s | I've been protecting Priya for two weeks. My men have been watching the NGO shelter where she's hiding. Deshpande's people don't know she's there yet. But the hearing is tomorrow, and Deshpande is getting desperate. She'll send everyone she has to find Priya and the documents before 10 a.m. | I've been protecting Priya for 2 weeks. My men have been watching the NGO shelter where she's hiding. Despande's people don't know she's there yet. But the hearing is tomorrow, and Deshpande is getting desperate. She'll send everyone she has to find Priya and the documents before 10 a.m. | 47/49<br>two → 2<br>Deshpande's → Despande's |
+
+## Priya Kapoor
+
+8 recorded, 1 still text-to-speech.
+
+| Line | Recording | Length | Subtitle | Heard | Words |
+|---|---|---|---|---|---|
+| `a5_priya_1` | act5 priya1.mp3 | 6.74 s | I knew someone would come. I just didn't know if they'd come to help me, or silence me. | I knew someone would come. I just didn't know if they'd come to help me or silence me. | 18/18 |
+| `a5_priya_2` | act5 priya2.mp3 | 7.42 s | Maa... I called her. I told her I loved her. I thought it might be the last time I could say it. | Ma, I called her. I told her I loved her. I thought it might be the last time I could say it. | 21/22<br>Maa... → Ma, |
+| `a5_priya_3` | act5 priya3.mp3 | 22.03 s | Five hundred families, Arjun. Children, grandparents, people who've lived in Basti Nagar for generations. They were going to bulldoze everything. And no one was going to stop it. The courts, the police, the politicians. They're all part of the same machine. I had to do this myself. | 500 families are June, children, grandparents, people who've lived in Basti Naga for generations. They were going to bulldoze everything. And no one was going to stop it. The courts, the police, the politicians, they're all part of the same machine. I had to do this myself. | 43/47<br>Five hundred → 500<br>Arjun. → are June,<br>Nagar → Naga |
+| `a5_priya_4` | act5 priya4.mp3 + act5 priya5.mp3 | 23.91 s | I have the originals. These documents must reach the Municipal Court. But if I walk into that courtroom, Deshpande will have me arrested for stealing government property. She has the judges in her pocket. I might never walk out a free person. So tell me, Mr. Mehra. You've seen the evidence. You know the truth. What should I do? | I have the originals. These documents must reach the municipal court, but if I walk into that courtroom, Despande will have me arrested for stealing government property. She has the judges in her pocket. I might never walk out a free person. So tell me, Mr. Mayor, you've seen the evidence, you know the truth. What should I do? | 57/59<br>Deshpande → Despande<br>Mehra. → Mayor, |
+| `a5_priya_finish` | act5 priya6.mp3 | 1.83 s | All right. Let's finish this. | All right, let's finish this. | 5/5 |
+| `end1_priya` | end1 priya.mp3 | 26.70 s | Your Honour, I am Priya Kapoor, advocate for the residents of Basti Nagar. I have evidence that the land acquisition order of 1965 is a forgery. The original deed from 1942 proves that the land belongs to its residents, in perpetuity. I have the original document here, along with forensic analysis confirming the forgery. | Your Honour, I am Priya Kapur, advocate for the residents of Basti Nagar. I have evidence that the land acquisition order of 1965 is a forgery. The original deed from 1942 proves that the land belongs to its residents in perpetuity. I have the original document here along with forensic analysis, confirming the forgery. | 53/54<br>Kapoor, → Kapur, |
+| `end3_priya_1` | end3 priya1.mp3 | 6.40 s | Once this is out, there's no taking it back. Deshpande will come after us with everything she has. | Once this is out, there's no taking it back. Deshpanda will come after us with everything she has. | 17/18<br>Deshpande → Deshpanda |
+| `end3_priya_2` | end3 priya2.mp3 + end3 priya3.mp3 | 18.28 s | The truth is out. But truth without a courtroom is just noise, until enough people listen. I hope they're listening. I hope they don't stop listening when the cameras move on to the next story. Five hundred families are counting on them. On us. Did we do the right thing? | The truth is out. But truth without a courtroom is just noise, until enough people listen. I hope they're listening. I hope they don't stop listening when the cameras move on to the next story. 500 families are counting on them. On us. Did we do the right thing? | 48/50<br>Five hundred → 500 |
+
+## The judge
+
+1 recorded, 1 still text-to-speech.
+
+| Line | Recording | Length | Subtitle | Heard | Words |
+|---|---|---|---|---|---|
+| `end1_judge` | end1 judge.mp3 | 11.27 s | The Chandnipur Renewal Project is hereby stayed, pending a full investigation into the authenticity of the land records. The residents of Basti Nagar shall not be displaced. | The Chanipur renewal project is hereby stayed, pending a full investigation into the authenticity of the land records. The residents of Basti Nagar shall not be displaced. | 26/27<br>Chandnipur → Chanipur |
+
+## Deshpande's lawyer
+
+1 recorded, 1 still text-to-speech.
+
+| Line | Recording | Length | Subtitle | Heard | Words |
+|---|---|---|---|---|---|
+| `end2_lawyer` | end2 lawyer.mp3 | 18.24 s | Your Honour, these documents were allegedly stolen from a government facility by a fugitive. The chain of custody is broken. The so-called original deed could itself be a forgery. Without the testimony of the person who obtained these documents, this evidence is inadmissible. | Your Honour, these documents were allegedly stolen from a government facility by a fugitive. The chain of custody is broken. The so called original deed could itself be a forgery. Without the testimony of the person who obtained these documents, this evidence is inadmissible. | 42/43<br>so-called → so called |
+
 ## The Curator
 
 65 recorded, 27 still text-to-speech.
@@ -234,7 +283,7 @@ difference in one of those alone is the recogniser, not the recording.
 
 ## Lines of these characters with no recording yet (still text-to-speech)
 
-77 lines. Record them and add them to `MAP` in the tool (the file names are free) to finish the voices.
+91 lines. Record them and add them to `MAP` in the tool (the file names are free) to finish the voices.
 
 
 **Arjun Mehra**
@@ -305,6 +354,32 @@ difference in one of those alone is the recogniser, not the recording.
 
 - `end1_rohan`: I'm Rohan Kapoor. I was an intern at the Municipal Office. These internal emails prove the forgery was known, and approved, at the highest level.
 
+**Inspector Reddy**
+
+- `a4c_reddy_wrong`: That proves nothing, Mr. Mehra. Try harder, or go home.
+- `a4c_reddy_sig`: That's my signature.
+- `a4c_weak1_usb`: Priya's research. It shows what she found. It doesn't put me anywhere near her.
+- `a4c_weak1_clip`: Newspaper cuttings. Half the city has read those. They don't connect me to her.
+- `a4c_weak1_plate`: A number plate. Find out whose car it is before you bring it to me. It isn't mine.
+- `a4c_weak1_bhaskar`: An auto driver saw a black car. That's a rumour, not a link to me.
+- `a4c_weak2_id`: You've made that point. My card tells you who I am, not what you know.
+- `a4c_weak2_signout`: I know what I signed. That isn't the question now.
+- `a4c_weak2_plate`: A car in a lane. It shows someone followed you. It doesn't show you understand what this is.
+- `a4c_weak2_bhaskar`: A driver heard a car. That isn't a case, Mr. Mehra.
+- `end1_reddy`: Inspector Sonal Reddy, Crime Branch. This is the original deed of 1942, taken from the Record Room into Crime Branch custody. And I have a warrant for the arrest of Councilor Meghna Deshpande, for fraud, forgery and criminal conspiracy.
+
+**Priya Kapoor**
+
+- `a5_priya_upstairs`: Order number one fourteen, nineteen sixty five. The stamp is from Wardha district. Wardha. Why would Wardha stamp a Chandnipur order...
+
+**The judge**
+
+- `end2_judge`: This court cannot rule without proper standing. But it orders a full investigation into the land records, and stays the eviction until that investigation is complete.
+
+**Deshpande's lawyer**
+
+- `end1_lawyer`: Your Honour, the Renewal Project is a vision for a modern Chandnipur. The acquisition order of 1965 is entirely in order.
+
 **The Curator**
 
 - `gal_1`: Ah. There you are. I was beginning to wonder if you'd lost your way in all those narrow lanes, and narrower consciences.
@@ -335,4 +410,4 @@ difference in one of those alone is the recogniser, not the recording.
 - `end2_curator`: You saved the girl. Congratulations. Was she worth five hundred families? I'm not judging. Actually, I am. That's rather my job.
 - `end3_curator`: I have many stories of revolution in my collection. They all end the same way. The people cheering, and the hero weeping. The crowd goes home. The hero stays in the fire.
 
-Every line of the other speakers (Deshpande's lawyer, Deshpande's men, Inspector Reddy, Priya Kapoor, Priya's letter, Sharma-ji, a shopper, the judge, the market's hawkers, the recording in Act III, the reporter, the shelter's resident, the television news) is still text-to-speech.
+Every line of the other speakers (Deshpande's men, Priya's letter, Sharma-ji, a shopper, the market's hawkers, the recording in Act III, the reporter, the shelter's resident, the television news) is still text-to-speech.

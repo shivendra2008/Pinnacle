@@ -1,0 +1,28 @@
+# a5_priya_finish  1.826 s  words heard on-device (Tools/lipsync/npc_lipsync.py)
+# V start end viseme weight stress phoneme | A time strength | P start end | W start end word
+W 0.000 0.240 All
+W 0.240 0.660 right,
+W 0.660 0.960 let's
+W 0.960 1.080 finish
+W 1.080 1.680 this.
+V 0.000 0.157 O 1.00 1 AO1
+V 0.157 0.240 nn 1.00 -1 L
+V 0.240 0.323 RR 1.00 -1 R
+V 0.323 0.444 aa 1.00 1 AY1
+V 0.444 0.543 I 1.00 1 AY1
+V 0.543 0.660 DD 1.00 -1 T
+V 0.660 0.710 nn 1.00 -1 L
+V 0.710 0.803 E 1.00 1 EH1
+V 0.803 0.859 DD 1.00 -1 T
+V 0.859 0.920 SS 1.00 -1 S
+V 0.920 0.942 FF 1.00 -1 F
+V 0.942 1.007 I 1.00 1 IH1
+V 1.007 1.023 nn 1.00 -1 N
+V 1.023 1.047 I 1.00 1 IH1
+V 1.047 1.080 CH 1.00 -1 SH
+V 1.080 1.170 TH 1.00 -1 DH
+V 1.170 1.387 I 1.00 1 IH1
+V 1.387 1.680 SS 1.00 -1 S
+A 0.000 0.87
+A 0.323 0.23
+A 0.710 0.28

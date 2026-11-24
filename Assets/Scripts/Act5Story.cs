@@ -402,6 +402,8 @@ public partial class Act5Story : ActStoryBase
         // Arjun's answer to Priya's question, in his recorded voice, over the white as the Gallery lets go
         skipAll = false;
         yield return Narrate(chosen == 0 ? "a5_arjun_justice" : chosen == 1 ? "a5_arjun_sacrifice" : "a5_arjun_revolution");
+        // she takes him up on the courtroom (her recorded answer; the other two choices she answers in their endings)
+        if (chosen == 0) yield return Narrate("a5_priya_finish");
         // the ending is recorded when its credits roll (RollCredits), so quitting half-way through it does not count it
 
         inGallery = false;

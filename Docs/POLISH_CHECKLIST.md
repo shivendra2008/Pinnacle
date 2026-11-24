@@ -115,6 +115,17 @@ Docs: audit and production list `POLISH_AUDIT.md` · story `STORY_BIBLE.md` · s
 - [ ] The Curator's 27 unrecorded lines (the gallery, the Act V "other side" scene, the six reactions) stay text-to-speech; the recordings are dry, without the room echo his text-to-speech had
 - [ ] Existing route failures seen in the build before this work too: the café owner's hand leaves his cup (30-32 cm), Raj in cover ("holds still" check)
 
+## 24 Nov 2026: Reddy, Priya, the judge and the lawyer (`Docs/VOICE_CHECK.md`)
+- [x] 23 takes (Reddy 11 in `Voice Overs/reddy/`, Priya 10 in `Voice Overs/priya/`, the judge and Deshpande's lawyer one each) voice 21 lines: Priya's last Act V line and her last line on the roof are two takes joined; every line matches its subtitle word for word apart from names and digits (measured)
+- [x] Subtitles follow the recorded words; three passages are cut where a take contradicts the game: Reddy's "Where did you get that USB? Never mind." (it follows either winning piece, and neither is a USB stick), "She's braver than all of us" (written for an older line of Arjun's; she now answers "I have evidence you don't" with "All right, Mr. Mehra. Cards on the table."), and Priya's "The hearing is in four hours" (it is 4 AM and the hearing is at ten). Each cut sits in the quiet between words, 55-65 dB below speech (measured)
+- [x] Reddy's reveal now ends on Deshpande sending everyone she has before 10 a.m.; "I need Priya to testify in person" is no longer said (the lawyer's "Without the testimony of the person who obtained these documents" in the Sacrifice ending still carries it). Priya's "I have the originals" is the forged 1965 file, as the story bible has it
+- [x] Priya's spare take "All right, let's finish this." is a new line (`a5_priya_finish`), played over the white after Arjun's Justice answer only (code)
+- [x] Lip-sync re-made from the recordings for the 21 lines (measured)
+- [x] Played in a new player build (`Builds/voice-overs/Pinnacle Voices 2.app`, with the committed packages, Unity AI Assistant and AI Inference included: the first build with them), in real time: routes reddy 30/30, act5 Justice 34/34, Sacrifice 21/21, Revolution 25/25. 19 of the 21 lines played, each at its recording's length (`voices.txt`); Priya's new line played after the Justice answer and not in the other two endings (measured; `Recordings/voices2/`)
+- [ ] Not reached by a route, checked in the files only: Reddy's answers to "Show my hand" and "Priya first" (`a4c_reddy_a`, `a4c_reddy_c`)
+- [ ] Still text-to-speech, so the voice changes mid-scene: Reddy's "That's my signature", "That proves nothing", her eight weak-piece answers and her court line; Priya's reading on the stairs; the judge in the Sacrifice ending; the lawyer in the Justice ending (list in `Docs/VOICE_CHECK.md`)
+- [ ] Listen in the game: the three cuts, the two joins, and Priya's new line over the white
+
 ## Next
 - [ ] Justice gate: case conditions instead of `EvidenceCount >= 18`, shown on the casket card
 - [ ] Deduction step: link evidence to questions (fact vs. interpretation), one fair contradiction per act
