@@ -109,7 +109,7 @@ public static class GameKit
 
     static Font hindi;
     static bool hindiTried;
-    /// <summary>A macOS font that can draw Devanagari (null if none is installed).</summary>
+    /// <summary>A font on this computer that can draw Devanagari (null if none is installed): Mac names, then Windows'.</summary>
     public static Font HindiFont()
     {
         if (!hindiTried)
@@ -117,7 +117,7 @@ public static class GameKit
             hindiTried = true;
             try
             {
-                var f = Font.CreateDynamicFontFromOSFont(new[] { "Kohinoor Devanagari", "Devanagari Sangam MN", "Noto Sans Devanagari", "ITF Devanagari", "Mangal" }, 64);
+                var f = Font.CreateDynamicFontFromOSFont(new[] { "Kohinoor Devanagari", "Devanagari Sangam MN", "Noto Sans Devanagari", "ITF Devanagari", "Nirmala UI", "Mangal" }, 64);
                 if (f != null && f.HasCharacter('\u091a')) hindi = f;
             }
             catch { }
